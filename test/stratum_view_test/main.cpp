@@ -46,13 +46,15 @@ namespace
         .arrangement = stratum_format::RegionExtent::Arrangement::Ranges, .boxes = {{math::Interval<stratum_sim::coord_type>(0, 0),
         math::Interval<stratum_sim::coord_type>(0, 0), math::Interval<stratum_sim::coord_type>(0, 0)}}, .positions = {}}};
 
+    constexpr stratum_sim::seed_type view_worldspace_seed = 1;
+
     //--------------------------------------------------------------------------
     // A world with the game's entity types, as Game's has, and a worldspace's region for the test cases' zones
     struct TestWorld : stratum_sim::World
     {
         explicit TestWorld(stratum_sim::IdAllocator& id_allocator) :
             World(id_allocator, g_test_generation, test_zone_count_max, stratum_sim::Config().pattern_limits),
-            region_id(worldspace(create_worldspace("view", {{.region_spec = view_region_spec}})).regions.root().region_id)
+            region_id(worldspace(create_worldspace("view", {{.region_spec = view_region_spec}}, view_worldspace_seed)).regions.root().region_id)
         {
             stratum_sim::register_game_types(*this);
         }

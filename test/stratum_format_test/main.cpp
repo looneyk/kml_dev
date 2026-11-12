@@ -1222,10 +1222,10 @@ namespace
 
         stratum_format::WorldDocument world;
         world.name_counter = 2;
-        world.worldspaces = {{1, "surface", {surface}}, {7, "barrow", {dungeon, crypt}}};
+        world.worldspaces = {{1, "surface", 11, {surface}}, {7, "barrow", 18446744073709551615u, {dungeon, crypt}}};
         world.entity_zones = {{10, 5}, {12, 3}};
 
-        report_written("a world file has its name counter, then opens each worldspace with its id and name, then a line per region, which "
+        report_written("a world file has its name counter, then opens each worldspace with its id, name and seed, then a line per region, which "
             "opens with its id, parent, name, display name, name counter and components, then its spec, then a line per zone, and has a line per "
             "entry of the world index",
             written(world),
@@ -1235,7 +1235,7 @@ namespace
             "  \"world\": {\n"
             "    \"name_counter\": 2,\n"
             "    \"worldspaces\": [\n"
-            "      { \"id\": 1, \"name\": \"surface\",\n"
+            "      { \"id\": 1, \"name\": \"surface\", \"seed\": \"11\",\n"
             "        \"regions\": [\n"
             "          { \"id\": 2, \"name\": \"surface\", \"name_counter\": 0, \"components\": { \"type\": \"surface\" },\n"
             "            \"spec\": { \"zone_size\": [40, 30], \"type\": \"surface\" },\n"
@@ -1243,7 +1243,7 @@ namespace
             "              { \"id\": 5, \"name\": \"surface_0_0\", \"file\": \"zones/5.zone\", \"position\": [0, 0, 0] }\n"
             "            ] }\n"
             "        ] },\n"
-            "      { \"id\": 7, \"name\": \"barrow\",\n"
+            "      { \"id\": 7, \"name\": \"barrow\", \"seed\": \"18446744073709551615\",\n"
             "        \"regions\": [\n"
             "          { \"id\": 4, \"name\": \"barrow\", \"name_counter\": 1,\n"
             "            \"spec\": { \"type\": \"dungeon\" },\n"
@@ -1385,6 +1385,8 @@ namespace
             "{ \"id\": 4, \"parent\": 2, "), "a top-level region with a parent"));
         CHECK_CASE("and one with a subregion whose parent is not an earlier region of its worldspace", rejected(read_world,
             changed(world_text, "\"parent\": 4", "\"parent\": 2"), "a subregion whose parent is not an earlier region of the worldspace"));
+        CHECK_CASE("and one whose worldspace's seed is not a seed", rejected(read_world, changed(world_text, "\"seed\": \"11\"", "\"seed\": \"-11\""),
+            "a seed was expected"));
 
         return;
     }
@@ -1691,7 +1693,7 @@ namespace
         CHECK_CASE("a region spec file reads each region spec by its name, its store as text", document.region_specs.size() == 3
             && surface.store.value("zone.name") == "&region_name .. '_' .. x .. '_' .. y" && surface.store.size() == 1);
         CHECK_CASE("and its members with a type of their own", surface.seed == 42u && surface.extent.has_value()
-            && surface.extent->boxes.size() == 1 && range_is(surface.extent->boxes[0].x, 0, 9) && range_is(surface.extent->boxes[0].z, 0, 0)
+            && surface.extent->boxes.size() == 1 && range_is(surface.extent->boxes[0].x_extent, 0, 9) && range_is(surface.extent->boxes[0].z_extent, 0, 0)
             && surface.zone_size == stratum_format::discrete_vector_type(64, 32) && islands.parent == "surface"
             && islands.extent.has_value() && islands.extent->arrangement == stratum_format::RegionExtent::Arrangement::Positions
             && islands.extent->positions.size() == 2 && islands.extent->positions[1] == stratum_format::zone_position_type {4, 4, 0});

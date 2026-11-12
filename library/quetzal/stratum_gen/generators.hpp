@@ -20,7 +20,7 @@ namespace quetzal::stratum_gen
 {
 
     using zone_position_type = stratum_format::zone_position_type;
-    using seed_type = math::portable_random_engine_type::result_type;
+    using seed_type = math::Random<math::portable_random_engine_type>::seed_type;
 
     //--------------------------------------------------------------------------
     struct ZoneRequest

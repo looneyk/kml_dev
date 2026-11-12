@@ -54,12 +54,6 @@ quetzal::catagen::Algorithm quetzal::catagen::to_algorithm(std::string_view s)
 }
 
 //------------------------------------------------------------------------------
-quetzal::catagen::Parameters::seed_type quetzal::catagen::random_seed()
-{
-    return math::random_seed();
-}
-
-//------------------------------------------------------------------------------
 bool quetzal::catagen::set_parameter(Parameters& parameters, const std::string& key, const std::string& text)
 {
     if (key == "algorithm")

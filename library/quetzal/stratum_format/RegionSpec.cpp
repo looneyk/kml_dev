@@ -8,7 +8,6 @@
 #include "json_util.hpp"
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <format>
 #include <string_view>
 #include <utility>
@@ -27,22 +26,6 @@ namespace
     constexpr std::string_view seed_key = "seed";
     constexpr std::string_view extent_key = "extent";
     constexpr std::string_view zone_size_key = "zone_size";
-
-    //--------------------------------------------------------------------------
-    // A seed is written as text, since it spans a range wider than a JSON number represents exactly
-    RegionSpec::seed_type read_seed(const raw_values_type& v, const std::string& path)
-    {
-        const std::string text = string_value(v, path);
-        const char* end = text.data() + text.size();
-
-        RegionSpec::seed_type seed = 0;
-        if (auto [last, ec] = std::from_chars(text.data(), end, seed); ec != std::errc() || last != end)
-        {
-            fail(path, "a seed was expected");
-        }
-
-        return seed;
-    }
 
     //--------------------------------------------------------------------------
     void add_text_member(std::vector<std::string>& members, std::string_view key, const std::optional<std::string>& value)
@@ -81,7 +64,7 @@ quetzal::stratum_format::RegionSpec quetzal::stratum_format::detail::read_region
         }
         else if (key == seed_key)
         {
-            region_spec.seed = read_seed(value, value_path);
+            region_spec.seed = seed_value(value, value_path);
         }
         else if (key == extent_key)
         {

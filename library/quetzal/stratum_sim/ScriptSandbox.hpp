@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "ScriptLimits.hpp"
+#include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/math/Random.hpp"
 #include <cstddef>
@@ -32,7 +33,7 @@ namespace quetzal::stratum_sim
         // integer is an integer, one whose text is another number is a float, and any other is a string. The code's draws
         // come from the random engine, and the order in which pairs visits string keys from the world seed
         // Throws std::runtime_error if a global is an entry of another global that is not a table
-        ScriptSandbox(const KeyValueStore& globals, random_type random, std::uint64_t world_seed, const ScriptLimits& script_limits);
+        ScriptSandbox(const KeyValueStore& globals, random_type random, seed_type world_seed, const ScriptLimits& script_limits);
         ScriptSandbox(const ScriptSandbox&) = delete;
         ScriptSandbox(ScriptSandbox&&) = delete;
         ~ScriptSandbox();

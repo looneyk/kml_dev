@@ -53,8 +53,8 @@ namespace quetzal::stratum_sim
         void clear();
 
         // The seed region and zone seeds derive from
-        RandomStream::seed_type world_seed() const;
-        void set_world_seed(RandomStream::seed_type seed);
+        seed_type world_seed() const;
+        void set_world_seed(seed_type seed);
 
         // Creates a new game's starting worldspace from the world definition's starting region
         // Returns the starting zone
@@ -90,10 +90,12 @@ namespace quetzal::stratum_sim
 
         // Creates a worldspace from the region spec tree with the extent from its root spec, an empty zone at each
         // position of its extent, in worldspace position order, a region for each region spec, and each zone's zone spec
+        // A random engine seeded from the seed draws each zone's seed in worldspace position order, and then each region
+        // spec's seed in tree order
         // Throws std::runtime_error, creating nothing, if the worldspace keys are not valid, a spec is based on a region spec
         // that is not registered, a pattern fails, a subregion spec has no extent, or a subregion's extent reaches outside the
         // worldspace, is outside its parent's extent, or overlaps a sibling's
-        PersistentId create_worldspace(std::string_view name, const WorldDefinition::region_spec_tree_type& tree);
+        PersistentId create_worldspace(std::string_view name, const WorldDefinition::region_spec_tree_type& tree, seed_type seed);
 
         // Unloads the worldspace's zones, discarding them without saving, and removes the worldspace and its regions
         void unload_worldspace(PersistentId worldspace_id);
@@ -222,7 +224,7 @@ namespace quetzal::stratum_sim
 
         // Create an empty zone with only a position, seed, and a placeholder name
         // Throws std::runtime_error if the position is outside the worldspace's extent or is another zone's position in it
-        flecs::entity create_zone(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter);
+        flecs::entity create_zone(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter, seed_type seed);
 
         // Create a region tree from the region spec tree
         // Throws std::runtime_error if a subregion spec has no extent, or a subregion's extent reaches outside the worldspace,
@@ -251,9 +253,13 @@ namespace quetzal::stratum_sim
         // Throws std::runtime_error if the target is not unbound with a region
         std::string target_worldspace_name(flecs::entity access_point) const;
 
-        // Returns the id of the worldspace of that name, created from the registered region spec if the world has none
+        // Returns the id of the worldspace of that name, created from the registered region spec and the seed if the world has none
         // Throws std::runtime_error if it is created and the region spec is not registered
-        PersistentId target_worldspace(std::string_view name, std::string_view region_spec_name);
+        PersistentId target_worldspace(std::string_view name, std::string_view region_spec_name, seed_type seed);
+
+        // Temporary, until a zone's seed pool is drawn: returns the seed of a worldspace created for the access point,
+        // derived from the world seed and the access point's persistent id
+        seed_type target_seed(flecs::entity access_point) const;
 
         // Returns the Document that the game's zone generator creates for the resolved spec, unpopulated, and passes on what
         // the zone generator throws
@@ -262,15 +268,12 @@ namespace quetzal::stratum_sim
         // The file of a saved zone in the game directory
         std::filesystem::path saved_zone_path(PersistentId zone_id) const;
 
-        Worldspace& create_worldspace(std::string_view name, const RegionSpec& region_spec, PersistentId worldspace_id, PersistentId region_id);
+        Worldspace& create_worldspace(std::string_view name, seed_type seed, const RegionSpec& region_spec, PersistentId worldspace_id,
+            PersistentId region_id);
 
         // Returns the worldspace whose region tree has the region. Requires a region with that id in one of the worldspaces
         Worldspace& region_worldspace(PersistentId region_id);
         const Worldspace& region_worldspace(PersistentId region_id) const;
-
-        // The position of a new region's seed. A placeholder until seeds are drawn hierarchically: x is one past the largest x
-        // of the world's region specs, or 0 if it has none, and y is 0
-        RegionPosition new_region_position() const;
 
         // The position of a new zone in the worldspace, at the given level. A placeholder until the world's layout is designed:
         // x and y are 0, and z is the level
@@ -310,7 +313,7 @@ namespace quetzal::stratum_sim
         ZoneEntryIndex m_zone_entry_index;
         ScriptLimits m_script_limits;
         std::optional<std::filesystem::path> m_game_directory;
-        RandomStream::seed_type m_world_seed;
+        seed_type m_world_seed;
         std::size_t m_worldspace_name_counter; // The last suffix given to a worldspace's name that was taken
         worldspaces_type m_worldspaces;
 

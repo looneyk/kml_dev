@@ -261,25 +261,20 @@ and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, 
 contain the spec's keys. A `RegionSpec` also has members with a type of their own, each optional: `name`,
 `display_name`, `parent`, `region_spec`, `seed`, `extent`, and a top-level spec's `zone_size`. It is
 `stratum_format::RegionSpec`, which `stratum_sim` uses as it is read. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
-`position_z_key`, are the zone's position in its worldspace, and a `RegionSpec`'s `position.x` and `position.y` the
-position the region's seed derives from.
+`position_z_key`, are the zone's position in its worldspace.
 
 A top-level `RegionSpec`'s `extent` and `zone_size` define its worldspace's coordinate system. An extent is a `stratum_format::RegionExtent` (`RegionExtent.hpp`): its `arrangement`, `Ranges` or `Positions`, and its
 `boxes` or its `positions`. A box has an inclusive `math::Interval` on each axis, and an absent axis spans the parent's
 whole range. A worldspace's extent is `Ranges` with a single box with every axis, and a worldspace with no zone size is
 not a grid.
 
-`region_position(region_spec)` and `ZoneSpec::position()` return a spec's position, each coordinate it does not have 0,
-and throw `std::runtime_error` for one that is not an integer; `set_region_position` and `ZoneSpec::set_position` write
-one. `RegionPosition` and its two functions are deprecated. The zone file, the generators' parameters and
+`ZoneSpec::position()` returns a spec's position, each coordinate it does not have 0, and throws `std::runtime_error`
+for one that is not an integer; `ZoneSpec::set_position` writes one. The zone file, the generators' parameters and
 `ZoneRequest` state a position.
 
-`seeds.hpp` derives region and zone seeds. `derived_seed(seed, coordinates)` returns a 64-bit seed that
-`std::seed_seq` generates from the seed's low and high 32-bit words followed by each coordinate, so a derived seed is the
-same on every platform. `region_seed(world_seed, region_spec)` returns the spec's `seed` if it has one, and otherwise
-the seed derived from the world seed and the region's x and y. `zone_seed(region_seed, zone_spec)` returns the spec's
-`seed` if it has one, and otherwise the seed derived from the region's seed and the zone's x, y and z. Both throw
-`std::runtime_error` for a seed or a coordinate that is not an integer.
+A random engine's `seed()` returns a seed drawn uniformly from every value of its `seed_type`. `derived_seed(seed,
+values)`, in `seeds.hpp`, returns a 64-bit seed that `std::seed_seq` generates from the low and high 32-bit
+words of the seed and then of each value, so a derived seed is the same on every platform.
 
 `specs.hpp` has two functions over a spec. `find_unknown_keys(spec, known_keys)` returns the spec's keys that are not
 among the known keys, in key order, so a consumer reports a key it does not read. `select_prefixed(spec, prefix)` returns
@@ -299,11 +294,11 @@ id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns 
 game, owned by `Game`, and it cannot be copied or moved.
 
 A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`).
-`Worldspace` (`Worldspace.hpp`) is a value, not an entity: its `worldspace_id`, a `PersistentId`, its name, its `extent`,
+`Worldspace` (`Worldspace.hpp`) is a value, not an entity: its `worldspace_id`, a `PersistentId`, its name, its `seed`, its `extent`,
 an `extent_type`, a half-open `geometry::DiscreteBox<coord_type, 3>`, its `zone_size` if it is a grid, `zone_ids`, the
 persistent id of each zone that has a position, by its position, loaded or not, and `regions`, its `RegionTree`.
-`contains(position)` returns true if the extent contains a zone position. `Worldspace::create(worldspace_id, name,
-region_spec, root_region)` returns a worldspace with the region spec's worldspace extent and zone size, each
+`contains(position)` returns true if the extent contains a zone position. `Worldspace::create(worldspace_id, name, seed,
+region_spec, root_region)` returns a worldspace with the seed, the region spec's worldspace extent and zone size, each
 inclusive range converted to the box's half-open range, the top-level region, and no zones. It throws
 `std::runtime_error` for a spec with no worldspace extent, or one that is not `Ranges` with a single box with a range on
 every axis. `World` has its worldspaces in a vector,
@@ -332,17 +327,16 @@ is in, which `worldspace_of(zone)` and `region_of(zone)` return.
 
 A name has a numeric suffix only if it is taken (`zone_plan.md`, `## Implementation`): `untaken_name(name, counter,
 taken)` returns the name, or else `<name>_<counter>` for the first counter after the given one whose name is not taken,
-and keeps that counter. `create_worldspace(name, tree)` makes a worldspace from a region spec tree, in four passes:
+and keeps that counter. `create_worldspace(name, tree, seed)` makes a worldspace from a region spec tree and a seed, in
+four passes, with a random engine seeded from the seed:
 
-1. The worldspace, with the name, suffixed from the world's counter if another worldspace has it, and the coordinate
-   system of the root spec composed with its template by `composed_region_spec`, and its top-level region with the same
-   name. `new_region_position()` is written into the root spec if it has neither position key, so the seed's position is
-   saved with the spec in `world.json`.
+1. The worldspace, with the name, suffixed from the world's counter if another worldspace has it, the seed, and the
+   coordinate system of the root spec composed with its template by `composed_region_spec`, and its top-level region
+   with the same name.
 2. An empty zone in the top-level region at each position of the worldspace's extent, in worldspace position order:
-   `z`, then `y`, then `x`, each from lowest to highest. Its spec has only its position and its seed,
-   `zone_seed(region_seed(world_seed, root_spec), zone_spec)`, and its name is the placeholder
-   `<region name>_<zone counter>`.
-3. The tree resolved by `resolve_region_spec_tree`, the top-level region given the root's resolved spec and display
+   `z`, then `y`, then `x`, each from lowest to highest. Its spec has only its position and a seed that the random
+   engine draws, and its name is the placeholder `<region name>_<zone counter>`.
+3. The tree resolved by `resolve_region_spec_tree` with the same random engine, the top-level region given the root's resolved spec and display
    name, and a subregion for each spec below the root, with its spec's name, display name and resolved spec. Each
    subregion sets the region of the zone at each position of its extent, an absent axis of a box spanning its parent's
    bounding box on that axis. A subregion is created after its parent, so each zone ends in the most specific region
@@ -352,9 +346,7 @@ and keeps that counter. `create_worldspace(name, tree)` makes a worldspace from 
 
 It returns the worldspace's id. It throws `std::runtime_error`, after unloading what it created, for a subregion spec
 with no extent, or a subregion whose extent's bounding box reaches outside the worldspace's extent, or that claims a zone
-that is not in its parent region, which is outside its parent's extent or in a sibling's. `new_region_position()` is a placeholder
-until seeds are drawn hierarchically, and returns the x one past the largest of the world's region specs, or 0 with
-none, and y 0.
+that is not in its parent region, which is outside its parent's extent or in a sibling's.
 
 A zone's spec is the one that `resolved_zone_spec(region_id, empty_zone_spec, zone_counter)` returns: the region spec's
 `zone.` keys, with the empty zone's position, and its seed unless the `zone.` keys have one, its patterns resolved. The
@@ -409,7 +401,10 @@ that layout and nothing else, and asserts that it is given a layout. Each zone i
 discards a zone, its contents and its layout.
 
 `World` takes the game's `Generation` by reference in its constructor (`### Generation`). `world_seed()` and
-`set_world_seed(seed)` access the world seed, which is 0 until it is set, and an empty zone's seed is derived from it.
+`set_world_seed(seed)` access the world seed, which is 0 until it is set. `World::create` seeds a random engine from it,
+whose first draw is the starting worldspace's seed. A worldspace created for an access point's target, by
+`resolve_target` or `create_target_worldspaces`, has the seed that `target_seed(access_point)` derives from the world
+seed and the access point's persistent id, a placeholder until a zone draws a seed pool.
 
 `load_zone_at(worldspace_id, position)` returns the zone at the position in the worldspace, reading it back with
 `load_saved_zone` if it has unloaded. If the zone is empty, it fills it from the `Document` that `generate_zone(zone_spec)`
@@ -500,11 +495,11 @@ requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_worldspace`, which discard what they unload, as clearing a
 game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
 `world.json` into the game directory: the worldspace name counter; each worldspace in persistent id order, with its id,
-its name and its regions in the order of `regions()`, each with its id, its parent's id if it is a subregion, its name,
+its name, its seed and its regions in the order of `regions()`, each with its id, its parent's id if it is a subregion, its name,
 its display name if it has one, its name counter, its region spec, and a reference to each zone its `zone_ids` lists,
 whose file is `zones/<persistent id>.zone`, with the zone's name and position if it has them, whether or not the zone
 is loaded; and the world index. `open(game_directory)`, on a cleared world, reads `world.json` back: the worldspace name
-counter; each worldspace, made with its persistent id, its name and its top-level region, each later region added as a
+counter; each worldspace, made with its persistent id, its name, its seed and its top-level region, each later region added as a
 subregion of its parent, each region with its persistent id, its name, its display name, its name counter, its region
 spec and its zone ids, the worldspace listing each zone that has a position and the region each zone that has a name;
 and the world index. It loads no zone; each loads when it is entered.
@@ -1236,11 +1231,11 @@ slot, and each `RegionSpecNode` has its `RegionSpec`, its parent's id, `nullid` 
 It throws `std::runtime_error` for a tree without exactly one root spec, a spec with no `name`, a `parent` that is not
 the name of exactly one spec of the tree, two specs with the same parent and name, a spec that is not below the root, a
 root spec with the name of another tree's root, or a starting region that is not a tree's root.
-`resolve_region_spec_tree(tree, region_specs, world_seed, script_limits)` returns the tree with each spec resolved and
+`resolve_region_spec_tree(tree, region_specs, random, world_seed, script_limits)` returns the tree with each spec resolved and
 composed, parents first. `composed_region_spec(region_spec, region_specs)`, in `RegionSpec.hpp`, layers a spec's members
 and keys over those of the registered spec its `region_spec` refers to, without `region_spec` and `parent`, and
-`resolve_region_spec` resolves the result with a resolver seeded by
-`region_seed`, whose symbols for a subregion are the parent's `name`, `display_name`, and store entries other than the
+`resolve_region_spec` resolves the result with a resolver seeded by the spec's `seed`, or else by the seed that the
+random engine draws for it, one for each spec in tree order. The resolver's symbols for a subregion are the parent's `name`, `display_name`, and store entries other than the
 `zone.` keys, each under `parent.`. A subregion's resolved store is then layered over its parent's resolved store, less
 the keys whose patterns resolved to nil, since a subregion does not inherit the typed members. A parent's values are
 resolved once, so an inherited literal that starts with `&` stays literal. The game's file is

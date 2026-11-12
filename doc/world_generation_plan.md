@@ -33,9 +33,6 @@ that zones are made from. Saving and opening a game are in
 // (world_structure_plan.md, ## Design)
 struct RegionSpec
 {
-    RegionPosition position() const;
-    void set_position(const RegionPosition& position);
-
     KeyValueStore keys;
 };
 // A key with no prefix is the region's: its naming patterns, and its metadata: name, display_name, type (surface, dungeon, crypt, ...), competency level, difficulty, ...

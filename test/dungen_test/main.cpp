@@ -332,9 +332,6 @@ namespace
         CHECK_CASE("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
         CHECK_CASE("and the name does not affect the grid", named.cells.value().rows == unnamed.cells.value().rows);
 
-        CHECK_CASE("a random seed is not the same one every time",
-            dungen::random_seed() != dungen::random_seed());
-
         return;
     }
 

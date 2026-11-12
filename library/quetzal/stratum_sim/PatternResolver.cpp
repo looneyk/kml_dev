@@ -14,7 +14,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::PatternResolver::PatternResolver(const KeyValueStore& symbols, random_type random, std::uint64_t world_seed, const ScriptLimits& limits) :
+quetzal::stratum_sim::PatternResolver::PatternResolver(const KeyValueStore& symbols, random_type random, seed_type world_seed, const ScriptLimits& limits) :
     m_sandbox(symbols, std::move(random), world_seed, limits)
 {
 }

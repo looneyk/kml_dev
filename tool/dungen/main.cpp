@@ -8,6 +8,7 @@
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/log/StreamLogSink.hpp"
+#include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include <exception>
 #include <format>
@@ -97,7 +98,7 @@ int main(int argc, char* argv[])
         // A random seed when none is given, written to the header so the zone can be reproduced
         if (!parameters.seed)
         {
-            parameters.seed = dungen::random_seed();
+            parameters.seed = math::random_seed();
         }
 
         dungen::Zone zone = dungen::generate(0, name, parameters);

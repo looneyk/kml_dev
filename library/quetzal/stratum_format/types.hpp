@@ -10,6 +10,7 @@
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/math/CartesianTraits.hpp"
 #include "quetzal/math/DiscreteVector.hpp"
+#include "quetzal/math/Random.hpp"
 
 // nlohmann/json 3.12.0's binary_reader has code after an if constexpr that returns, which MSVC reports as C4702 whatever
 // the external warning level, since the warning comes from code generation
@@ -47,6 +48,8 @@ namespace quetzal::stratum_format
 
     // An entity id in a zone file: a local id in a zone template, a persistent id in a saved zone
     using stored_entity_id_type = std::uint64_t;
+
+    using seed_type = math::Random<math::portable_random_engine_type>::seed_type;
 
     // Values the format does not interpret, passed back to the caller as written and in their original order
     using raw_values_type = nlohmann::ordered_json;

@@ -301,6 +301,11 @@ namespace
 
         CHECK_CASE("random_seed draws from the platform's entropy source", math::random_seed() != math::random_seed());
 
+        random_type seeding(7);
+        random_type full_range(7);
+        CHECK_CASE("seed draws a seed from the whole range of seed_type",
+            seeding.seed() == full_range.random_closed(numeric_limits<random_type::seed_type>::max()));
+
         random_type saved(7);
         saved.random(100);
         const string state = saved.state();

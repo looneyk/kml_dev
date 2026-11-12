@@ -8,7 +8,6 @@
 #include "RegionExtent.hpp"
 #include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
-#include "quetzal/math/Random.hpp"
 #include <optional>
 #include <string>
 
@@ -20,8 +19,6 @@ namespace quetzal::stratum_format
     // subregions inherit store values
     struct RegionSpec // type, terrain, competency level ...
     {
-        using seed_type = math::portable_random_engine_type::result_type;
-
         std::optional<std::string> name;
         std::optional<std::string> display_name;
         std::optional<std::string> parent;

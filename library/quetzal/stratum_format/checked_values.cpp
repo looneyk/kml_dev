@@ -5,6 +5,7 @@
 
 #include "checked_values.hpp"
 #include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <istream>
 #include <limits>
@@ -181,6 +182,21 @@ quetzal::stratum_format::stored_entity_id_type quetzal::stratum_format::detail::
     }
 
     return v.get<stored_entity_id_type>();
+}
+
+//------------------------------------------------------------------------------
+quetzal::stratum_format::seed_type quetzal::stratum_format::detail::seed_value(const raw_values_type& v, const std::string& path)
+{
+    const std::string text = string_value(v, path);
+    const char* end = text.data() + text.size();
+
+    seed_type seed = 0;
+    if (auto [last, ec] = std::from_chars(text.data(), end, seed); ec != std::errc() || last != end)
+    {
+        fail(path, "a seed was expected");
+    }
+
+    return seed;
 }
 
 //------------------------------------------------------------------------------

@@ -36,8 +36,11 @@ namespace quetzal::math
 
     public:
 
+        // The seed of every random engine, independent of the type of its results
+        using seed_type = std::uint64_t;
+
         Random();
-        explicit Random(E::result_type seed);
+        explicit Random(seed_type seed);
         Random(const Random&) = delete;
         Random(Random&&) = default;
         ~Random() = default;
@@ -45,7 +48,10 @@ namespace quetzal::math
         Random& operator=(const Random&) = delete;
         Random& operator=(Random&&) = default;
 
-        void seed(E::result_type value);
+        void seed(seed_type value);
+
+        // Returns a seed drawn uniformly from every value of seed_type
+        seed_type seed();
 
         // Uniform distributions
         double random(); // [0, 1)
@@ -110,12 +116,12 @@ namespace quetzal::math
 
     //--------------------------------------------------------------------------
     template<typename E = portable_random_engine_type>
-    E::result_type to_seed(const std::string& s);
+    Random<E>::seed_type to_seed(const std::string& s);
 
     //--------------------------------------------------------------------------
     // A seed drawn from the platform's entropy source
     template<typename E = portable_random_engine_type>
-    E::result_type random_seed();
+    Random<E>::seed_type random_seed();
 
     namespace detail
     {
@@ -136,17 +142,24 @@ quetzal::math::Random<E>::Random() :
 
 //------------------------------------------------------------------------------
 template<typename E>
-quetzal::math::Random<E>::Random(E::result_type seed) :
+quetzal::math::Random<E>::Random(seed_type seed) :
     m_engine(seed)
 {
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
-void quetzal::math::Random<E>::seed(E::result_type value)
+void quetzal::math::Random<E>::seed(seed_type value)
 {
     m_engine.seed(value);
     return;
+}
+
+//------------------------------------------------------------------------------
+template<typename E>
+quetzal::math::Random<E>::seed_type quetzal::math::Random<E>::seed()
+{
+    return random_closed(std::numeric_limits<seed_type>::max());
 }
 
 //------------------------------------------------------------------------------
@@ -388,8 +401,10 @@ T quetzal::math::Random<E>::unit_closed()
 
 //------------------------------------------------------------------------------
 template<typename E>
-E::result_type quetzal::math::to_seed(const std::string& s)
+quetzal::math::Random<E>::seed_type quetzal::math::to_seed(const std::string& s)
 {
+    using seed_type = Random<E>::seed_type;
+
     unsigned long long value = 0;
     auto result = std::from_chars(s.data(), s.data() + s.size(), value);
 
@@ -403,27 +418,29 @@ E::result_type quetzal::math::to_seed(const std::string& s)
         throw std::invalid_argument(std::format("\"{}\" is not a whole number", s));
     }
 
-    if (value > std::numeric_limits<typename E::result_type>::max())
+    if (value > std::numeric_limits<seed_type>::max())
     {
         throw std::invalid_argument(std::format("\"{}\" is larger than a seed can be", s));
     }
 
-    return static_cast<typename E::result_type>(value);
+    return static_cast<seed_type>(value);
 }
 
 //------------------------------------------------------------------------------
 template<typename E>
-E::result_type quetzal::math::random_seed()
+quetzal::math::Random<E>::seed_type quetzal::math::random_seed()
 {
+    using seed_type = Random<E>::seed_type;
+
     std::random_device device;
 
-    if constexpr (std::numeric_limits<typename E::result_type>::digits > std::numeric_limits<std::random_device::result_type>::digits)
+    if constexpr (std::numeric_limits<seed_type>::digits > std::numeric_limits<std::random_device::result_type>::digits)
     {
-        return (static_cast<typename E::result_type>(device()) << std::numeric_limits<std::random_device::result_type>::digits) | device();
+        return (static_cast<seed_type>(device()) << std::numeric_limits<std::random_device::result_type>::digits) | device();
     }
     else
     {
-        return static_cast<typename E::result_type>(device());
+        return static_cast<seed_type>(device());
     }
 }
 

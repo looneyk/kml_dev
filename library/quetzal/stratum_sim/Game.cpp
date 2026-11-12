@@ -178,7 +178,7 @@ void quetzal::stratum_sim::Game::clear()
 
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Game::create(const CharacterSpec& character_spec, stratum_format::Notation notation,
-    std::optional<RandomStream::seed_type> seed)
+    std::optional<seed_type> seed)
 {
     assert(!character_spec.name.empty());
 
@@ -277,7 +277,7 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
 
     if (settings::store().value<bool>(reseed_on_open_key))
     {
-        const RandomStream::seed_type gameplay_seed = math::random_seed();
+        const seed_type gameplay_seed = math::random_seed();
         gameplay_random().seed(gameplay_seed);
         log::logger().info("stratum_sim", "The gameplay random engine is reseeded with {}", gameplay_seed);
         return;
@@ -302,7 +302,7 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::seed_world(RandomStream::seed_type seed)
+void quetzal::stratum_sim::Game::seed_world(seed_type seed)
 {
     m_seed = seed;
     m_world.set_world_seed(seed);

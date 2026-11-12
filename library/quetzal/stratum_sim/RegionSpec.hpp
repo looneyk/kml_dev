@@ -6,7 +6,6 @@
 //------------------------------------------------------------------------------
 
 #include "PatternResolver.hpp"
-#include "types.hpp"
 #include "quetzal/stratum_format/RegionSpec.hpp"
 #include <filesystem>
 #include <map>
@@ -18,20 +17,6 @@ namespace quetzal::stratum_sim
     using stratum_format::RegionSpec;
 
     //--------------------------------------------------------------------------
-    // Deprecated: the position a region's seed derives from, until seeds are drawn hierarchically
-    struct RegionPosition
-    {
-        coord_type x = 0;
-        coord_type y = 0;
-    };
-
-    // Deprecated: returns the position given by the position keys, 0 where a key is not found
-    // Throws std::runtime_error if a coordinate is not an integer
-    RegionPosition region_position(const RegionSpec& region_spec);
-
-    // Deprecated
-    void set_region_position(RegionSpec& region_spec, const RegionPosition& position);
-
     // Returns the region spec composed of the base region spec, if any, with the region spec's data fields and store applied over them
     // Throws std::runtime_error if the base region spec is not found
     RegionSpec composed_region_spec(const RegionSpec& region_spec, const std::map<std::string, RegionSpec>& region_specs);

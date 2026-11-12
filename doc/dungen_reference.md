@@ -68,7 +68,7 @@ Generation:
 - `Parameters` --- `algorithm`, `extent`, `staircase_down_count`, `staircase_up_count`, an optional
   `staircase_down_region_spec`, an optional `position`, and `seed` in common, then one
   group per algorithm: `Maze1Parameters`, `Grid1Parameters` and `Cave1Parameters`. `validate` checks the shared fields
-  and the chosen algorithm's group, and `random_seed` draws a seed from the platform. The staircase counts are closed
+  and the chosen algorithm's group. The staircase counts are closed
   ranges of `size_t`, 1-1 by default. `validate` rejects one whose maximum is below its minimum, an empty
   `staircase_down_region_spec`, and, for every algorithm but `surface1`, a staircase up count whose minimum is zero,
   since a dungeon zone is entered and left by a staircase leading up.

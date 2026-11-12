@@ -78,7 +78,7 @@ namespace
         flecs::entity carried = world.entities().entity();
         stratum_sim::set_parent(carried, character);
 
-        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}), stratum_sim::ZonePosition {});
+        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed), stratum_sim::ZonePosition {});
         world.make_reference(world.create_entity(elsewhere, stratum_sim::placement_type()));
 
         played.clear();
@@ -269,7 +269,7 @@ namespace
         saving.generation() = test_generation();
         stratum_sim::CharacterSpec ailis;
         ailis.name = "Ailis";
-        constexpr stratum_sim::RandomStream::seed_type saving_seed = 20261022;
+        constexpr stratum_sim::seed_type saving_seed = 20261022;
         saving.create(ailis, stratum_format::Notation::Wall, saving_seed);
 
         stratum_sim::World& saving_world = saving.world();

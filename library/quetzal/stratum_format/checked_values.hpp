@@ -19,8 +19,8 @@
 #include <string>
 #include <string_view>
 
-// The checked reading of the values that the zone file and the game files share, for their readers. A value that is not
-// what the format requires throws std::runtime_error, stating the path within the document and what was wrong there
+// The checked reading of the values that the zone and game files share
+// An invalid value throws std::runtime_error, stating the path within the document and error details
 namespace quetzal::stratum_format::detail
 {
 
@@ -56,6 +56,9 @@ namespace quetzal::stratum_format::detail
 
     // A whole, non-negative number
     stored_entity_id_type id_value(const raw_values_type& v, const std::string& path);
+
+    // A seed is written as text, since it spans a range wider than a JSON number represents exactly
+    seed_type seed_value(const raw_values_type& v, const std::string& path);
 
     const raw_values_type& fixed_array(const raw_values_type& v, const std::string& path, size_t n);
     discrete_point_type read_cell_position(const raw_values_type& v, const std::string& path);

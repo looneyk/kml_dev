@@ -29,7 +29,7 @@ test, and are the work of **The world's structure created whole** in `work_plan.
 - **Zones are created in worldspace position order:** `z`, then `y`, then `x`, each from lowest to highest
   (`region_spec_plan.md`, `## Zones of a worldspace`).
 - **A worldspace is created from a root region spec and a seed.** The starting worldspace's are the root spec of the
-  world definition's `starting_region` and a seed from the world seed. An access point that leads to a new
+  world definition's `starting_region` and the first draw of a random engine seeded from the world seed. An access point that leads to a new
   worldspace has a root region spec, designed, constructed, or generated, and a seed from its zone's seed pool, and
   generating the zone creates the worldspace from them. The surface zone's access points each have a target
   `dungeon_<k>/-1` and the `region_spec` `dungeon`, for example.
@@ -106,10 +106,11 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   Regions`). `World::create` calls it for the starting region's tree. `world.json` saves every region of a worldspace
   with its parent's id and its resolved spec, a single root region being the case of one, and `World::open` rebuilds
   the tree.
-- [ ] 6. **Seeds from the worldspace.** The draws in `## Design`. `RegionPosition`, `new_region_position`, and the
-  coordinate derivation in `region_seed` and `zone_seed` go.
+- [x] 6. **Seeds from the worldspace.** The draws in `## Design`, and each worldspace's seed saved in `world.json`.
+  `RegionPosition`, `new_region_position`, and the coordinate derivation in `region_seed` and `zone_seed` go.
 - [ ] 7. **Access point trees.** Building a zone draws its seed pool, then calls the region spec tree function for each
-  of its access points' trees, each with a seed from the pool. Region targets and `discard_made_zone` go.
+  of its access points' trees, each with a seed from the pool. Region targets, `discard_made_zone`, and
+  `World::target_seed` go.
 
 ## Open questions
 
@@ -118,8 +119,6 @@ test, and are the work of **The world's structure created whole** in `work_plan.
 
 ## Documents revised on approval
 
-- `random_engine.md`, `## Generation`, and `region_spec_plan.md`, `## Seeds`: seeds drawn from the worldspace, and
-  region specs, not regions, have seeds.
 - `world_generation_plan.md`, `## Overview` and `## Creating a game`, `zone_plan.md`, `### The world`, and
   `region_spec_plan.md`, `## The structure World::create builds`: the starting worldspace created with the game, and
   each other worldspace when the zone of an access point that leads to it is generated.

@@ -385,8 +385,8 @@ These are the open questions.
 
 ### Random engine
 
-- **Do players get reproducible games from a shared seed?** Each zone's seed is drawn from the world seed before play,
-  so a world seed builds the same zones however the world is explored.
+- **Do players get reproducible games from a shared seed?** Each zone's seed is drawn from its worldspace's seed when the
+  worldspace is created, so a world seed builds the same zones however the world is explored.
 
 ### Testing
 

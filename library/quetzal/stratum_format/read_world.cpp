@@ -126,6 +126,7 @@ namespace
         worldspace.id = id_value(required_member(v, path, "id"), member_path(path, "id"));
         add_entity_id(entity_ids, worldspace.id, member_path(path, "id"));
         worldspace.name = string_value(required_member(v, path, "name"), member_path(path, "name"));
+        worldspace.seed = seed_value(required_member(v, path, "seed"), member_path(path, "seed"));
 
         const std::string regions_path = member_path(path, "regions");
         const raw_values_type& regions = array(required_member(v, path, "regions"), regions_path);

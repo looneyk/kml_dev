@@ -55,7 +55,7 @@ namespace
         check_keys(v, path, box_keys, "box");
 
         RegionExtent::Box box;
-        std::array<std::optional<range_type>*, 3> axes {&box.x, &box.y, &box.z};
+        std::array<std::optional<range_type>*, 3> axes {&box.x_extent, &box.y_extent, &box.z_extent};
         for (size_t i = 0; i < box_keys.size(); ++i)
         {
             if (const raw_values_type* axis = member(v, box_keys[i]); axis != nullptr)
@@ -88,7 +88,7 @@ namespace
     std::string box_text(const RegionExtent::Box& box)
     {
         std::vector<std::string> members;
-        const std::array<const std::optional<range_type>*, 3> axes {&box.x, &box.y, &box.z};
+        const std::array<const std::optional<range_type>*, 3> axes {&box.x_extent, &box.y_extent, &box.z_extent};
         for (size_t i = 0; i < box_keys.size(); ++i)
         {
             if (axes[i]->has_value())

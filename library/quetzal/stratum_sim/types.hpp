@@ -41,6 +41,7 @@ namespace quetzal::stratum_sim
     using level_type = std::int32_t;
 
     using random_type = math::Random<math::portable_random_engine_type>;
+    using seed_type = random_type::seed_type;
 
     using math::CardinalDirection;
 

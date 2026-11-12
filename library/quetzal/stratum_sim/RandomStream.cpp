@@ -14,6 +14,13 @@ void quetzal::stratum_sim::RandomStream::seed(seed_type value)
 }
 
 //------------------------------------------------------------------------------
+quetzal::stratum_sim::seed_type quetzal::stratum_sim::RandomStream::seed()
+{
+    std::lock_guard lock(m_mutex);
+    return m_random.seed();
+}
+
+//------------------------------------------------------------------------------
 double quetzal::stratum_sim::RandomStream::random()
 {
     std::lock_guard lock(m_mutex);

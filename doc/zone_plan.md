@@ -155,7 +155,7 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
   `layout.components.name`. A zone's display name is its `DisplayName`, a component separate from its name.
 - **The specs are `RegionSpec` and `ZoneSpec`.** A region spec's name is its key in the game's region specs.
 - **A zone's position in its worldspace is its `ZonePosition`,** from the zone file's `layout.components.position` or
-  the `ZoneSpec`. A region has no `RegionPosition`.
+  the `ZoneSpec`.
 - **An access point is the `AccessPoint` component** of a staircase, a door facing, a portal, or a waypoint, and its
   position is the site of that entity, on a wall or a flat cell (`access_point_plan.md`). The type each type arrives at
   is its `Arrival`.

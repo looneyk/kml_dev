@@ -23,8 +23,6 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        using seed_type = math::portable_random_engine_type::result_type;
-
         RandomStream() = default;
         RandomStream(const RandomStream&) = delete;
         RandomStream(RandomStream&&) = delete;
@@ -34,6 +32,9 @@ namespace quetzal::stratum_sim
         RandomStream& operator=(RandomStream&&) = delete;
 
         void seed(seed_type value);
+
+        // Returns a seed drawn uniformly from the full range of seed values
+        seed_type seed();
 
         // Uniform distributions
         double random(); // [0, 1)

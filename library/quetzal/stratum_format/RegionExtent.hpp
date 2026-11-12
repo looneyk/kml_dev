@@ -28,9 +28,9 @@ namespace quetzal::stratum_format
         // Each axis is an inclusive range, and an absent axis spans the parent's whole range on that axis
         struct Box
         {
-            std::optional<math::Interval<coord_type>> x;
-            std::optional<math::Interval<coord_type>> y;
-            std::optional<math::Interval<coord_type>> z;
+            std::optional<math::Interval<coord_type>> x_extent;
+            std::optional<math::Interval<coord_type>> y_extent;
+            std::optional<math::Interval<coord_type>> z_extent;
         };
 
         Arrangement arrangement = Arrangement::Ranges;

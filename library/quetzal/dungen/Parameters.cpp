@@ -174,12 +174,6 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Parameters::seed_type quetzal::dungen::random_seed()
-{
-    return math::random_seed();
-}
-
-//------------------------------------------------------------------------------
 bool quetzal::dungen::set_parameter(Parameters& parameters, const std::string& key, const std::string& text)
 {
     if (key == "algorithm")

@@ -80,7 +80,8 @@ namespace
     std::string worldspace_text(const WorldDocument::Worldspace& worldspace, size_t indent)
     {
         size_t continuation_indent = indent + 2;
-        std::string text = std::format("{}{{ \"id\": {}, \"name\": {},\n", indentation(indent), worldspace.id, string_text(worldspace.name));
+        std::string text = std::format("{}{{ \"id\": {}, \"name\": {}, \"seed\": {},\n", indentation(indent), worldspace.id, string_text(worldspace.name),
+            string_text(std::to_string(worldspace.seed)));
         text += std::format("{}\"regions\": [\n", indentation(continuation_indent));
 
         for (size_t i = 0; i < worldspace.regions.size(); ++i)

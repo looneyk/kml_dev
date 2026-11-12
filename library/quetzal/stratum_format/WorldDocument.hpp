@@ -44,6 +44,7 @@ namespace quetzal::stratum_format
         {
             stored_entity_id_type id = 0;
             std::string name;
+            seed_type seed = 0;
             std::vector<Region> regions; // The top-level region first, and each region before its subregions
         };
 

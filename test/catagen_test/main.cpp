@@ -671,13 +671,6 @@ TEST_SUITE("determinism")
         CHECK(named.cells.value().rows == unnamed.cells.value().rows);
         return;
     }
-
-    // Drawn from entropy
-    TEST_CASE("a random seed is not the same one every time")
-    {
-        CHECK(catagen::random_seed() != catagen::random_seed());
-        return;
-    }
 }
 
 //------------------------------------------------------------------------------

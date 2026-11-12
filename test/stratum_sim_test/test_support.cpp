@@ -96,7 +96,7 @@ stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& test_zo
 //------------------------------------------------------------------------------
 stratum_sim::PersistentId stratum_sim_test::create_test_region(stratum_sim::World& world, const string& test_zone)
 {
-    return top_level_region(world, world.create_worldspace(test_zone, {{.region_spec = test_region_spec(test_zone)}}));
+    return top_level_region(world, world.create_worldspace(test_zone, {{.region_spec = test_region_spec(test_zone)}}, test_worldspace_seed));
 }
 
 //------------------------------------------------------------------------------
@@ -141,7 +141,7 @@ stratum_sim::level_type stratum_sim_test::level_of(flecs::entity zone)
 //------------------------------------------------------------------------------
 stratum_sim_test::TestWorld::TestWorld(stratum_sim::IdAllocator& id_allocator, size_t zone_count_max) :
     World(id_allocator, g_test_generation, zone_count_max, g_test_config.pattern_limits),
-    worldspace_id(create_worldspace("staircase", {{.region_spec = test_region_spec("staircase")}})),
+    worldspace_id(create_worldspace("staircase", {{.region_spec = test_region_spec("staircase")}}, test_worldspace_seed)),
     region_id(top_level_region(*this, worldspace_id))
 {
     stratum_sim::register_game_types(*this);
@@ -238,7 +238,7 @@ void stratum_sim_test::enter_zone_file(stratum_sim::Game& game, const string& fi
         game.character().create(stratum_sim::CharacterSpec {});
     }
 
-    stratum_sim::PersistentId worldspace_id = game.world().create_worldspace("staircase", {{.region_spec = test_region_spec("staircase")}});
+    stratum_sim::PersistentId worldspace_id = game.world().create_worldspace("staircase", {{.region_spec = test_region_spec("staircase")}}, test_worldspace_seed);
     stratum_sim::Session& session = game.session();
     session.enter(game.world().load_template(worldspace_id, zone_position_at_level(-1), filepath, stratum_sim::ZoneSpec {}), test_entry_type(session), test_entry_offset);
 

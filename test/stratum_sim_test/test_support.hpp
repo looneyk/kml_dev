@@ -38,7 +38,10 @@ namespace stratum_sim_test
     extern quetzal::stratum_sim::Generation g_test_generation;
 
     // The seed WorldFixture seeds the gameplay random engine with, so a random choice is the same on every run
-    inline constexpr quetzal::stratum_sim::RandomStream::seed_type test_random_seed = 1;
+    inline constexpr quetzal::stratum_sim::seed_type test_random_seed = 1;
+
+    // The seed of a worldspace that a test case creates
+    inline constexpr quetzal::stratum_sim::seed_type test_worldspace_seed = 2;
 
     // The state a test case that builds a world starts from: the setting definitions loaded, every setting at its default, and
     // the gameplay random engine seeded with test_random_seed. The definitions are loaded once in the process

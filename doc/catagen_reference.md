@@ -67,7 +67,7 @@ optional `staircase_down_region_spec`; an optional `position`; and `seed`, a
 `std::optional` that is empty until assigned. `validate` throws `std::invalid_argument` identifying the parameter at
 fault, including an unassigned seed, a count range whose maximum is below its minimum, an empty
 `staircase_down_region_spec`, and, for `partition1`, a staircase up count whose minimum is zero, since a dungeon zone is
-entered and left by a staircase leading up. `random_seed()` draws a seed from `std::random_device`.
+entered and left by a staircase leading up.
 
 **`generate`** runs the chosen algorithm over a `Zone` with the name it is given: `partition1`, below, or `surface1`. **`make_document`** builds the zone's `stratum_format::Document` in memory, **`write_zone`** writes that document as the
 zone file, and **`write_grid`** writes only its rows.
@@ -145,7 +145,7 @@ reproduce its zone. A key that is not a parameter, or a value that is not of the
 not a parameter, and `stratum_gen` calls `set_parameter` directly so that it skips such keys.
 
 The tool writes the zone to the file and to standard output unless `quiet` is true, with its layout's `unpopulated`
-set. A run given no `seed` takes `random_seed()` before generating, so the file has a seed either way.
+set. A run given no `seed` takes `math::random_seed()` before generating, so the file has a seed either way.
 `scale`, `spacing`, `stairs_down`, and `stairs_up` take a closed range, with `-` between the bounds; the keys keep the
 shorter "stairs", where names in code and prose say "staircase".
 

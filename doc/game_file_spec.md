@@ -135,7 +135,7 @@ character named Ailis in it carrying a torch, would have the following structure
   "world": {
     "name_counter": 0,
     "worldspaces": [
-      { "id": 6, "name": "surface",
+      { "id": 6, "name": "surface", "seed": "9764263508413069351",
         "regions": [
           { "id": 2, "name": "surface", "name_counter": 0, "components": { "type": "surface" },
             "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": 0 } ] }, "zone_size": [40, 30], "service_level": "basic", "type": "surface" },
@@ -143,7 +143,7 @@ character named Ailis in it carrying a torch, would have the following structure
               { "id": 5, "name": "surface_0_0", "file": "zones/5.zone", "position": [0, 0, 0] }
             ] }
         ] },
-      { "id": 7, "name": "cistern",
+      { "id": 7, "name": "cistern", "seed": "418720375216904712",
         "regions": [
           { "id": 4, "name": "cistern", "name_counter": 0, "components": { "type": "dungeon", "difficulty": 3 },
             "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": [-10, -1] } ] }, "difficulty": "3", "type": "dungeon", "zone.name": "Level {z}" },
@@ -187,7 +187,7 @@ The state the game needs to continue from where it was saved, which belongs to n
 | --- | --- |
 | `notation` | The game's notation, `block` or `wall`, the notation of every zone; opening the game restores it |
 | `next_id` | The persistent id the game's id allocator returns next |
-| `seed` | The world seed, which the gameplay random engine is seeded from and every region's and zone's seed derives from |
+| `seed` | The world seed, which the gameplay random engine is seeded from and the starting worldspace's seed is drawn from |
 | `random_engines` | The state of each random engine, by the random engine's stream: `gameplay` and `generation` (`random_engine.md`, `## Streams`) |
 
 A random engine's state is written as the text that the random engine writes and reads (`random_engine.md`, `## Saving`).
@@ -252,6 +252,7 @@ A worldspace is the coordinate system of its zones: the surface, a dungeon, a ca
 | --- | --- |
 | `id` | The worldspace's persistent id |
 | `name` | Its name, unique in the game: the name of the region spec its region was created from, with a suffix if another worldspace had it |
+| `seed` | Its seed, as text, from which the seeds of its zones and region specs were drawn |
 | `regions` | Its regions: the top-level region first, and each region before its subregions |
 
 A worldspace's coordinate system is not written separately: its top-level region's `spec` has it in its `extent` and
@@ -304,9 +305,9 @@ persistent ids when the template is made into a zone.
 A writer emits two-space indentation. In the game file, `game`, `settings` and `presets` are each on one line, and so
 are `settings` and `presets` in the user settings file. In the character
 file, `name` is on the line after `version`, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
-zone's entities are. In the world file, `name_counter` is on the line before `worldspaces`; a worldspace's `id` and
-`name` are on the line that opens it and its `region` follows; a region's `id`, `name`, `name_counter` and `components`
-are on the line that opens it, its `spec` is on the next line, its `zones`
+zone's entities are. In the world file, `name_counter` is on the line before `worldspaces`; a worldspace's `id`, `name`
+and `seed` are on the line that opens it and its `regions` follow, each region on the lines of its own entry; a region's
+`id`, `parent`, `name`, `display_name`, `name_counter` and `components` are on the line that opens it, its `spec` is on the next line, its `zones`
 follow, and each zone reference is on a line of its own, as each pair of the world index is, in entity id order. A zone file has the
 form that `discrete_layout.md` (`### The written form`) specifies. In the config file, each key that is set is on a line
 of its own.
@@ -403,3 +404,4 @@ The open items are tracked in `work_plan.md`, under `### Game file`.
 
 - A worldspace in `world.json` has `regions`, a list of its regions, each with its `parent` and its `display_name`, in
   place of `region`.
+- A worldspace in `world.json` has its `seed`.

@@ -57,7 +57,7 @@ namespace quetzal::stratum_sim
         // Clears the old game and creates a new one with its starting worldspace created from the generation's initial region
         // spec, and its character from the character spec
         void create(const CharacterSpec& character_spec, stratum_format::Notation notation,
-            std::optional<RandomStream::seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
+            std::optional<seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
 
         // Clears the old game and starts a new one initialized from the saved game identified by save_name, in the notation
         // its game.json states
@@ -102,7 +102,7 @@ namespace quetzal::stratum_sim
         void restore_game_state(const std::filesystem::path& filepath);
 
         // Sets the world seed, keeps it for saving, seeds the gameplay random engine with it, and logs it
-        void seed_world(RandomStream::seed_type seed);
+        void seed_world(seed_type seed);
 
         // Set the game's notation and zone generator
         // Throws std::runtime_error if the notation has no zone generator
@@ -121,7 +121,7 @@ namespace quetzal::stratum_sim
 
         // The game in progress's directory in the working directory, and the world seed
         std::optional<std::filesystem::path> m_game_directory;
-        RandomStream::seed_type m_seed;
+        seed_type m_seed;
         stratum_format::Notation m_notation;
     };
 

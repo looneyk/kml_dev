@@ -38,7 +38,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The seed of a state's string hashes, which decides the order in which pairs visits string keys
-    unsigned hash_seed(std::uint64_t world_seed)
+    unsigned hash_seed(quetzal::stratum_sim::seed_type world_seed)
     {
         return static_cast<unsigned>(world_seed ^ (world_seed >> 32));
     }
@@ -150,7 +150,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::ScriptSandbox::ScriptSandbox(const KeyValueStore& globals, random_type random, std::uint64_t world_seed, const ScriptLimits& script_limits) :
+quetzal::stratum_sim::ScriptSandbox::ScriptSandbox(const KeyValueStore& globals, random_type random, seed_type world_seed, const ScriptLimits& script_limits) :
     m_random(std::move(random)),
     m_script_limits(script_limits),
     m_memory_size(0),

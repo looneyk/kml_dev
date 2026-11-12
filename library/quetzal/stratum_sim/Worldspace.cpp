@@ -13,7 +13,7 @@
 #include <utility>
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Worldspace quetzal::stratum_sim::Worldspace::create(PersistentId worldspace_id, std::string_view name, const RegionSpec& region_spec, Region root_region)
+quetzal::stratum_sim::Worldspace quetzal::stratum_sim::Worldspace::create(PersistentId worldspace_id, std::string_view name, seed_type seed, const RegionSpec& region_spec, Region root_region)
 {
     auto fail = [&name](std::string_view problem)
     {
@@ -34,18 +34,18 @@ quetzal::stratum_sim::Worldspace quetzal::stratum_sim::Worldspace::create(Persis
     }
 
     const stratum_format::RegionExtent::Box& box = region_extent.boxes.front();
-    if (!box.x.has_value() || !box.y.has_value() || !box.z.has_value())
+    if (!box.x_extent.has_value() || !box.y_extent.has_value() || !box.z_extent.has_value())
     {
         fail("an extent without a range on every axis");
     }
 
-    const math::Interval<coord_type>& x = *box.x;
-    const math::Interval<coord_type>& y = *box.y;
-    const math::Interval<coord_type>& z = *box.z;
+    const math::Interval<coord_type>& x = *box.x_extent;
+    const math::Interval<coord_type>& y = *box.y_extent;
+    const math::Interval<coord_type>& z = *box.z_extent;
     const extent_type extent(extent_type::point_type(x.lower(), y.lower(), z.lower()), extent_type::point_type(x.upper() + 1, y.upper() + 1,
         z.upper() + 1));
 
-    return Worldspace {worldspace_id, std::string(name), extent, region_spec.zone_size, {}, RegionTree(std::move(root_region))};
+    return Worldspace {worldspace_id, std::string(name), seed, extent, region_spec.zone_size, {}, RegionTree(std::move(root_region))};
 }
 
 //------------------------------------------------------------------------------

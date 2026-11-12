@@ -7,6 +7,7 @@
 
 #include "ScriptLimits.hpp"
 #include "ScriptSandbox.hpp"
+#include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include <cstdint>
 #include <optional>
@@ -27,7 +28,7 @@ namespace quetzal::stratum_sim
 
         // The symbols are the globals of the sandbox the patterns are evaluated in
         // Throws std::runtime_error if a symbol is an entry of another symbol that is not a table
-        PatternResolver(const KeyValueStore& symbols, random_type random, std::uint64_t world_seed, const ScriptLimits& limits);
+        PatternResolver(const KeyValueStore& symbols, random_type random, seed_type world_seed, const ScriptLimits& limits);
 
         // Resolve a pattern value against the given symbols or return it unchanged if value is not a pattern
         // A prefix of "&&" represents a literal '&'

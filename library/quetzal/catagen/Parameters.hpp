@@ -36,7 +36,7 @@ namespace quetzal::catagen
     // density and loop are partition1's
     struct Parameters
     {
-        using seed_type = math::portable_random_engine_type::result_type;
+        using seed_type = math::Random<math::portable_random_engine_type>::seed_type;
 
         Algorithm algorithm = Algorithm::Partition1;
         vector_type extent {48, 32}; // The size of the zone, in cells
@@ -67,9 +67,6 @@ namespace quetzal::catagen
         // Empty until assigned; validate rejects an empty seed
         std::optional<seed_type> seed;
     };
-
-    // A seed drawn from the platform's entropy source
-    Parameters::seed_type random_seed();
 
     // Sets the parameter the key refers to, and returns false if the key is not a parameter
     // Throws std::invalid_argument for a value that is not of the parameter's type

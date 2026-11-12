@@ -27,12 +27,13 @@ namespace quetzal::stratum_sim
 
         // Returns an initialized but empty worldspace
         // Throws std::runtime_error if the spec has no extent, or one that is not ranges with a single box with every axis
-        static Worldspace create(PersistentId worldspace_id, std::string_view name, const RegionSpec& region_spec, Region root_region);
+        static Worldspace create(PersistentId worldspace_id, std::string_view name, seed_type seed, const RegionSpec& region_spec, Region root_region);
 
         bool contains(const ZonePosition& position) const;
 
         PersistentId worldspace_id;
         std::string name;
+        seed_type seed;
         extent_type extent;
         std::optional<discrete_vector_type> zone_size; // A grid worldspace's
         std::map<ZonePosition, PersistentId> zone_ids; // <position, zone_id>
