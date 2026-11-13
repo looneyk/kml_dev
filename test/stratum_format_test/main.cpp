@@ -12,7 +12,7 @@
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RegionSpecsDocument.hpp"
-#include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/AccessPointTarget.hpp"
 #include "quetzal/stratum_format/SettingDefinitionsDocument.hpp"
 #include "quetzal/stratum_format/SettingsDocument.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
@@ -264,8 +264,8 @@ namespace
 
         if (access_point.target.has_value())
         {
-            const auto* target = get_if<stratum_format::RelocatorTarget>(&*access_point.target);
-            m["target"] = target != nullptr ? map_type(stratum_format::format_relocator_target(*target))
+            const auto* target = get_if<stratum_format::AccessPointTarget>(&*access_point.target);
+            m["target"] = target != nullptr ? map_type(stratum_format::format_access_point_target(*target))
                 : map_type {{"entity", get<stratum_format::stored_entity_id_type>(*access_point.target)}};
         }
 
@@ -440,7 +440,7 @@ namespace
         const auto& stair_access_point = document.entities[3].access_point;
         CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
             && stair_access_point->type == "staircase" && stair_access_point->order == 0 && stair_access_point->target.has_value()
-            && get<stratum_format::RelocatorTarget>(*stair_access_point->target) == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {-1}, nullopt}
+            && get<stratum_format::AccessPointTarget>(*stair_access_point->target) == stratum_format::AccessPointTarget {nullopt, stratum_format::RelativeZone {-1}, nullopt}
             && !document.entities[3].components.contains("access_point"));
 
         const auto& chest_site = document.entities[5].site;
@@ -989,9 +989,9 @@ namespace
     {
         using stratum_format::AbsoluteZone;
         using stratum_format::RelativeZone;
-        using stratum_format::RelocatorTarget;
+        using stratum_format::AccessPointTarget;
 
-        const vector<pair<string, RelocatorTarget>> targets {
+        const vector<pair<string, AccessPointTarget>> targets {
             {"-1", {nullopt, RelativeZone {-1}, nullopt}},
             {"+2", {nullopt, RelativeZone {2}, nullopt}},
             {"+0", {nullopt, RelativeZone {0}, nullopt}},
@@ -1004,15 +1004,15 @@ namespace
 
         for (const auto& [text, expected] : targets)
         {
-            optional<RelocatorTarget> parsed = stratum_format::parse_relocator_target(text);
+            optional<AccessPointTarget> parsed = stratum_format::parse_access_point_target(text);
             CHECK_CASE(format("{} is read and written back the same", text), parsed == expected
-                && stratum_format::format_relocator_target(*parsed) == text);
+                && stratum_format::format_access_point_target(*parsed) == text);
         }
 
         for (const string& text : {"", "1", "-", "+-1", "=", "=+2", "+1.5", "sewers/", "../=0", "./-1", "a/b/c", "1a/-1", "-1@", "-1@a@b", "@x", "market-1",
             "-99999999999"})
         {
-            CHECK_CASE(format("\"{}\" is not a target", text), !stratum_format::parse_relocator_target(text).has_value());
+            CHECK_CASE(format("\"{}\" is not a target", text), !stratum_format::parse_access_point_target(text).has_value());
         }
 
         return;

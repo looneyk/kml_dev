@@ -175,8 +175,8 @@ The first pass puts the structures in place with these simplified forms, each to
 - **Each worldspace has only its top-level region,** whose extent is the worldspace's. Subregions and their extents
   come later.
 - **A target is `{zone, position}`.** The zone is an extended name or a persistent id, and the position is a string,
-  either coordinates in a worldspace or an offset from the access point's zone, as `RelocatorTarget`'s level offset is
-  now. It replaces the deprecated `RelocatorTarget`, and the target's notation replaces it in turn.
+  either coordinates in a worldspace or an offset from the access point's zone, as `AccessPointTarget`'s level offset is
+  now. It replaces the deprecated `AccessPointTarget`, and the target's notation replaces it in turn.
 
 ## Open questions
 

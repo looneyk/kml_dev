@@ -2,7 +2,7 @@
 
 When a game is created, `World` creates the starting worldspace whole from the root region spec of the world
 definition's starting region: the worldspace, its region tree, and an empty zone at every position of its extent.
-Generating a zone creates, in the same way, the worldspace that each of its access points leads to. An empty zone has no
+Entering an access point whose target is in a worldspace that does not exist creates that worldspace in the same way. An empty zone has no
 layout and no entities until it is first entered or loaded. The steps below are commit-sized units, each passing every
 test, and are the work of **The world's structure created whole** in `work_plan.md`.
 
@@ -29,10 +29,9 @@ test, and are the work of **The world's structure created whole** in `work_plan.
 - **Zones are created in worldspace position order:** `z`, then `y`, then `x`, each from lowest to highest
   (`region_spec_plan.md`, `## Zones of a worldspace`).
 - **A worldspace is created from a root region spec and a seed.** The starting worldspace's are the root spec of the
-  world definition's `starting_region` and the first draw of a random engine seeded from the world seed. An access point that leads to a new
-  worldspace has a root region spec, designed, constructed, or generated, and a seed from its zone's seed pool, and
-  generating the zone creates the worldspace from them. The surface zone's access points each have a target
-  `dungeon_<k>/-1` and the `region_spec` `dungeon`, for example.
+  world definition's `starting_region` and the first draw of a random engine seeded from the world seed. An access point that leads to a
+  worldspace that does not exist has an absolute extended name as its target, and entering it creates the worldspace
+  from the region spec tree of the name's root region and a seed from its zone's seed pool.
 - **Seeds derive from the worldspace.** The worldspace's random engine, seeded from the worldspace's seed, draws each
   zone's seed in worldspace position order, since the extent fixes the number of zones, and then the seeds of its region
   specs. A region spec has a seed, and a region does not. A spec's `seed` takes precedence over the drawn one.
@@ -40,6 +39,17 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   draws made while the spec is resolved, so nothing saves it.
 - **A zone's seed pool is drawn before the rest of its generation,** from the zone's seed, so the seeds of the
   worldspaces its access points lead to do not depend on the rest of the generation.
+- **An access point's target is a zone reference and an optional position,** written `<zone>[@<position>]`. The zone is
+  `#<zone id>`, `#<region id>/<zone name>`, or an absolute extended name, `/<root region name>/.../<zone name>`: `#`
+  precedes an id and `/` each name. Relative extended names are not implemented. The position is kept as written.
+- **A level offset, relative such as `-1` or absolute such as `=-3`, is a placeholder zone name,** which the generators
+  write since they do not have the zone ids. Loading the zone replaces each with `#<zone id>` of the zone at that level
+  in the same worldspace, and a placeholder with no zone there is an error.
+- **A target in another region or worldspace is chosen from the zone's region spec,** which has a list of destinations
+  and the criteria for choosing one. Both are the designer's, and the generators write no such target.
+- **A target in a worldspace that does not exist is an absolute extended name,** which its designer knows from the
+  designed worldspace in the assets. A target that does not fully specify its zone is an error.
+- **A staircase has a `Rise`,** up or down, which the generators write and the view draws.
 - **The world definition file lists the game's region spec trees.** It is `assets/data/world_definition.json`, and
   more of the world's content is added to it later. Each tree is a list of region specs linked by the name of each
   spec's parent region, and a root spec has none. Each region's list of subregions is built when the file is loaded, for
@@ -108,20 +118,29 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   the tree.
 - [x] 6. **Seeds from the worldspace.** The draws in `## Design`, and each worldspace's seed saved in `world.json`.
   `RegionPosition`, `new_region_position`, and the coordinate derivation in `region_seed` and `zone_seed` go.
-- [ ] 7. **Access point trees.** Building a zone draws its seed pool, then calls the region spec tree function for each
-  of its access points' trees, each with a seed from the pool. Region targets, `discard_made_zone`, and
-  `World::target_seed` go.
+- [ ] 7. **Access point targets.** `AccessPointTarget` is the zone reference and position of `## Design`, read and
+  written in its notation, and `RelativeZone`, `AbsoluteZone`, and region targets go. `load_layout` replaces
+  placeholder zone names. Going through an unbound target resolves it by zone id, by region id and zone name, or by
+  extended name, first creating the worldspace from the tree of the name's root region if it does not exist.
+  `entry_point` takes the lowest-ordered access point of the arrival type that has no target or an unbound target to
+  the zone the actor came from. A staircase has a `Rise`, and `create_target_worldspaces` goes. Until the form of a
+  region spec's destinations is designed, the surface spec in `region_specs.json` has a placeholder key,
+  `zone.destinations`, a list of absolute extended names that the zone's staircases leading down take in order when
+  it is loaded. The generators' `stairs_down_region_spec` and the access point's `region_spec` go.
+- [ ] 8. **Seed pools.** Building a zone draws its seed pool, and a worldspace created through one of its access points
+  takes its seed from the pool. `discard_made_zone` and `World::target_seed` go.
 
 ## Open questions
 
 - **Do a registered spec's `subregion.<name>` entries (`region_spec_plan.md`, `### subregion.`), with their counts and
   weighted choices, remain beside a tree's parent links?**
+- **What form do a region spec's list of destinations and its criteria for choosing one take?**
 
 ## Documents revised on approval
 
 - `world_generation_plan.md`, `## Overview` and `## Creating a game`, `zone_plan.md`, `### The world`, and
   `region_spec_plan.md`, `## The structure World::create builds`: the starting worldspace created with the game, and
-  each other worldspace when the zone of an access point that leads to it is generated.
+  each other worldspace when an access point that leads to it is first entered.
 
 ## Worldspace, region, and zone design
 
@@ -175,3 +194,26 @@ There is a file of region spec templates that are predefined or that can be fill
 Each region spec in a tree can have a template. The values for a region spec are those of the template overlaid with its own values.
 Pattern resolution is done before composition. Some patterns are not resolved right away, &nil and && for example, and some not until a zone spec is needed (the zone. fields). So maybe the region spec composition with its template should be done first. In any case, when composed with a parent, templates should have already been composed.
 Composition is completed by overlaying the region spec's values onto those of its parent, if any.
+
+## Accesss points
+
+When a zone is built and its access points generated, each will get a target.
+The target will have the components in order: worldspace, zone, position (exact format to be designed)
+and the worldspace alone, or worldspace and zone together, can be omitted. See the Summary below for target interpretation.
+If there is a worldspace in the target, a region_spec and seed will be generated for that access point,
+and worldspace creation will be deferred until the access point is entered.
+If not, then there is already an empty zone, with its seed, ready to be filled.
+So access points to another worldspace work similarly to access points or travel to another zone.
+Each has a spec (region, zone respectively) and the target is generated upon entry, only as needed.
+
+Summary
+An access point can have a target of... and when entered...
+another location in the current zone
+    relocate to that position
+a location in another zone in the current worldspace
+    create a new zone if needed (from the empty zone spec)
+    relocate to that position
+a location in a zone of another worldspace
+    create a worldspace if needed (from the empty region spec)
+    create a new zone if needed (from the empty zone spec)
+    relocate to that position

@@ -69,7 +69,7 @@ bool quetzal::stratum_sim::targets_level(flecs::entity e, level_type offset)
 {
     const auto* access_point = e.try_get<AccessPoint>();
     const auto* target = access_point != nullptr && access_point->target.has_value()
-        ? std::get_if<stratum_format::RelocatorTarget>(&*access_point->target) : nullptr;
+        ? std::get_if<stratum_format::AccessPointTarget>(&*access_point->target) : nullptr;
 
     if (target == nullptr)
     {

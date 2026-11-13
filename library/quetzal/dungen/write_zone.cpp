@@ -266,7 +266,7 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
         const stratum_format::FlatCell floor_cell {stratum_format::FlatRole::Floor, placement.position()};
 
         const bool leads_down = staircase.rise() == Rise::Down;
-        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
+        stratum_format::AccessPointTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
         stratum_format::AccessPoint access_point {"staircase", staircase_count++, target};
 
         if (leads_down && parameters.staircase_down_region_spec.has_value())

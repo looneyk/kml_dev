@@ -1252,9 +1252,9 @@ void quetzal::stratum_sim::World::relocate(flecs::entity e, flecs::entity zone, 
 flecs::entity quetzal::stratum_sim::World::resolve_target(flecs::entity access_point)
 {
     assert(access_point.has<AccessPoint>() && access_point.get<AccessPoint>().target.has_value()
-        && std::holds_alternative<stratum_format::RelocatorTarget>(*access_point.get<AccessPoint>().target));
+        && std::holds_alternative<stratum_format::AccessPointTarget>(*access_point.get<AccessPoint>().target));
 
-    const auto& target = std::get<stratum_format::RelocatorTarget>(*access_point.get<AccessPoint>().target);
+    const auto& target = std::get<stratum_format::AccessPointTarget>(*access_point.get<AccessPoint>().target);
 
     if (std::holds_alternative<std::string>(target.zone) || target.position.has_value())
     {
@@ -1780,7 +1780,7 @@ void quetzal::stratum_sim::World::create_target_worldspaces(flecs::entity zone)
 std::string quetzal::stratum_sim::World::target_worldspace_name(flecs::entity access_point) const
 {
     const AccessPoint& point = access_point.get<AccessPoint>();
-    const auto* unbound = point.target.has_value() ? std::get_if<stratum_format::RelocatorTarget>(&*point.target) : nullptr;
+    const auto* unbound = point.target.has_value() ? std::get_if<stratum_format::AccessPointTarget>(&*point.target) : nullptr;
 
     if (unbound == nullptr || !unbound->region.has_value())
     {
@@ -1876,13 +1876,6 @@ quetzal::stratum_sim::World::entities_type quetzal::stratum_sim::World::property
     chain.push_back(zone);
 
     return chain;
-}
-
-//------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::World::extended_name(flecs::entity zone) const
-{
-    assert(zone && zone.has<Zone>() && zone.has<Name>());
-    return std::format("{}/{}", worldspace(worldspace_of(zone)).name, zone.get<Name>().name);
 }
 
 //------------------------------------------------------------------------------

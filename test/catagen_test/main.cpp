@@ -13,7 +13,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
-#include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/AccessPointTarget.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/reference_files.hpp"
 #include <doctest/doctest.h>
@@ -416,9 +416,9 @@ namespace
                     // A staircase leading down to a worldspace of a region spec has the region <region spec>_<k>
                     const bool leads_down = cell_glyph(cell_position) == '>';
                     const optional<string>& region_spec = leads_down ? parameters.staircase_down_region_spec : nullopt;
-                    stratum_format::RelocatorTarget target {nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, nullopt};
+                    stratum_format::AccessPointTarget target {nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, nullopt};
                     const auto& access_point_target = entity.access_point->target;
-                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::RelocatorTarget>(&*access_point_target) : nullptr;
+                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::AccessPointTarget>(&*access_point_target) : nullptr;
                     const bool region_expected = unbound != nullptr && entity.access_point->region_spec == region_spec
                         && (region_spec.has_value() ? unbound->region.has_value() && unbound->region->starts_with(*region_spec + "_")
                         : !unbound->region.has_value());
@@ -430,7 +430,7 @@ namespace
                             target.region = *region_spec + "_<k>";
                         }
 
-                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_relocator_target(target));
+                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_access_point_target(target));
                         return false;
                     }
                 }
@@ -724,8 +724,8 @@ TEST_SUITE("parameter validation")
         {
             if (entity.access_point.has_value())
             {
-                const auto* target = get_if<stratum_format::RelocatorTarget>(&*entity.access_point->target);
-                targets.push_back(target != nullptr ? stratum_format::format_relocator_target(*target) : string());
+                const auto* target = get_if<stratum_format::AccessPointTarget>(&*entity.access_point->target);
+                targets.push_back(target != nullptr ? stratum_format::format_access_point_target(*target) : string());
                 expected.push_back(format("dungeon_{}/-1", expected.size() + 1));
                 const bool region_spec_written = entity.access_point->region_spec == "dungeon";
                 CHECK_MESSAGE(region_spec_written, "each with the region spec its worldspace is created from");

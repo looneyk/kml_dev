@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // stratum_format
-// RelocatorTarget.cpp
+// AccessPointTarget.cpp
 //------------------------------------------------------------------------------
 
-#include "RelocatorTarget.hpp"
+#include "AccessPointTarget.hpp"
 #include "quetzal/common/string_util.hpp"
 #include <algorithm>
 #include <format>
@@ -51,9 +51,9 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::stratum_format::RelocatorTarget> quetzal::stratum_format::parse_relocator_target(std::string_view text)
+std::optional<quetzal::stratum_format::AccessPointTarget> quetzal::stratum_format::parse_access_point_target(std::string_view text)
 {
-    RelocatorTarget target;
+    AccessPointTarget target;
 
     if (size_t at = text.find('@'); at != std::string_view::npos)
     {
@@ -90,7 +90,7 @@ std::optional<quetzal::stratum_format::RelocatorTarget> quetzal::stratum_format:
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_format::format_relocator_target(const RelocatorTarget& target)
+std::string quetzal::stratum_format::format_access_point_target(const AccessPointTarget& target)
 {
     std::string text = target.region.has_value() ? *target.region + "/" : std::string();
 

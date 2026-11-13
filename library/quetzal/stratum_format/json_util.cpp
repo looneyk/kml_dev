@@ -74,8 +74,8 @@ namespace
 
         if (access_point.target.has_value())
         {
-            const auto* unbound = std::get_if<RelocatorTarget>(&*access_point.target);
-            members.push_back(std::format("\"target\": {}", unbound != nullptr ? string_text(format_relocator_target(*unbound))
+            const auto* unbound = std::get_if<AccessPointTarget>(&*access_point.target);
+            members.push_back(std::format("\"target\": {}", unbound != nullptr ? string_text(format_access_point_target(*unbound))
                 : reference_text(std::get<stored_entity_id_type>(*access_point.target))));
         }
 

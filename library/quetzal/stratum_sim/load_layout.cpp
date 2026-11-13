@@ -99,7 +99,7 @@ namespace
             return std::nullopt;
         }
 
-        if (const auto* unbound = std::get_if<quetzal::stratum_format::RelocatorTarget>(&*target))
+        if (const auto* unbound = std::get_if<quetzal::stratum_format::AccessPointTarget>(&*target))
         {
             return *unbound;
         }

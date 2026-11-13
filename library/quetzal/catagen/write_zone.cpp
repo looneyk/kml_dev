@@ -228,7 +228,7 @@ quetzal::stratum_format::Document quetzal::catagen::make_document(const Zone& zo
         stratum_format::WallAddress address {placement.position() + open_side, open_side};
 
         const bool leads_down = staircase.rise() == Rise::Down;
-        stratum_format::RelocatorTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
+        stratum_format::AccessPointTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
         stratum_format::AccessPoint access_point {"staircase", staircase_count++, target};
 
         if (leads_down && parameters.staircase_down_region_spec.has_value())

@@ -320,7 +320,7 @@ finds the region to read an unloaded zone back into.
 with. `regions()` has the top-level region first and each region before its subregions; `root()`,
 `region(region_id)` and `contains(region_id)` find one; `add_subregion(parent_id, subregion)` adds one, setting its
 parent and listing it in the parent's `subregion_ids`; and `extended_name(region_id)` returns the name of each region
-from the top-level region down to the region, joined by `/`.
+from the top-level region down to the region, each preceded by `/`, such as `/surface/moor`.
 
 A zone has no parent. Its `ZoneWorldspace` and `ZoneRegion` components have the ids of the worldspace and the region it
 is in, which `worldspace_of(zone)` and `region_of(zone)` return.
@@ -383,8 +383,7 @@ The code's value is returned as text: a boolean as `true` or `false`, an integer
 value that is not a boolean, a number, a string, or nil throws `std::runtime_error`.
 `resolve_region_spec(region_spec, resolver)`, in `RegionSpec.hpp`, resolves a region spec's `name`, `display_name`, and
 store entries, leaving the `zone.` keys as they are.
-`World::extended_name(zone)` returns a zone's worldspace's name and the zone's name, joined by `/`, such as
-`surface/surface_3_4`. `zone_of` returns a null entity for a zone itself.
+`zone_of` returns a null entity for a zone itself.
 `unload_worldspace(worldspace_id)` unloads every zone of the worldspace, each completing in the `PersistentId` observer,
 then removes the worldspace and its regions.
 
@@ -664,7 +663,7 @@ chain is visible. One side of a secret door is concealed by a `Detection` on tha
 
 An access point is an entity at which a zone is entered or left, sited `On` a surface --- a wall, or a floor or ceiling
 cell --- with an `AccessPoint`. The `AccessPoint` has its `order` among the zone's access points of its type, counting
-from 0, and an optional `target`, to which going through it moves an actor: a `stratum_format::RelocatorTarget`,
+from 0, and an optional `target`, to which going through it moves an actor: a `stratum_format::AccessPointTarget`,
 unbound, or an `EntityReference` to the access point it is bound to. An access point with no target is arrival only.
 An optional `region_spec` is the region spec that the worldspace its target's region refers to is created from. Its type is a relationship, `(AccessType, <type>)`, so the access points of one type are found by a query.
 `arrival_placement(access_point)` returns the placement given to an arriving actor, computed by the zone's
@@ -1112,18 +1111,18 @@ runs; the barriers; each room's perimeter or `RoomLocator`; wall addresses; and 
 entity's `site`, `parent` and `access_point` file components, which the reader validates. A `Site`'s address is a
 `WallAddress`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
 relation `in` and an orientation required. A `stratum_format::AccessPoint` has its type, its order, an optional
-target, which is a `RelocatorTarget` or the id of the access point it is bound to, and an optional `region_spec`. The layout's `access_points` are `Document::access_points`, a list of entity
+target, which is a `AccessPointTarget` or the id of the access point it is bound to, and an optional `region_spec`. The layout's `access_points` are `Document::access_points`, a list of entity
 ids, its optional `position` is `Document::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
 coordinates), and its `unpopulated` flag is `Document::is_unpopulated`, false if
 absent. The `generator` section is `Document::generator`, an optional `Generator` with its name and its parameters'
 tokens, a `KeyValueStore`. Every other file component is `raw_values_type`, nlohmann's `ordered_json`, as
 the file wrote it. A room is kept as the file identified it.
 
-A `RelocatorTarget` is an unbound target, `[region/]zone[@position]`: an optional region, a zone that is a
+A `AccessPointTarget` is an unbound target, `[region/]zone[@position]`: an optional region, a zone that is a
 `RelativeZone` (an offset), an `AbsoluteZone` (a level), or a name, and an optional position. The region, a zone name,
-and the position are kept as written. `parse_relocator_target(text)` returns the target, or nothing if the text does
-not match the grammar, and `format_relocator_target(target)` writes it back as the same text. They and `level_type` are
-in `RelocatorTarget.hpp`. That header and `Notation.hpp`, which has `Notation` and its names, are the only format
+and the position are kept as written. `parse_access_point_target(text)` returns the target, or nothing if the text does
+not match the grammar, and `format_access_point_target(target)` writes it back as the same text. They and `level_type` are
+in `AccessPointTarget.hpp`. That header and `Notation.hpp`, which has `Notation` and its names, are the only format
 headers that `stratum_sim`'s headers include, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `Document::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.
 

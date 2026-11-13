@@ -8,7 +8,7 @@
 #include "PersistentId.hpp"
 #include "Site.hpp"
 #include "types.hpp"
-#include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/AccessPointTarget.hpp"
 #include <flecs.h>
 #include <cstdint>
 #include <optional>
@@ -39,7 +39,7 @@ namespace quetzal::stratum_sim
     // the access point it is bound to. An access point with no target is arrival only
     struct AccessPoint
     {
-        using target_type = std::variant<stratum_format::RelocatorTarget, EntityReference>;
+        using target_type = std::variant<stratum_format::AccessPointTarget, EntityReference>;
 
         std::uint64_t order = 0;
         std::optional<target_type> target;

@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_RELOCATORTARGET_HPP)
-#define QUETZAL_STRATUM_FORMAT_RELOCATORTARGET_HPP
+#if !defined(QUETZAL_STRATUM_FORMAT_ACCESSPOINTTARGET_HPP)
+#define QUETZAL_STRATUM_FORMAT_ACCESSPOINTTARGET_HPP
 //------------------------------------------------------------------------------
 // stratum_format
-// RelocatorTarget.hpp
+// AccessPointTarget.hpp
 //------------------------------------------------------------------------------
 
 #include <cstdint>
@@ -39,22 +39,22 @@ namespace quetzal::stratum_format
     // Deprecated: a target type not yet designed is to replace it.
     // An unbound relocator's target, written [region/]zone[@position]. The region, a zone name, and the position are kept
     // as written
-    struct RelocatorTarget
+    struct AccessPointTarget
     {
         std::optional<std::string> region;
         std::variant<RelativeZone, AbsoluteZone, std::string> zone;
         std::optional<std::string> position;
 
-        friend bool operator==(const RelocatorTarget&, const RelocatorTarget&) = default;
+        friend bool operator==(const AccessPointTarget&, const AccessPointTarget&) = default;
     };
 
     //--------------------------------------------------------------------------
     // Returns nothing if the text does not match [region/]zone[@position]
-    std::optional<RelocatorTarget> parse_relocator_target(std::string_view text);
+    std::optional<AccessPointTarget> parse_access_point_target(std::string_view text);
 
     // Returns the target written [region/]zone[@position]
-    std::string format_relocator_target(const RelocatorTarget& target);
+    std::string format_access_point_target(const AccessPointTarget& target);
 
 } // namespace quetzal::stratum_format
 
-#endif // QUETZAL_STRATUM_FORMAT_RELOCATORTARGET_HPP
+#endif // QUETZAL_STRATUM_FORMAT_ACCESSPOINTTARGET_HPP

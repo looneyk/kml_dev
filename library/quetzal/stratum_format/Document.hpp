@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Notation.hpp"
-#include "RelocatorTarget.hpp"
+#include "AccessPointTarget.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
@@ -159,7 +159,7 @@ namespace quetzal::stratum_format
     // An access point with no target is arrival only
     struct AccessPoint
     {
-        using target_type = std::variant<RelocatorTarget, stored_entity_id_type>;
+        using target_type = std::variant<AccessPointTarget, stored_entity_id_type>;
 
         std::string type;
         std::uint64_t order = 0;

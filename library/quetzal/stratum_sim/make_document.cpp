@@ -182,7 +182,7 @@ namespace
             return result;
         }
 
-        if (const auto* unbound = std::get_if<stratum_format::RelocatorTarget>(&*access_point.target))
+        if (const auto* unbound = std::get_if<stratum_format::AccessPointTarget>(&*access_point.target))
         {
             result.target = *unbound;
         }

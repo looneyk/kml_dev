@@ -87,7 +87,7 @@ boxes are removed at the start of the next piece of work, since the reference do
       spec tree, with its region tree and an empty zone at every position of its extent, the starting worldspace with
       the game and each other worldspace when the zone of an access point that leads to it is generated.
 - [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`): the `{zone, position}`
-      target in place of `RelocatorTarget` (`zone_plan.md`, `## Implementation`), and an unbound target resolved to the
+      target in place of `AccessPointTarget` (`zone_plan.md`, `## Implementation`), and an unbound target resolved to the
       zone of an extended name or a persistent id, or at a position relative to the access point's zone or absolute in a
       worldspace, with the zone's content generated if it has none.
 - [ ] **A reference's zone in the reference:** an `EntityReference` to an entity that never changes zone, such as an
@@ -234,7 +234,7 @@ These are the open questions.
 - **What type does a store entry have as a pattern's symbol?** The stub makes it a number when its text parses as
   one, and a string otherwise.
 - **Which symbols does a region spec's own resolution have?**
-- **What is the target's notation?** `RelocatorTarget` is deprecated until it is designed (`zone_plan.md`,
+- **What is the target's notation?** `AccessPointTarget` is deprecated until it is designed (`zone_plan.md`,
   `### Targets`).
 - **What properties does each type of region have?** A surface area's and a dungeon's overlap but differ, and
   difficulty goes from the starting value across a dungeon's zones in a way not yet decided.

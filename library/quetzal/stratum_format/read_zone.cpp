@@ -831,7 +831,7 @@ namespace
         std::string target_path = member_path(path, "target");
         if (target->is_string())
         {
-            std::optional<RelocatorTarget> parsed = parse_relocator_target(target->get<std::string>());
+            std::optional<AccessPointTarget> parsed = parse_access_point_target(target->get<std::string>());
             if (!parsed.has_value())
             {
                 fail(target_path, "not a target written [region/]zone[@position]");

@@ -38,7 +38,7 @@ namespace quetzal::stratum_sim
         Region& region(PersistentId region_id);
         const Region& region(PersistentId region_id) const;
 
-        // Returns the name of each region from the top-level region down to the region, joined by '/'
+        // Returns the name of each region from the top-level region down to the region, each preceded by '/'
         std::string extended_name(PersistentId region_id) const;
 
     private:

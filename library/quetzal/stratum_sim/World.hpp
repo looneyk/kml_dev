@@ -190,9 +190,6 @@ namespace quetzal::stratum_sim
         template<typename T>
         std::optional<T> property(flecs::entity e) const;
 
-        // Returns the zone's worldspace name and its name, joined by '/'
-        std::string extended_name(flecs::entity zone) const;
-
         // Returns the loaded entity with that id, or a null entity if it is not loaded
         flecs::entity entity(PersistentId persistent_id) const;
 

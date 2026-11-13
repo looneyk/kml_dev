@@ -13,7 +13,7 @@ placement derived from the site. The open items are in `work_plan.md` (`## Acces
 
 - **An access point has a type, an order, and an optional target.** The type is the `(AccessType, type)` pair to a
   registered access point type, and the order counts from 0 without gaps among the zone's access points of that type.
-  The target is unbound, a `RelocatorTarget` such as a level offset, or bound to another access point.
+  The target is unbound, an `AccessPointTarget` such as a level offset, or bound to another access point.
 - **Most access points have a target, and most targets are bound in pairs.** Going through an access point that has a
   target moves the actor to the access point it refers to, as `World::relocate_through` does now.
 - **An access point with no target is arrival only,** such as a starting spot or the far end of a one-way portal.
@@ -58,7 +58,7 @@ The verb *relocate* remains, since relocation is what going through an access po
 | `World::resolve_relocator_target(relocator)` | `World::resolve_target(access_point)` |
 | `targets_relocator_level(e, offset)` | `targets_level(e, offset)` |
 
-`RelocatorTarget` keeps its name. It is deprecated, and the first pass's `{zone, position}` target is to replace it
+`AccessPointTarget` is deprecated, and the first pass's `{zone, position}` target is to replace it
 (`zone_plan.md`, `## Implementation`).
 
 `can_enter` also requires a target. The reference documents that use *relocator* for the component are swept in the

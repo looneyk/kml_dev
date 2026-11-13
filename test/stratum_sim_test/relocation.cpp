@@ -30,7 +30,7 @@
 #include "quetzal/stratum_sim/WorldDefinition.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/AccessPointTarget.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
@@ -258,9 +258,9 @@ namespace
             region_ids == vector<stratum_sim::PersistentId::type> {1, 2, 3, 4});
         CHECK_CASE("a tree contains its own regions",
             regions.contains(stratum_sim::PersistentId {3}) && !regions.contains(stratum_sim::PersistentId {5}));
-        CHECK_CASE("a region's extended name is the name of each region from the top-level region down to it, joined by '/'",
-            regions.extended_name(stratum_sim::PersistentId {3}) == "dungeon/crypt/ossuary"
-            && regions.extended_name(stratum_sim::PersistentId {1}) == "dungeon");
+        CHECK_CASE("a region's extended name is the name of each region from the top-level region down to it, each preceded by '/'",
+            regions.extended_name(stratum_sim::PersistentId {3}) == "/dungeon/crypt/ossuary"
+            && regions.extended_name(stratum_sim::PersistentId {1}) == "/dungeon");
 
         return;
     }
@@ -439,7 +439,7 @@ namespace
 
         CHECK_CASE("a worldspace has a region for each spec of its tree, with its parent, name and display name",
             moor_regions.regions().size() == 3 && moor_regions.regions()[1].name == "tor" && moor_regions.regions()[1].parent_id == moor_regions.root().region_id
-            && moor_regions.regions()[2].display_name == "The Cairn" && moor_regions.extended_name(moor_regions.regions()[2].region_id) == "moor/tor/cairn");
+            && moor_regions.regions()[2].display_name == "The Cairn" && moor_regions.extended_name(moor_regions.regions()[2].region_id) == "/moor/tor/cairn");
         CHECK_CASE("and each zone is in the most specific region whose extent contains its position",
             region_name_at_x(0) == "moor" && region_name_at_x(1) == "tor" && region_name_at_x(2) == "cairn" && region_name_at_x(3) == "moor"
             && moor_regions.root().zone_ids.size() == 2 && moor_regions.regions()[1].zone_ids.size() == 1);
@@ -485,8 +485,6 @@ namespace
             name_of(second_loaded) == second_name && dungeon_data.name_counter == test_extent_zone_count);
         CHECK_CASE("a region lists its zones by name", dungeon_data.named_zone_ids.size() == test_extent_zone_count + 2
             && dungeon_data.named_zone_ids.at(second_name) == second_loaded.get<stratum_sim::PersistentId>());
-
-        CHECK_CASE("a zone's extended name is its worldspace's name and its name", world.extended_name(made) == "dungeon/dungeon_9");
 
         return;
     }
@@ -651,7 +649,7 @@ namespace
         auto down_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, -1); };
         auto retarget = [](flecs::entity e, string_view text)
         {
-            e.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_relocator_target(text);
+            e.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_target(text);
         };
 
         // data/walls.zone has one staircase leading up and one leading down
@@ -716,10 +714,10 @@ namespace
         stratum_format::Document vault_document = stratum_format::read_zone("data/walls.zone");
         for (auto& entity : vault_document.entities)
         {
-            const stratum_format::RelocatorTarget leading_down = stratum_format::parse_relocator_target("-1").value();
+            const stratum_format::AccessPointTarget leading_down = stratum_format::parse_access_point_target("-1").value();
             if (entity.access_point.has_value() && entity.access_point->target == stratum_format::AccessPoint::target_type(leading_down))
             {
-                entity.access_point->target = stratum_format::parse_relocator_target("vault/-1").value();
+                entity.access_point->target = stratum_format::parse_access_point_target("vault/-1").value();
                 entity.access_point->region_spec = "staircase";
             }
         }
@@ -835,18 +833,18 @@ namespace
             && stratum_sim::targets_level(up, 1) && !stratum_sim::targets_level(up, -1));
 
         // Of the access points whose targets are the offset, the lowest-ordered is the entry point
-        stratum_format::RelocatorTarget up_target {nullopt, stratum_format::RelativeZone {1}, nullopt};
+        stratum_format::AccessPointTarget up_target {nullopt, stratum_format::RelativeZone {1}, nullopt};
         flecs::entity up_2 = stratum_sim::create_access_point(zone, staircase_type, up.get<stratum_sim::Site>(), 2, up_target);
         CHECK_CASE("the entry point is the access point of the type with the lowest order", stratum_sim::entry_point(zone, staircase_type, 1) == up
             && up_2.is_alive());
 
         // An absolute target's offset is the difference between its level and the zone's
-        up_2.get_mut<stratum_sim::AccessPoint>().target = stratum_format::RelocatorTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt};
+        up_2.get_mut<stratum_sim::AccessPoint>().target = stratum_format::AccessPointTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt};
         bool unleveled = !stratum_sim::targets_level(up_2, 1);
         flecs::entity leveled = load_zone_unpopulated_at(world, world.worldspace_id, zone_position_at_level(-2), "data/walls.zone");
         flecs::entity leveled_up = stratum_sim::create_access_point(leveled, staircase_type,
             stratum_sim::entry_point(leveled, staircase_type, 1).get<stratum_sim::Site>(), 2,
-            stratum_format::RelocatorTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt});
+            stratum_format::AccessPointTarget {nullopt, stratum_format::AbsoluteZone {-1}, nullopt});
         CHECK_CASE("an absolute target's offset is its difference from the zone's level, and a zone with no level has none",
             unleveled && stratum_sim::targets_level(leveled_up, 1) && !stratum_sim::targets_level(leveled_up, -1));
 
@@ -854,7 +852,7 @@ namespace
         stratum_sim::placement_type north(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(0.0f, 1.0f, 0.0f));
         flecs::entity portal = stratum_sim::create_access_point(zone, portal_type,
             stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {0, 1}}, north},
-            0, stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
+            0, stratum_format::AccessPointTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
         CHECK_CASE("an access point of any type, on any surface, is an entry point", stratum_sim::entry_point(zone, portal_type, 0) == portal);
         CHECK_CASE("an actor arrives on the floor of the access point's flat cell, facing in the site's orientation",
             stratum_sim::arrival_placement(portal).position() == layout.position(stratum_sim::discrete_point_type {0, 1})
@@ -895,7 +893,7 @@ namespace
         stratum_sim::create_access_point(portal_only, game_portal_type,
             stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {portal_only_layout.floor_id(), stratum_sim::discrete_point_type {0, 0}},
             stratum_sim::placement_type(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(1.0f, 0.0f, 0.0f))}, 0,
-            stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
+            stratum_format::AccessPointTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
 
         bool thrown = false;
 
@@ -984,10 +982,10 @@ namespace
         };
 
         flecs::entity named = up_of(first);
-        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_relocator_target("town/market@fountain");
-        stratum_format::RelocatorTarget named_target = get<stratum_format::RelocatorTarget>(target_of(named));
+        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_target("town/market@fountain");
+        stratum_format::AccessPointTarget named_target = get<stratum_format::AccessPointTarget>(target_of(named));
         CHECK_CASE("a named zone is not resolved, which is an error, and nothing moves or binds", throws(named)
-            && stratum_sim::zone_of(actor) == made && get<stratum_format::RelocatorTarget>(target_of(named)) == named_target);
+            && stratum_sim::zone_of(actor) == made && get<stratum_format::AccessPointTarget>(target_of(named)) == named_target);
 
         world.unload_zone(first);
         CHECK_CASE("a bound target whose zone has unloaded, in a world with no game directory to read it back from, is an error, and nothing moves",
@@ -1026,7 +1024,7 @@ namespace
         flecs::entity second = load_at_level(-2);
 
         flecs::entity chute = stratum_sim::create_access_point(first, chute_type, on_floor(first, {2, 1}), 0,
-            *stratum_format::parse_relocator_target("-1"));
+            *stratum_format::parse_access_point_target("-1"));
         flecs::entity landing = stratum_sim::create_access_point(second, landing_type, on_floor(second, {2, 1}), 0);
         stratum_sim::create_access_point(second, landing_type, on_floor(second, {0, 1}), 1);
 
@@ -1167,7 +1165,7 @@ namespace
         stratum_sim::Session& failing_session = failing.session();
         enter_zone_file(failing, "data/walls.zone");
         flecs::entity named = stratum_sim::entry_point(failing_session.zone(), stratum_sim::access_type(failing.world().entities(), "staircase"), -1);
-        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_relocator_target("town/market");
+        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_target("town/market");
 
         flecs::entity unmoved = failing_session.zone();
         failing_session.character().submit(stratum_sim::Interact {});

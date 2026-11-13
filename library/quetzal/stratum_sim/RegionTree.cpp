@@ -72,6 +72,6 @@ const quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::region(Per
 //------------------------------------------------------------------------------
 std::string quetzal::stratum_sim::RegionTree::extended_name(PersistentId region_id) const
 {
-    const Region& named = region(region_id);
-    return named.parent_id.has_value() ? std::format("{}/{}", extended_name(named.parent_id.value()), named.name) : named.name;
+    const Region& r = region(region_id);
+    return std::format("{}/{}", r.parent_id.has_value() ? extended_name(r.parent_id.value()) : std::string(), r.name);
 }

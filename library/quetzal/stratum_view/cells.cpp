@@ -118,7 +118,7 @@ namespace
             return false;
         }
 
-        if (const auto* target = std::get_if<quetzal::stratum_format::RelocatorTarget>(&*access_point.target))
+        if (const auto* target = std::get_if<quetzal::stratum_format::AccessPointTarget>(&*access_point.target))
         {
             if (const auto* relative = std::get_if<quetzal::stratum_format::RelativeZone>(&target->zone))
             {

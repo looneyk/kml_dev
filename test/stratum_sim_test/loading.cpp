@@ -29,7 +29,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/Document.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/RelocatorTarget.hpp"
+#include "quetzal/stratum_format/AccessPointTarget.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
@@ -564,8 +564,8 @@ namespace
         CHECK_CASE("it is the access point, as the file lists it", staircase && staircase.has<stratum_sim::AccessPoint>()
             && stratum_sim::entry_point(zone, stratum_sim::access_type(entities, "staircase"), 1) == staircase);
         CHECK_CASE("with its target", staircase && staircase.get<stratum_sim::AccessPoint>().target.has_value()
-            && get<stratum_format::RelocatorTarget>(*staircase.get<stratum_sim::AccessPoint>().target)
-                == stratum_format::RelocatorTarget {nullopt, stratum_format::RelativeZone {1}, nullopt});
+            && get<stratum_format::AccessPointTarget>(*staircase.get<stratum_sim::AccessPoint>().target)
+                == stratum_format::AccessPointTarget {nullopt, stratum_format::RelativeZone {1}, nullopt});
 
         // The same zone saved: every id in the file is persistent
         string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.6", "zone": { "id": 900 },

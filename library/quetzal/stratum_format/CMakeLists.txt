@@ -1,4 +1,5 @@
 add_library(quetzal_stratum_format STATIC
+    AccessPointTarget.cpp
     checked_values.cpp
     Document.cpp
     GameManifestDocument.cpp
@@ -13,7 +14,6 @@ add_library(quetzal_stratum_format STATIC
     RegionExtent.cpp
     RegionSpec.cpp
     RegionSpecsDocument.cpp
-    RelocatorTarget.cpp
     SettingDefinitionsDocument.cpp
     SettingsDocument.cpp
     WorldDefinitionDocument.cpp
@@ -22,6 +22,7 @@ add_library(quetzal_stratum_format STATIC
     write_game.cpp
     write_world.cpp
     write_zone.cpp
+    AccessPointTarget.hpp
     CharacterDocument.hpp
     checked_values.hpp
     config_format.hpp
@@ -43,7 +44,6 @@ add_library(quetzal_stratum_format STATIC
     RegionExtent.hpp
     RegionSpec.hpp
     RegionSpecsDocument.hpp
-    RelocatorTarget.hpp
     saved_game_format.hpp
     SettingDefinitionsDocument.hpp
     SettingsDocument.hpp
