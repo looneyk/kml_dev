@@ -16,6 +16,9 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
 - **Fold a concept into an existing mechanism** where it is an instance of one, case by case: `style` is an ordinary
   inherited component, not a key beside `components` with its own table, struct, and reader checks. Before a local fix,
   consider whether the problem belongs in a structure, a spec, or a mechanism already there.
+- **Existing interfaces, types, and helpers can change.** The code is under active incremental development, and
+  scaffolding or an abstraction from an earlier step that no longer fits the next one is refactored or replaced
+  cleanly, not worked around.
 - **Remove code that adds no value.** A nicety the output does not need, such as `number_text` forcing a `.0` on JSON
   reals, and a wrapper around one call, such as `skip_bracket` over `skip_delimiter`, are removed, not kept as an
   option. If the output changes, the references are regenerated and the docs updated.

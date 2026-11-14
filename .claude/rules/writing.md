@@ -51,7 +51,7 @@ are introduced, not after.
 - **No comment repeats what the code beside it already shows,** such as a check and the message it fails with.
 - **A surviving comment describes what the code is or does,** plus a genuinely unexpected caveat, at half the length of the
   first draft. It does not narrate the mechanism, the trade-off, or the debugging behind it. A predicate whose name
-  cannot say it all gets "Returns true if ...", and a bool member "True if ...".
+  cannot describe it fully gets "Returns true if ...", and a bool member "True if ...".
 
   > Which cell of the grid, as a coordinate rather than a stored record. The grid it sits on is recorded at load rather
   > than derived from the wall geometry afterwards
@@ -85,7 +85,7 @@ are introduced, not after.
 - **Headings and labels are noun phrases:** `## Current state`, not `## Where it is now`. An open item is a direct
   question: `**Does a wall side without a door merit an entity?**`.
 - **A sentence opens with its subject:** "Mod additions are unpredictable", not "What a mod adds cannot be predicted".
-  A "whether" after its verb, and an introductory phrase ("On a new machine, run it"), are fine.
+  An imperative, a "whether" after its verb, and an introductory phrase ("On a new machine, run it"), are fine.
 - **A document opens with its subject** and what it is, does, or contains: "A `RegionSpec` contains the keys that
   `World::create` needs ...", never "This plan ..." or "This document ...". A sentence that would start "This ..." uses
   the noun instead.

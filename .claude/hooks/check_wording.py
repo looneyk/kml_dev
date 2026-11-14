@@ -1,7 +1,7 @@
 # A PostToolUse hook for Edit, Write and MultiEdit. Checks the comments, string literals and document text that an edit
 # adds for the entries in watch_words.txt, and reports each match to Claude through stderr with exit code 2. Only files
-# tracked by git are checked, and files that Write creates and git does not ignore. Any failure of the check itself exits
-# 0, so it never blocks an edit.
+# tracked by git, files that Write creates and git does not ignore, and Claude's memory files are checked. Any failure
+# of the check itself exits 0, so it never blocks an edit.
 
 import json
 import os
@@ -55,10 +55,17 @@ def run_git(directory, *arguments):
     return subprocess.run(["git", *arguments], cwd=directory, capture_output=True, text=True).returncode
 
 
+def memory_file(filepath):
+    normalized = filepath.replace("\\", "/")
+    return "/.claude/projects/" in normalized and "/memory/" in normalized
+
+
 def in_scope(filepath, tool_name):
     directory = os.path.dirname(filepath)
     if not os.path.isdir(directory):
         return False
+    if memory_file(filepath):
+        return True
     if run_git(directory, "ls-files", "--error-unmatch", "--", filepath) == 0:
         return True
     # An untracked file is checked only when Write has just created it and git does not ignore it

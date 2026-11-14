@@ -108,8 +108,8 @@ test cases, and `--update-references` copies each file it writes to `out/` over 
   dozen unrelated sentences is a fallback rather than a choice. Stop on it, work out what the
   specific relation is --- what the thing is, does, holds, or is part of --- and name that. The
   general word is right only where nothing narrower is true, and then it stays. This is the check
-  the list above is a record of, and it applies to words the list does not name.
-- **Write comments and documents in plain sentences, with a subject and a verb.** Short means saying
+  the list above is a record of, and it applies to words the list does not include.
+- **Write comments and documents in plain, grammatical English.** A comment can be a noun phrase or an imperative. Short means saying
   less, never dropping grammar: cut a clause that adds nothing, not the words that make the rest
   readable. Name the thing and say what it is or does. Starting with "What a", "Whether" or "On a
   ...:" is a warning sign, and so is an elliptical clause such as "null where none". End a sentence at the
