@@ -10,7 +10,7 @@
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/Generation.hpp"
 #include "quetzal/stratum_sim/IdAllocator.hpp"
-#include "quetzal/stratum_sim/Layout.hpp"
+#include "quetzal/stratum_sim/LayoutBase.hpp"
 #include "quetzal/stratum_sim/RandomStream.hpp"
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/World.hpp"
@@ -84,7 +84,7 @@ namespace stratum_sim_test
     quetzal::stratum_sim::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
 
     // Returns the position of a zone at the level, (0, 0, level)
-    quetzal::stratum_sim::ZonePosition zone_position_at_level(quetzal::stratum_sim::level_type level);
+    quetzal::stratum_sim::Position zone_position_at_level(quetzal::stratum_sim::level_type level);
 
     // Returns zone_position_at_level(level)
     quetzal::stratum_format::zone_position_type document_position_at_level(quetzal::stratum_sim::level_type level);
@@ -123,7 +123,7 @@ namespace stratum_sim_test
         quetzal::stratum_sim::CountingIdAllocator id_allocator;
         TestWorld world;
         flecs::entity zone;
-        quetzal::stratum_sim::Layout::crossable_function_type crossable;
+        quetzal::stratum_sim::LayoutBase::crossable_function_type crossable;
     };
 
     std::unique_ptr<OpenZone> load_open(const std::string& filepath);
@@ -133,7 +133,7 @@ namespace stratum_sim_test
 
     // Fills the empty zone at the position in the worldspace from a zone file, with its doors and without denizens, and returns it
     flecs::entity load_zone_unpopulated_at(quetzal::stratum_sim::World& world, quetzal::stratum_sim::PersistentId worldspace_id,
-        const quetzal::stratum_sim::ZonePosition& position, const std::string& filepath);
+        const quetzal::stratum_sim::Position& position, const std::string& filepath);
 
     // The access point type the test cases enter zones at, and the level offset its relocator targets: a staircase leading up
     flecs::entity test_entry_type(const quetzal::stratum_sim::Session& session);

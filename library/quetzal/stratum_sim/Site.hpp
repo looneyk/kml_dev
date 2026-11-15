@@ -26,25 +26,25 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // A wall of the zone's layout; its id encodes its normal
-    struct WallAddress
+    struct WallId
     {
         id_type wall_id = nullid;
 
-        auto operator<=>(const WallAddress&) const = default;
+        auto operator<=>(const WallId&) const = default;
     };
 
     //--------------------------------------------------------------------------
-    // The address of one cell of a flat, which is the zone's whole floor or ceiling. It is for an entity fixed to that
+    // The position of one cell of a flat, which is the zone's whole floor or ceiling. It is for an entity fixed to that
     // surface; an entity resting on a floor has a placement and no address
-    struct FlatCellAddress
+    struct FlatCellPosition
     {
         id_type flat_id = nullid;
         discrete_point_type cell_position;
 
-        auto operator<=>(const FlatCellAddress&) const = default;
+        auto operator<=>(const FlatCellPosition&) const = default;
     };
 
-    using address_type = std::variant<WallAddress, FlatCellAddress>;
+    using address_type = std::variant<WallId, FlatCellPosition>;
 
     //--------------------------------------------------------------------------
     // Where an entity is. The placement is relative to the address, or to the parent if there is no address

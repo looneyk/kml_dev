@@ -11,7 +11,7 @@
 #include "quetzal/stratum_sim/Intent.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
+#include "quetzal/stratum_sim/DiscreteProximityIndex.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
 #include "quetzal/stratum_sim/Scheduler.hpp"

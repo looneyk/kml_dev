@@ -10,7 +10,7 @@
 #include "quetzal/stratum_sim/EventQueue.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
+#include "quetzal/stratum_sim/DiscreteProximityIndex.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
@@ -27,7 +27,7 @@
 #include "quetzal/stratum_sim/properties.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/grid.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/AccessPointTarget.hpp"
 #include "quetzal/testing/named_checks.hpp"
@@ -55,14 +55,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or none if it is sited on a flat cell or on its parent
-    const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
+    const stratum_format::WallPlacement* wall_placement(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
         {
             return nullptr;
         }
 
-        return get_if<stratum_format::WallAddress>(&*entity.site->address);
+        return get_if<stratum_format::WallPlacement>(&*entity.site->address);
     }
 
     //--------------------------------------------------------------------------
@@ -157,7 +157,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Counts the open cells reachable from the first, crossing only the walls that crossable allows
-    size_t cells_reached(const stratum_sim::DiscreteLayout& layout, const stratum_sim::Layout::crossable_function_type& crossable)
+    size_t cells_reached(const stratum_sim::DiscreteLayout& layout, const stratum_sim::LayoutBase::crossable_function_type& crossable)
     {
         const stratum_sim::discrete_vector_type extent = layout.grid().extent;
         auto slot = [&extent](const stratum_sim::discrete_point_type& cell_position) { return static_cast<size_t>(cell_position.j()) * extent.x() + cell_position.i(); };
@@ -210,7 +210,7 @@ namespace
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
         auto walls_zone = load_open("data/walls.zone");
         const stratum_sim::DiscreteLayout& walls = walls_zone->layout();
-        const stratum_sim::Layout::crossable_function_type& crossable = walls_zone->crossable;
+        const stratum_sim::LayoutBase::crossable_function_type& crossable = walls_zone->crossable;
 
         size_t door_count = 0;
         walls_zone->world.entities().query_builder<const stratum_sim::Access>()
@@ -323,13 +323,13 @@ namespace
             layout.wall_toward(stratum_sim::discrete_point_type {2, 2}, cardinal_direction(CardinalDirection::West))};
         CHECK_CASE("on the two sides of one edge", wall_a != wall_b && edge_sides.contains(wall_a) && edge_sides.contains(wall_b));
         std::set<id_type> file_door_walls;
-        vector<vector<stratum_format::WallAddress>> file_doors = stratum_format::door_walls(stratum_format::read_zone("data/walls.zone").cells.value());
+        vector<vector<stratum_format::WallPlacement>> file_doors = stratum_format::door_walls(stratum_format::read_zone("data/walls.zone").cells.value());
 
-        for (const vector<stratum_format::WallAddress>& addresses : file_doors)
+        for (const vector<stratum_format::WallPlacement>& placements : file_doors)
         {
-            for (const stratum_format::WallAddress& address : addresses)
+            for (const stratum_format::WallPlacement& placement : placements)
             {
-                file_door_walls.insert(layout.wall_toward(address.cell_position, -address.normal));
+                file_door_walls.insert(layout.wall_toward(placement.cell_position, -placement.normal));
             }
         }
 
@@ -397,10 +397,10 @@ namespace
 
     //--------------------------------------------------------------------------
     // One door entity per door glyph, its door facings on the walls of that doorway, and no door facing anywhere else
-    bool doors_have_entities(const stratum_format::Document& document, string& detail)
+    bool doors_have_entities(const stratum_format::ZoneDocument& document, string& detail)
     {
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
-        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
+        vector<vector<stratum_format::WallPlacement>> doors = stratum_format::door_walls(document.cells.value());
+        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallPlacement>> walls_by_door;
         size_t door_count = 0;
 
         for (const stratum_format::Entity& entity : document.entities)
@@ -416,14 +416,14 @@ namespace
                 continue;
             }
 
-            const auto* address = wall_address(entity);
-            if (address == nullptr || !entity.parent_id.has_value())
+            const auto* placement = wall_placement(entity);
+            if (placement == nullptr || !entity.parent_id.has_value())
             {
                 detail = format("a door facing with id {} that is not a child attached to a wall", entity.id);
                 return false;
             }
 
-            walls_by_door[*entity.parent_id].push_back(*address);
+            walls_by_door[*entity.parent_id].push_back(*placement);
         }
 
         if (door_count != doors.size() || walls_by_door.size() != doors.size())
@@ -432,12 +432,12 @@ namespace
             return false;
         }
 
-        for (const vector<stratum_format::WallAddress>& walls : doors)
+        for (const vector<stratum_format::WallPlacement>& walls : doors)
         {
             if (none_of(walls_by_door.begin(), walls_by_door.end(), [&walls](const auto& entry)
                 { return is_permutation(entry.second.begin(), entry.second.end(), walls.begin(), walls.end()); }))
             {
-                const stratum_format::WallAddress& wall = walls.front();
+                const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
                     wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
                 return false;
@@ -513,7 +513,7 @@ namespace
         const flecs::world& entities = world.entities();
 
         // data/door.zone: a door with a door facing on each wall of its doorway, and a staircase up on the wall above
-        auto loaded = [&](const stratum_format::Document& document)
+        auto loaded = [&](const stratum_format::ZoneDocument& document)
         {
             flecs::entity zone = world.create_zone(world.region_id,
                 document.zone_id.has_value() ? stratum_sim::PersistentId {*document.zone_id} : world.next_id());
@@ -626,7 +626,7 @@ namespace
 
         stratum_sim::entity_type(entities, "door").set<TestFinish>(TestFinish {{}, 0.875f, {}});
 
-        stratum_format::Document document = door_level(R"("finish": { "gloss": 0.25 })", R"("finish": { "grain": 3, "tint": { "red": 0.5 } })",
+        stratum_format::ZoneDocument document = door_level(R"("finish": { "gloss": 0.25 })", R"("finish": { "grain": 3, "tint": { "red": 0.5 } })",
             R"("lever": { "opens": { "entity": 1 } })");
         CHECK_CASE("a document whose components are registered and fit is accepted", !stratum_sim::check_buildable(entities, document).has_value());
 
@@ -675,7 +675,7 @@ namespace
               "rooms": [ { "room": 1, "components": { "finish": { "tint": { "red": 0.25 } } } } ],
               "cells": [ { "cell_position": [3, 1], "components": { "finish": { "grain": 9 } } } ] } ])";
 
-        stratum_format::Document sectioned = door_level(R"("finish": { "gloss": 0.0625, "tint": { "blue": 0.125 } })", "", "",
+        stratum_format::ZoneDocument sectioned = door_level(R"("finish": { "gloss": 0.0625, "tint": { "blue": 0.125 } })", "", "",
             layout_sections);
         CHECK_CASE("the components of rooms, walls, and flats that are registered and fit are accepted",
             !stratum_sim::check_buildable(entities, sectioned).has_value());
@@ -790,7 +790,7 @@ namespace
         CHECK_CASE("a room with no entity is skipped", finish.has_value() && finish->grain == 2 && finish->gloss == 0.75f);
 
         flecs::entity sconce = world.entities().entity();
-        stratum_sim::reparent(sconce, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallAddress {north_wall}, {}});
+        stratum_sim::reparent(sconce, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallId {north_wall}, {}});
         finish = world.property<TestFinish>(sconce);
         CHECK_CASE("an entity on a wall is in the room of the wall's cell", finish.has_value() && finish->grain == 1);
 
@@ -839,13 +839,13 @@ namespace
 
         CHECK_CASE("a wall with nothing on it has no entity", !stratum_sim::wall_entity(zone, north_wall));
 
-        flecs::entity torch = sited(stratum_sim::WallAddress {north_wall});
+        flecs::entity torch = sited(stratum_sim::WallId {north_wall});
         flecs::entity wall = stratum_sim::wall_entity(zone, north_wall);
         CHECK_CASE("siting an entity on a wall makes the wall's entity", wall && wall.parent() == zone);
         CHECK_CASE("which lists it", attached_to(wall) == vector<flecs::entity> {torch});
         CHECK_CASE("and has no persistent id", !wall.has<stratum_sim::PersistentId>());
 
-        flecs::entity plaque = sited(stratum_sim::WallAddress {north_wall});
+        flecs::entity plaque = sited(stratum_sim::WallId {north_wall});
         CHECK_CASE("a second entity on the wall is listed on the same entity", stratum_sim::wall_entity(zone, north_wall) == wall
             && attached_to(wall) == vector<flecs::entity> {torch, plaque});
 
@@ -858,7 +858,7 @@ namespace
         stratum_sim::reparent(torch, zone, stratum_sim::Site {stratum_sim::Relation::In, {}, {}});
         CHECK_CASE("a wall's entity goes when nothing is sited on it", !wall.is_alive() && !stratum_sim::wall_entity(zone, north_wall));
 
-        flecs::entity basin = sited(stratum_sim::FlatCellAddress {floor_id, stratum_sim::discrete_point_type {1, 1}});
+        flecs::entity basin = sited(stratum_sim::FlatCellPosition {floor_id, stratum_sim::discrete_point_type {1, 1}});
         flecs::entity floor_cell = stratum_sim::flat_cell_entity(zone, floor_id, stratum_sim::discrete_point_type {1, 1});
         CHECK_CASE("a flat cell's entity lists what is sited on it", floor_cell && attached_to(floor_cell) == vector<flecs::entity> {basin});
 
@@ -867,7 +867,7 @@ namespace
         CHECK_CASE("one with components of its own stays", floor_cell.is_alive()
             && stratum_sim::flat_cell_entity(zone, floor_id, stratum_sim::discrete_point_type {1, 1}) == floor_cell);
 
-        flecs::entity lever = sited(stratum_sim::FlatCellAddress {floor_id, stratum_sim::discrete_point_type {1, 1}});
+        flecs::entity lever = sited(stratum_sim::FlatCellPosition {floor_id, stratum_sim::discrete_point_type {1, 1}});
         floor_cell.destruct();
         CHECK_CASE("deleting a flat cell's entity leaves what was on it unsited", lever.is_alive() && !lever.has<stratum_sim::Site>());
         CHECK_CASE("and the cell with none", !stratum_sim::flat_cell_entity(zone, floor_id, stratum_sim::discrete_point_type {1, 1}));
@@ -877,8 +877,8 @@ namespace
         flecs::world stage = world.entities().get_stage(0);
         flecs::entity sconce = stage.entity();
         flecs::entity hook = stage.entity();
-        stratum_sim::reparent(sconce, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallAddress {north_wall}, {}});
-        stratum_sim::reparent(hook, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallAddress {north_wall}, {}});
+        stratum_sim::reparent(sconce, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallId {north_wall}, {}});
+        stratum_sim::reparent(hook, zone, stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::WallId {north_wall}, {}});
         const bool pending = !stratum_sim::wall_entity(zone, north_wall);
         world.entities().readonly_end();
         CHECK_CASE("entities sited through a stage are sited when it is merged", pending);

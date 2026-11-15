@@ -45,14 +45,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
-    const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
+    const stratum_format::WallPlacement* wall_placement(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
         {
             return nullptr;
         }
 
-        return get_if<stratum_format::WallAddress>(&*entity.site->address);
+        return get_if<stratum_format::WallPlacement>(&*entity.site->address);
     }
 
     //--------------------------------------------------------------------------
@@ -113,7 +113,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the zone as the reader decodes it. Throws std::runtime_error if the reader rejects it
-    stratum_format::Document document_of(const string& zone)
+    stratum_format::ZoneDocument document_of(const string& zone)
     {
         istringstream is(zone);
         return stratum_format::read_zone(is, "zone");
@@ -201,7 +201,7 @@ namespace
     // in the order door_walls returns them
     bool doors_have_entities(const string& zone, string& detail)
     {
-        stratum_format::Document document;
+        stratum_format::ZoneDocument document;
 
         try
         {
@@ -213,8 +213,8 @@ namespace
             return false;
         }
 
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
-        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
+        vector<vector<stratum_format::WallPlacement>> doors = stratum_format::door_walls(document.cells.value());
+        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallPlacement>> walls_by_door;
         size_t door_count = 0;
 
         for (const stratum_format::Entity& entity : document.entities)
@@ -230,14 +230,14 @@ namespace
                 continue;
             }
 
-            const auto* address = wall_address(entity);
-            if (address == nullptr || !entity.parent_id.has_value())
+            const auto* placement = wall_placement(entity);
+            if (placement == nullptr || !entity.parent_id.has_value())
             {
                 detail = format("a door facing with id {} that is not a child attached to a wall", entity.id);
                 return false;
             }
 
-            walls_by_door[*entity.parent_id].push_back(*address);
+            walls_by_door[*entity.parent_id].push_back(*placement);
         }
 
         if (door_count != doors.size() || walls_by_door.size() != doors.size())
@@ -246,11 +246,11 @@ namespace
             return false;
         }
 
-        for (const vector<stratum_format::WallAddress>& walls : doors)
+        for (const vector<stratum_format::WallPlacement>& walls : doors)
         {
             if (none_of(walls_by_door.begin(), walls_by_door.end(), [&walls](const auto& entry) { return entry.second == walls; }))
             {
-                const stratum_format::WallAddress& wall = walls.front();
+                const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
                     wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
                 return false;
@@ -272,7 +272,7 @@ namespace
         using stratum_format::discrete_point_type;
         using stratum_format::discrete_vector_type;
 
-        stratum_format::Document document;
+        stratum_format::ZoneDocument document;
 
         try
         {
@@ -405,13 +405,13 @@ namespace
                 {
                     // Whatever its type, the staircase's entity is the access point on a wall that a neighbor presents to this
                     // cell
-                    const auto* address = wall_address(entity);
-                    if (address == nullptr || !entity.access_point.has_value() || address->cell_position - address->normal != cell_position)
+                    const auto* placement = wall_placement(entity);
+                    if (placement == nullptr || !entity.access_point.has_value() || placement->cell_position - placement->normal != cell_position)
                     {
                         continue;
                     }
 
-                    open_sides.push_back(address->normal);
+                    open_sides.push_back(placement->normal);
 
                     // A staircase leading down to a worldspace of a region spec has the region <region spec>_<k>
                     const bool leads_down = cell_glyph(cell_position) == '>';
@@ -468,11 +468,11 @@ namespace
         for (stratum_format::stored_entity_id_type id : document.access_points)
         {
             auto entity = find_if(document.entities.begin(), document.entities.end(), [id](const stratum_format::Entity& e) { return e.id == id; });
-            const auto* address = entity != document.entities.end() ? wall_address(*entity) : nullptr;
+            const auto* placement = entity != document.entities.end() ? wall_placement(*entity) : nullptr;
 
-            if (address != nullptr)
+            if (placement != nullptr)
             {
-                access_point_cells.insert(address->cell_position - address->normal);
+                access_point_cells.insert(placement->cell_position - placement->normal);
             }
         }
 
@@ -556,7 +556,7 @@ TEST_SUITE("parameters reproduce their zone")
                 REQUIRE_MESSAGE(!reference.empty(), format("{} is checked in", scenario.name));
 
                 // The name is the zone's, not a parameter of its run, so it is copied as the file wrote it
-                stratum_format::Document document = document_of(reference);
+                stratum_format::ZoneDocument document = document_of(reference);
                 string name = document.components.is_object() ? document.components.value("name", string()) : string();
 
                 map_type difference = map_type::diff(map_type::parse(reference), map_type::parse(zone_text(parameters_of(document.generator), name)));
@@ -590,7 +590,7 @@ TEST_SUITE("parameters reproduce their zone")
     {
         catagen::Parameters positioned = scenarios().front().parameters;
         positioned.position = catagen::zone_position_type {-1, 2, 1};
-        stratum_format::Document positioned_document = document_of(zone_text(positioned));
+        stratum_format::ZoneDocument positioned_document = document_of(zone_text(positioned));
 
         CHECK_MESSAGE((positioned_document.position == positioned.position), "a zone given a position has it in its layout");
         CHECK_MESSAGE((parameters_of(positioned_document.generator).position == positioned.position),
@@ -610,7 +610,7 @@ TEST_SUITE("zones the reader accepts")
             SUBCASE(format("{} is a zone the reader accepts", scenario.name))
             {
                 string text = zone_text(scenario.parameters, scenario.zone_name);
-                stratum_format::Document document;
+                stratum_format::ZoneDocument document;
                 REQUIRE_NOTHROW(document = document_of(text));
 
                 ostringstream os;
@@ -648,7 +648,7 @@ TEST_SUITE("determinism")
 
     TEST_CASE("a Zone's name is written as the layout's name")
     {
-        stratum_format::Document named = document_of(zone_text(sound_parameters(), "Catacombs Level 1"));
+        stratum_format::ZoneDocument named = document_of(zone_text(sound_parameters(), "Catacombs Level 1"));
 
         CHECK(named.components.is_object());
         CHECK(named.components.value("name", string()) == "Catacombs Level 1");
@@ -657,7 +657,7 @@ TEST_SUITE("determinism")
 
     TEST_CASE("an empty name is not written")
     {
-        stratum_format::Document unnamed = document_of(zone_text(sound_parameters()));
+        stratum_format::ZoneDocument unnamed = document_of(zone_text(sound_parameters()));
 
         CHECK((!unnamed.components.is_object() || !unnamed.components.contains("name")));
         return;
@@ -665,8 +665,8 @@ TEST_SUITE("determinism")
 
     TEST_CASE("the name does not affect the grid")
     {
-        stratum_format::Document named = document_of(zone_text(sound_parameters(), "Catacombs Level 1"));
-        stratum_format::Document unnamed = document_of(zone_text(sound_parameters()));
+        stratum_format::ZoneDocument named = document_of(zone_text(sound_parameters(), "Catacombs Level 1"));
+        stratum_format::ZoneDocument unnamed = document_of(zone_text(sound_parameters()));
 
         CHECK(named.cells.value().rows == unnamed.cells.value().rows);
         return;
@@ -716,7 +716,7 @@ TEST_SUITE("parameter validation")
     {
         const Scenario surface1 = scenarios().back();
         REQUIRE(surface1.name == "surface1");
-        stratum_format::Document document = document_of(zone_text(surface1.parameters, surface1.zone_name));
+        stratum_format::ZoneDocument document = document_of(zone_text(surface1.parameters, surface1.zone_name));
 
         vector<string> targets;
         vector<string> expected;

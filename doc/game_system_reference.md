@@ -51,17 +51,17 @@ adding two does not compile. `cardinal_directions` are the four unit vectors `Ea
 `point_projection_type` and `vector_projection_type` are `geometry::MinProjection` along the z axis onto the xy plane.
 `grid_step(vector)` returns the cardinal direction nearest a direction.
 
-### Layout
+### LayoutBase
 
-`Layout` is an interface to one zone's geometry and topology. Its queries --- `move`, `turn`, `face`,
+`LayoutBase` is an interface to one zone's geometry and topology. Its queries --- `move`, `turn`, `face`,
 `same_location`, `neighbors`, `visible`, `ahead` and `step_distance` --- are all pure virtual, and none of them
 mentions a cell or a wall. `Rotation` (`CCW`, `CW`, `Half`), `MoveResult`, `crossable_function_type` and
 `blocker_function_type` are declared with it.
 
 A second, non-virtual `move` takes neither predicate, so no wall is crossable and no entity blocks. A derived layout
-brings it back into scope with `using Layout::move`.
+brings it back into scope with `using LayoutBase::move`.
 
-The destructor is public and virtual, since a zone owns its layout through a `std::unique_ptr<Layout>`. The other
+The destructor is public and virtual, since a zone owns its layout through a `std::unique_ptr<LayoutBase>`. The other
 special members are protected and defaulted, so a concrete layout copies and moves as itself and cannot be sliced
 through the base.
 
@@ -87,7 +87,7 @@ apply; proximity needs a spatial index, there being no movement grid; and `value
 settling first, every vertex being grid derived and exactly representable today.
 
 `stratum_sim_test` compiles the header and checks the two properties a skeleton promises: that it is a
-`Layout`, and that it is abstract.
+`LayoutBase`, and that it is abstract.
 
 ### DiscreteLayout
 
@@ -100,7 +100,7 @@ the grid. Entities refer into it by id.
 | `DirectionMask` | A set of the four cardinal directions, one bit each in `CardinalDirection` order, with `direction_mask(direction)`. The view uses it for the directions in which a wall line continues. |
 | `Flat` | The floor or the ceiling, which differ only by `ceiling`. Its height is given for the whole flat, per room (`room_height`) and per cell (`cell_height`), each overriding the one before; the per-room and per-cell tables are sparse. |
 | `GridMapping` | `origin`, the corner of cell `(0, 0)`; `scale`; and `extent`, the cell count along each axis as a `discrete_vector_type`. It has `contains(cell_position)`, `cell_position_at(point)` and `position(cell_position)`, which returns the cell center. |
-| `MoveResult` | The placement reached, possibly short of the distance asked for, and the `blocking_wall_id` or `blocking_entity_id` that stopped it. Only one of them is set, and both are `nullid` if nothing stopped it. Declared in `Layout.hpp`. |
+| `MoveResult` | The placement reached, possibly short of the distance asked for, and the `blocking_wall_id` or `blocking_entity_id` that stopped it. Only one of them is set, and both are `nullid` if nothing stopped it. Declared in `LayoutBase.hpp`. |
 
 A layout is constructed with its origin, scale and extent, and sizes its cell table from them. Cells run from `(0, 0)`
 to the extent. `GridMapping::contains` is used in assertions only: the loader guarantees a walled boundary, so a move
@@ -152,25 +152,25 @@ placements passes through, one edge at a time, and fails at the first wall that 
 declared and not implemented. `ahead(placement)` returns the wall of the placement's cell in its facing direction,
 snapped to a cardinal direction, or `nullid` if there is none.
 
-### PlacementIndex
+### ProximityIndexBase
 
-`PlacementIndex` is an interface to the entities placed in one zone, by location: `place` adds an entity at a
+`ProximityIndexBase` is an interface to the entities placed in one zone, by location: `place` adds an entity at a
 placement or moves it there, `remove` takes out an entity that is in the index, and `contains` and `entity_count` report
 on it. `entities_at(placement)` returns the entities at the same location as a placement, and
 `entities_within(placement, range)` those whose positions are within the range of its position in 3D, both in ascending
-id order. It refers to entities by `id_type`, so `Layout.hpp` includes no flecs.
-`Layout::create_placement_index()` returns an empty index of the layout's own type, which must not outlive the layout.
+id order. It refers to entities by `id_type`, so `LayoutBase.hpp` includes no flecs.
+`LayoutBase::create_proximity_index()` returns an empty index of the layout's own type, which must not outlive the layout.
 Each zone owns one (`### World`).
 
-`DiscretePlacementIndex` is `DiscreteLayout`'s. It maps each cell's slot to the ids in it, kept in ascending order, and
+`DiscreteProximityIndex` is `DiscreteLayout`'s. It maps each cell's slot to the ids in it, kept in ascending order, and
 each entity to its placement. `entities_at` takes a placement or a cell position. `entities_within` visits the cells
 that the range overlaps, clipped to the grid, or, if the zone has fewer entities than those cells, every entity, and
 keeps those within the range.
 
 ### load_layout
 
-`load_layout(zone, document)` fills a zone that has no layout from a `Document` that `stratum_format::read_zone` returned.
-An empty zone's document, which has no `cells`, sets only the zone's `ZoneDocument`, its position and its layout
+`load_layout(zone, document)` fills a zone that has no layout from a `ZoneDocument` that `stratum_format::read_zone` returned.
+An empty zone's document, which has no `cells`, sets only the zone's `Document`, its position and its layout
 components, and leaves it with no layout. Otherwise it builds the layout through the same `stratum_format` functions that validated it. Each floor/door cell is open, with a wall on
 each side for which `has_wall` is true. Each room's cells, from `room_cells`, get its id, and `room_count` is the
 number of rooms. The flats get the file's heights, the floor defaulting to 0 and the ceiling to 1. A stair cell is
@@ -182,7 +182,7 @@ side alone. Two areas therefore never share an edge in the block notation. In th
 a wall are walled from both sides, which the block notation cannot express, so a block layout is a subset of a wall
 layout.
 
-It sets the zone's `ZoneLayout` to the `DiscreteLayout`, since both notations are grids of cells, and its `ZoneDocument` to a copy of the document without its
+It sets the zone's `Layout` to the `DiscreteLayout`, since both notations are grids of cells, and its `Document` to a copy of the document without its
 entities and with its `unpopulated` flag cleared, whose geometry a saved zone is written with. It then
 builds every entity in the file in two passes, in the
 file's order. The first pass creates each entity in the zone, `IsA` its type, so that each has its persistent id ---
@@ -234,8 +234,8 @@ registers an observer that, when an entity's `Name` is set and it has no `Displa
 (`Dead`), and the `ControlledActor` tag. `register_attachment_components`, in `attachments.hpp`, registers `access`
 (`Access`) and `detection` (`Detection`), and `register_ai_components`, in `ai.hpp`, registers `pursue` (`Pursue`).
 
-`make_document(zone)` returns a loaded zone as a saved zone's `Document`, the reverse of `load_layout`. The geometry is
-its `ZoneDocument`'s, which does not change during play, and the rest is the zone as it is now: its persistent id and
+`make_document(zone)` returns a loaded zone as a saved zone's `ZoneDocument`, the reverse of `load_layout`. The geometry is
+its `Document`'s, which does not change during play, and the rest is the zone as it is now: its persistent id and
 level; the component objects of the layout and of each room, wall, flat and flat override, each of its own file
 components, with a wall or override that gained components during play added; its access points; and every entity in
 its subtree but the layout entities, in persistent id order. The character, which the game owns, is in no zone's
@@ -244,7 +244,7 @@ Each value is encoded through flecs reflection: an unset optional field is left 
 reference to its persistent id, and a struct field by field. A site with no address on an entity in the zone is written
 in a cell of the zone, at the cell its placement is in. An access point is written as its `access_point`, and a bound
 target as the persistent id of the access point it is bound to. `rebuild_document(zone)`, which would rebuild the geometry from the layout as well, for a zone that has
-no `ZoneDocument`, is a skeleton with an empty body.
+no `Document`, is a skeleton with an empty body.
 
 `make_character_document(character)` returns the character as a character file's `CharacterDocument`: its persistent id,
 its own file components, its zone's persistent id, the cell its placement is in and its orientation, and every entity in
@@ -281,16 +281,16 @@ among the known keys, in key order, so a consumer reports a key it does not read
 the entries whose keys begin with the prefix, with the prefix removed, so one part of a spec, such as its `zone.` keys,
 becomes a spec of its own.
 
-A zone generator, `zone_generator_type`, returns the `stratum_format::Document` a zone is built from, given the zone's
-resolved `ZoneSpec`, and reads nothing from the world. `Generation.hpp` declares `Document` without including its
+A zone generator, `zone_generator_type`, returns the `stratum_format::ZoneDocument` a zone is built from, given the zone's
+resolved `ZoneSpec`, and reads nothing from the world. `Generation.hpp` declares `ZoneDocument` without including its
 header, so nlohmann reaches no file that includes `World.hpp`.
 
 ### World
 
 `World` contains the zones and everything in them. One flecs world contains the entities, and a zone is an entity
 whose contents are its children, so migration and unloading are subtree operations, and migration keeps each entity's
-id. A zone is an entity with the `Zone` tag, a `ZoneLayout` component that owns its layout as a
-`std::unique_ptr<Layout>`, and a `ZonePlacementIndex`. Deleting the entity deletes the layout. There is one `World` in a
+id. A zone is an entity with the `Zone` tag, a `Layout` component that owns its layout as a
+`std::unique_ptr<LayoutBase>`, and a `ProximityIndex`. Deleting the entity deletes the layout. There is one `World` in a
 game, owned by `Game`, and it cannot be copied or moved.
 
 A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`).
@@ -304,7 +304,7 @@ inclusive range converted to the box's half-open range, the top-level region, an
 every axis. `World` has its worldspaces in a vector,
 `worldspaces()`, in the order they were created, which is id order. `worldspace(worldspace_id)` and `region(region_id)`
 return one, each a linear search, and a reference to either is valid until a worldspace is created or unloaded. An
-observer of `ZonePosition` lists a zone at its position when the position is set, so no two zones of a worldspace have
+observer of `Position` lists a zone at its position when the position is set, so no two zones of a worldspace have
 one position; zones of different worldspaces may.
 
 A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. `Region` (`Region.hpp`) is a value too:
@@ -322,7 +322,7 @@ with. `regions()` has the top-level region first and each region before its subr
 parent and listing it in the parent's `subregion_ids`; and `extended_name(region_id)` returns the name of each region
 from the top-level region down to the region, each preceded by `/`, such as `/surface/moor`.
 
-A zone has no parent. Its `ZoneWorldspace` and `ZoneRegion` components have the ids of the worldspace and the region it
+A zone has no parent. Its `WorldspaceId` and `RegionId` components have the ids of the worldspace and the region it
 is in, which `worldspace_of(zone)` and `region_of(zone)` return.
 
 A name has a numeric suffix only if it is taken (`zone_plan.md`, `## Implementation`): `untaken_name(name, counter,
@@ -388,8 +388,8 @@ store entries, leaving the `zone.` keys as they are.
 then removes the worldspace and its regions.
 
 Every zone is made in a region. `create_zone(region_id, zone_id)` makes a zone with no layout in the region, with the
-`Zone` tag, its `ZoneWorldspace` and `ZoneRegion`, and that `PersistentId`, for a generator or the loader to fill. An
-empty zone is a zone whose content has not been generated or loaded: it has no layout, and its `ZoneDocument` is an
+`Zone` tag, its `WorldspaceId` and `RegionId`, and that `PersistentId`, for a generator or the loader to fill. An
+empty zone is a zone whose content has not been generated or loaded: it has no layout, and its `Document` is an
 empty zone's document, with the zone's position, its name and its resolved `ZoneSpec` as its `zone_spec`.
 `empty_zone(zone)` returns true for one, and it is saved, unloaded and read back as any other zone is.
 `create_zone(region_id, position, name)` creates an empty zone with that name and a new id, the name also its spec's
@@ -406,7 +406,7 @@ whose first draw is the starting worldspace's seed. A worldspace created for an 
 seed and the access point's persistent id, a placeholder until a zone draws a seed pool.
 
 `load_zone_at(worldspace_id, position)` returns the zone at the position in the worldspace, reading it back with
-`load_saved_zone` if it has unloaded. If the zone is empty, it fills it from the `Document` that `generate_zone(zone_spec)`
+`load_saved_zone` if it has unloaded. If the zone is empty, it fills it from the `ZoneDocument` that `generate_zone(zone_spec)`
 returns for its `zone_spec`: the game's zone generator's, unpopulated. Filling a zone keeps its position and its name,
 checks the document with `check_buildable`, has `load_layout` fill the zone, creates the worldspace that each target of
 an access point with a `region_spec` refers to if the world has none of that name (`create_target_worldspaces`), and
@@ -415,9 +415,9 @@ generator passes on, with nothing filled. `load_template(worldspace_id, position
 the position from a zone template file in the same way, and throws `std::runtime_error` for a saved zone's file or a zone
 at the position that is not empty.
 
-A zone's level, a `level_type` (`std::int32_t`), is the z of its `ZonePosition`. Access point targets in the zone
-data state levels, and `resolve_target` matches zones by them. The loader sets a zone's `ZonePosition` from the
-file's `position`, and a zone whose file has none has no `ZonePosition`; `make_document` writes the position back. A
+A zone's level, a `level_type` (`std::int32_t`), is the z of its `Position`. Access point targets in the zone
+data state levels, and `resolve_target` matches zones by them. The loader sets a zone's `Position` from the
+file's `position`, and a zone whose file has none has no `Position`; `make_document` writes the position back. A
 zone built from a document whose position is outside its worldspace's extent, or is another zone's position in its
 worldspace, throws `std::runtime_error` before anything is built.
 
@@ -530,10 +530,10 @@ its entities through `ChildOf`, and an entity contains its children through flec
 child as well.
 
 Occupancy is `entities_at` and `entities_within`, over the entities in the zone whose sites have no address, in
-ascending id order, which the zone's placement index returns (`### PlacementIndex`). `entities_at` takes either a
-placement or a cell position, through `DiscretePlacementIndex`. `placement_index(zone)` returns the index.
+ascending id order, which the zone's proximity index returns (`### ProximityIndexBase`). `entities_at` takes either a
+placement or a cell position, through `DiscreteProximityIndex`. `proximity_index(zone)` returns the index.
 
-A zone's `ZonePlacementIndex` owns its index. `set_layout(zone, layout)` sets the zone's `ZoneLayout` and the empty
+A zone's `ProximityIndex` owns its index. `set_layout(zone, layout)` sets the zone's `Layout` and the empty
 index the layout creates, and `create_zone(region_id, layout)` and `load_layout` set a zone's layout through it. Observers on
 `Site` keep the index current. An entity that is a child of a zone, or is in it through `InZone`, is placed in the
 zone's index when its site is set with no address, and removed when its site gains an address or is removed. An entity
@@ -557,21 +557,23 @@ type reads each component that inherits --- one with optional fields --- from th
 its own `Access`. `register_game_types(world)`, declared beside `Game`, which calls it, registers the game's
 types until they load from data: `door`, with a closed `Access`. The tests call it too.
 
-A layout entity is the entity of a room, a wall, a flat, a flat's override for a room, or a flat cell. Its address is
-its component, and it is found by that address: a `RoomAddress`, `WallAddress`, `FlatAddress`, `FlatRoomAddress` or
-`FlatCellAddress`, the five types that `for_each_layout_address` visits. It has no persistent id. A flat's override for a
-room or a cell is a child of the flat's entity through `Parent`, and every other layout entity is a child of its zone.
+A layout entity is the entity of a room, a wall, a flat, a flat's override for a room, or a flat cell. Its key is
+its component, and it is found by that key: a `RoomId`, `WallId`, `FlatId` or `FlatCellPosition`, the four types that
+`for_each_layout_entity` visits. It has no persistent id. A flat's override for a room or a cell is a child of the
+flat's entity through `Parent`, and every other layout entity is a child of its zone. A flat's override for a room has
+the room's `RoomId`, and is told from the room by its parent.
 The loader gives every room and each flat an entity. A wall, a flat's override for a room, and a flat cell have one
 only while they have components of their own or something sited on them.
 
-`layout_entities.hpp` has templates over the address type that take the zone. `ensure_layout_entity(zone, address)`
-makes a layout entity once, and `layout_entity(zone, address)` finds it, returning a null entity if there is none.
+`layout_entities.hpp` has templates over the key type that take the zone. `ensure_layout_entity(zone, key)`
+makes a layout entity once, and `layout_entity(zone, key)` finds it, returning a null entity if there is none.
 `room_entity`, `wall_entity`, `flat_entity`, `flat_room_entity` and `flat_cell_entity`, and an `ensure_` form of each,
 do the same by id. A layout entity has the `LayoutEntity` tag, which `ensure_layout_entity` adds; the observer that gives
-entities in a zone their persistent id skips an entity with it. For each address type the zone has
-an `AddressIndex<Address>` component, a map from address to entity. `for_each_layout_address` calls a function with
-each address type, through a fold over the five types, and `World` uses it to register the address and index components
-and its observers for all five.
+entities in a zone their persistent id skips an entity with it. For each key type the zone has
+an `EntityIndex<T>` component, a map from key to entity, and a flat's entity has an `EntityIndex<RoomId>` of its
+overrides for rooms. `erase_layout_entity` removes a deleted entity from the index of its zone or of its parent.
+`for_each_layout_entity` calls a function with each key type, through a fold over the four types, and `World` uses it
+to register the key and index components and its observers for all four.
 
 A wall's or flat cell's entity lists the entities sited on it in `AttachedEntities`, kept current by observers on
 `Site`. Setting a site with an address creates the layout entity if there is none and lists the sited entity once;
@@ -638,15 +640,15 @@ everything below it to the new zone, so `relocate` and `reparent` keep the index
 
 This section covers where every entity is, and the entities sited on walls and flat cells.
 
-`Site` is where an entity is: a `Relation`, `In` or `On`; an optional address, which is a `WallAddress` of one wall id
-or a `FlatCellAddress` of a flat id and a cell position; and a `placement_type` relative to the address, or to the
+`Site` is where an entity is: a `Relation`, `In` or `On`; an optional address, which is a `WallId` of one wall id
+or a `FlatCellPosition` of a flat id and a cell position; and a `placement_type` relative to the address, or to the
 parent if there is no address. An actor is `In` its zone with a placement and no address, and so is an entity resting
 on a floor. `wall_id_of(site)` returns the site's wall id, if it has one. `placement_of(e)` and
 `set_placement(e, placement)` read and write the placement and leave the rest of the site unchanged; `set_placement`
 on an entity with no site gives it one.
 
 A door is an entity with `Access`, so both of its sides are open or shut together. It has a door facing child on each
-of its walls, sited `On` a `WallAddress`; no component marks a door facing as one. A door's walls are its sides: in
+of its walls, sited `On` a `WallId`; no component marks a door facing as one. A door's walls are its sides: in
 the wall notation, the two sides of one cell edge, and in the block notation, the walls the floor has toward the
 doorway block. A door with one wall is a doorway into a dead end. The loader builds a door from the file's entities,
 with the `door` type giving it a closed `Access`, and a generator builds one the same way.
@@ -1023,7 +1025,7 @@ on, created from the `dungeon` spec when the surface zone is generated.
 
 `stratum_gen` links no part of `stratum_sim`. A `ZoneRequest` is what one zone is generated from: its `name`, empty for
 none, an optional `position`, a `seed`, and `parameters`, which the generator reads, as the tokens its zone file's `generator`
-section has. `generator_function_type` takes a `ZoneRequest` and returns a `stratum_format::Document`, and
+section has. `generator_function_type` takes a `ZoneRequest` and returns a `stratum_format::ZoneDocument`, and
 `stratum_gen::generators()` returns a map from each generator's name to its function. `generate_dungen`, under
 `dungen`, and `generate_catagen`, under `catagen`, each set the parameters the request's `parameters` refer to with
 their library's `set_parameter` and skip the keys that are not its parameters, since every generator is given the same
@@ -1106,15 +1108,15 @@ write through it.
 `reference_id` returns the id if a value is a reference, `references` returns every reference within an object of file
 components in the order written, and `translate_references` replaces each with the id a function returns for it.
 
-`Document` is the file as data structures. The geometry is decoded into types: the grid and its rows, expanded from
-runs; the barriers; each room's perimeter or `RoomLocator`; wall addresses; and each flat's heights. So are each
+`ZoneDocument` is the file as data structures. The geometry is decoded into types: the grid and its rows, expanded from
+runs; the barriers; each room's perimeter or `RoomLocator`; wall placements; and each flat's heights. So are each
 entity's `site`, `parent` and `access_point` file components, which the reader validates. A `Site`'s address is a
-`WallAddress`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
+`WallPlacement`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
 relation `in` and an orientation required. A `stratum_format::AccessPoint` has its type, its order, an optional
-target, which is a `AccessPointTarget` or the id of the access point it is bound to, and an optional `region_spec`. The layout's `access_points` are `Document::access_points`, a list of entity
-ids, its optional `position` is `Document::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
-coordinates), and its `unpopulated` flag is `Document::is_unpopulated`, false if
-absent. The `generator` section is `Document::generator`, an optional `Generator` with its name and its parameters'
+target, which is a `AccessPointTarget` or the id of the access point it is bound to, and an optional `region_spec`. The layout's `access_points` are `ZoneDocument::access_points`, a list of entity
+ids, its optional `position` is `ZoneDocument::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
+coordinates), and its `unpopulated` flag is `ZoneDocument::is_unpopulated`, false if
+absent. The `generator` section is `ZoneDocument::generator`, an optional `Generator` with its name and its parameters'
 tokens, a `KeyValueStore`. Every other file component is `raw_values_type`, nlohmann's `ordered_json`, as
 the file wrote it. A room is kept as the file identified it.
 
@@ -1123,12 +1125,12 @@ A `AccessPointTarget` is an unbound target, `[region/]zone[@position]`: an optio
 and the position are kept as written. `parse_access_point_target(text)` returns the target, or nothing if the text does
 not match the grammar, and `format_access_point_target(target)` writes it back as the same text. They and `level_type` are
 in `AccessPointTarget.hpp`. That header and `Notation.hpp`, which has `Notation` and its names, are the only format
-headers that `stratum_sim`'s headers include, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `Document::zone_id`, which makes every id in the file persistent; it is
+headers that `stratum_sim`'s headers include, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `ZoneDocument::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.
 
 `read_zone` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
 Beyond each section's structure, it checks what the rows determine: in the wall notation, a wall between every floor
-cell and a blank cell, a stair cell or the edge of the grid; a wall in the grid at every wall address, whose cell is a
+cell and a blank cell, a stair cell or the edge of the grid; a wall in the grid at every wall placement, whose cell is a
 floor/door cell; a room's `RoomLocator` cell on a floor cell; a perimeter within the grid and along cell edges that
 never meets itself, each of whose cell edges is a wall toward a floor/door cell or a virtual wall between two; and no
 cell in two rooms, compared only for rooms whose bounding boxes intersect.
@@ -1476,7 +1478,7 @@ must not already have the project open, or the library is locked and the build f
 
 ## Tests
 
-`stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the placement index and each zone's,
+`stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the proximity index and each zone's,
 flats, blocking, the scheduler, the
 clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands,
 occupancy, zone names and their patterns, the game's region specs, region spec trees and their composition, and the game's setting definitions inserted into a store. It and `stratum_view_test` each check that every zone file in their `data/` has one `door` entity per door

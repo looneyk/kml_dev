@@ -128,14 +128,14 @@ const quetzal::stratum_sim::World& quetzal::stratum_sim::Session::world() const
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Layout& quetzal::stratum_sim::Session::layout()
+quetzal::stratum_sim::LayoutBase& quetzal::stratum_sim::Session::layout()
 {
     assert(loaded());
     return m_world.layout(m_zone);
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Layout& quetzal::stratum_sim::Session::layout() const
+const quetzal::stratum_sim::LayoutBase& quetzal::stratum_sim::Session::layout() const
 {
     assert(loaded());
     return m_world.layout(m_zone);

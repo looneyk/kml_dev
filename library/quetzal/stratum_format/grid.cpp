@@ -205,7 +205,7 @@ bool quetzal::stratum_format::has_wall(const Cells& cells, const discrete_point_
 }
 
 //------------------------------------------------------------------------------
-std::vector<std::set<quetzal::stratum_format::discrete_point_type>> quetzal::stratum_format::room_cells(const Document& document)
+std::vector<std::set<quetzal::stratum_format::discrete_point_type>> quetzal::stratum_format::room_cells(const ZoneDocument& document)
 {
     FillBarriers layout_barriers = fill_barriers(document.barriers);
 
@@ -228,14 +228,14 @@ std::vector<std::set<quetzal::stratum_format::discrete_point_type>> quetzal::str
 }
 
 //------------------------------------------------------------------------------
-std::vector<std::vector<quetzal::stratum_format::WallAddress>> quetzal::stratum_format::door_walls(const Cells& cells)
+std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratum_format::door_walls(const Cells& cells)
 {
     const auto& directions = quetzal::math::cardinal_directions<coord_type, 2>;
     auto floor_on_grid = [&](const discrete_point_type& cell_position) { return on_grid(cells, cell_position) && floor_cell(cells, cell_position); };
 
-    std::vector<std::vector<WallAddress>> result;
+    std::vector<std::vector<WallPlacement>> result;
 
-    auto add = [&](std::vector<WallAddress>& walls, const discrete_point_type& cell_position, const discrete_vector_type& normal)
+    auto add = [&](std::vector<WallPlacement>& walls, const discrete_point_type& cell_position, const discrete_vector_type& normal)
     {
         if (floor_on_grid(cell_position))
         {
@@ -255,7 +255,7 @@ std::vector<std::vector<quetzal::stratum_format::WallAddress>> quetzal::stratum_
                     continue;
                 }
 
-                std::vector<WallAddress> walls;
+                std::vector<WallPlacement> walls;
                 discrete_vector_type across = x % 2 == 0 ? directions[0] : directions[1];
                 discrete_point_type after {x / 2, y / 2};
 
@@ -282,7 +282,7 @@ std::vector<std::vector<quetzal::stratum_format::WallAddress>> quetzal::stratum_
                 continue;
             }
 
-            std::vector<WallAddress> walls;
+            std::vector<WallPlacement> walls;
 
             for (const auto& direction : directions)
             {

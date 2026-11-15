@@ -1,6 +1,6 @@
 # Writing
 
-These rules apply to code names, comments, documents, commit messages, and replies. They extend the Conventions in
+These rules apply to code names, comments, documents, commit messages, replies, rules, and memories. They extend the Conventions in
 `CLAUDE.md`, and the wording check in `.claude/hooks/` flags the watch-list words and clipped openings in added text.
 
 ## Names
@@ -21,6 +21,11 @@ are introduced, not after.
   in progress, and one game's directory inside it is `game_directory`.
 - **No technology.** A name is for the role, not the technology behind it: `raw_values_type`, not `json_type`.
   Third-party names used as they are, such as `flecs::entity`, are unaffected.
+- **A name is a judgement,** made from its context, its usage, and the code around it, and is never assembled from the
+  programming elements the code is made of. It tells the reader what the code is for and reads correctly where it is
+  used.
+- **A pattern in nearby code is not a reason for a name.** A prefix, suffix, or form taken from neighboring names is
+  checked for how it reads where the new name is used.
 - **A function per operation.** When an existing function computes the right result only after its arguments are
   transformed, write one named for the operation: `encode_wall_id(cell_position, normal)`, not
   `wall_toward(address.grid_position, -address.normal)`.
@@ -101,6 +106,8 @@ are introduced, not after.
 - **A general word that collides with a domain term is replaced** by one the domain leaves free. Entity nesting in
   stratum is "nested", not "depth" or "level", which are geometric there. The same applies to edge, wall, facing, room,
   cell, zone, flat, and type in stratum, and face, loop, trace, and segment in the model suite.
+- **A general word with established meanings in computing** is not used for a domain concept that none of those
+  meanings fits.
 - **A bare container word is the concept:** "map" is an associative container, and `std::map` is the ordered tree.
 - **No coined or redefined terms.** Use the identifiers and wording of the code, or standard terms, and describe what
   the code does rather than inventing a verb for it. A new term is proposed before it is used. Vocabulary comes from
@@ -135,3 +142,16 @@ are introduced, not after.
 - **Size and performance** are written as a cost per operation, with how they scale, never from the data seen so far.
 - **Real constraints are still written down:** the build scope rule, `notes` files being the author's, git being
   read-only. The test is whether the statement would need editing merely because something was added elsewhere.
+
+## Rules and memories
+
+These apply to `CLAUDE.md`, `.claude/rules/`, and Claude's memory files.
+
+- **A rule is understood without the session that produced it.** It is written for a later session that has none of
+  the current session's context.
+- **A rule goes straight to its principle,** with no attribution to the user or to Claude, and no dates or history.
+- **A rule has no example by default.** An example narrows how the rule is applied to cases that resemble it. One is
+  added only when the rule's key term is ambiguous without it, and is then a few words identifying the case.
+- **A rule is no stricter than the practice it describes.**
+- **A rule is worded for the behavior it targets in every activity,** whether answering, proposing, or editing, not
+  only the activity in which the problem appeared.

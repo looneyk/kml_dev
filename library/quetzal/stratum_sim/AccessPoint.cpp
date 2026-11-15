@@ -26,10 +26,10 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    template<typename Address>
-    flecs::entity find_attached_access_point(flecs::entity zone, const Address& address)
+    template<typename T>
+    flecs::entity find_attached_access_point(flecs::entity zone, const T& key)
     {
-        flecs::entity sited_on = quetzal::stratum_sim::layout_entity(zone, address);
+        flecs::entity sited_on = quetzal::stratum_sim::layout_entity(zone, key);
         const auto* attached = sited_on ? sited_on.try_get<quetzal::stratum_sim::AttachedEntities>() : nullptr;
 
         if (attached == nullptr)
@@ -82,7 +82,7 @@ bool quetzal::stratum_sim::targets_level(flecs::entity e, level_type offset)
     }
 
     const auto* absolute = std::get_if<stratum_format::AbsoluteZone>(&target->zone);
-    const auto* zone_position = absolute != nullptr ? zone_of(e).try_get<ZonePosition>() : nullptr;
+    const auto* zone_position = absolute != nullptr ? zone_of(e).try_get<Position>() : nullptr;
 
     return zone_position != nullptr && absolute->level == zone_position->z + offset;
 }
@@ -122,7 +122,7 @@ flecs::entity quetzal::stratum_sim::create_access_point(flecs::entity zone, flec
 quetzal::stratum_sim::placement_type quetzal::stratum_sim::arrival_placement(flecs::entity access_point)
 {
     assert(access_point.has<AccessPoint>());
-    return layout_as<DiscreteLayout>(*zone_of(access_point).get<ZoneLayout>().layout).arrival_placement(access_point.get<Site>());
+    return layout_as<DiscreteLayout>(*zone_of(access_point).get<Layout>().layout).arrival_placement(access_point.get<Site>());
 }
 
 //------------------------------------------------------------------------------
@@ -151,15 +151,15 @@ flecs::entity quetzal::stratum_sim::entry_point(flecs::entity zone, flecs::entit
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const WallAddress& address)
+flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const WallId& wall)
 {
-    return find_attached_access_point(zone, address);
+    return find_attached_access_point(zone, wall);
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const FlatCellAddress& address)
+flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const FlatCellPosition& flat_cell)
 {
-    return find_attached_access_point(zone, address);
+    return find_attached_access_point(zone, flat_cell);
 }
 
 //------------------------------------------------------------------------------

@@ -45,7 +45,7 @@ There is one bit per side of a cell: on a square grid, the four-bit `DirectionMa
 ### Walls
 
 A wall is on one side of a cell, addressed by that cell and the wall's normal, which points into the cell. This is the
-format's wall address unchanged. The normal is a vector rather than one of four directions, so the grid determines
+format's wall placement unchanged. The normal is a vector rather than one of four directions, so the grid determines
 which sides a cell has, and nothing here is fixed to a square grid.
 
 Everything in a wall record is derived from the address:
@@ -114,7 +114,7 @@ None of them scans, and none needs an index beside the layout.
 
 Reading has five passes. Nothing is built until every check has passed, so a rejected file leaves nothing behind.
 
-1. Parse the file into a `Document`, validating its geometry.
+1. Parse the file into a `ZoneDocument`, validating its geometry.
 2. Turn the rows into cells and walls; this is the one notation-specific pass.
 3. Turn the rooms into `room_id`, each room filled or taken from its perimeter, with no fill crossing a barrier.
 4. Build the flats, each at the three levels it was written at.

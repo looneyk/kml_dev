@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 // stratum_format
-// Document.cpp
+// ZoneDocument.cpp
 //------------------------------------------------------------------------------
 
-#include "Document.hpp"
+#include "ZoneDocument.hpp"
 #include <array>
 #include <utility>
 #include <cassert>

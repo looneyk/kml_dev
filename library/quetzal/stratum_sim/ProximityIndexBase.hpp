@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_SIM_PLACEMENT_INDEX_HPP)
-#define QUETZAL_STRATUM_SIM_PLACEMENT_INDEX_HPP
+#if !defined(QUETZAL_STRATUM_SIM_PROXIMITY_INDEX_BASE_HPP)
+#define QUETZAL_STRATUM_SIM_PROXIMITY_INDEX_BASE_HPP
 //------------------------------------------------------------------------------
 // stratum_sim
-// PlacementIndex.hpp
+// ProximityIndexBase.hpp
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
@@ -14,13 +14,13 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The entities placed in one zone, by location. Each layout type supplies an implementation
-    class PlacementIndex
+    class ProximityIndexBase
     {
     public:
 
         using entity_ids_type = std::vector<id_type>;
 
-        virtual ~PlacementIndex() = default;
+        virtual ~ProximityIndexBase() = default;
 
         // Adds the entity at the placement, or moves it there if it is already in the index
         virtual void place(id_type entity_id, const placement_type& placement) = 0;
@@ -39,14 +39,14 @@ namespace quetzal::stratum_sim
 
     protected:
 
-        PlacementIndex() = default;
-        PlacementIndex(const PlacementIndex&) = default;
-        PlacementIndex(PlacementIndex&&) noexcept = default;
+        ProximityIndexBase() = default;
+        ProximityIndexBase(const ProximityIndexBase&) = default;
+        ProximityIndexBase(ProximityIndexBase&&) noexcept = default;
 
-        PlacementIndex& operator=(const PlacementIndex&) = default;
-        PlacementIndex& operator=(PlacementIndex&&) noexcept = default;
+        ProximityIndexBase& operator=(const ProximityIndexBase&) = default;
+        ProximityIndexBase& operator=(ProximityIndexBase&&) noexcept = default;
     };
 
 } // namespace quetzal::stratum_sim
 
-#endif // QUETZAL_STRATUM_SIM_PLACEMENT_INDEX_HPP
+#endif // QUETZAL_STRATUM_SIM_PROXIMITY_INDEX_BASE_HPP

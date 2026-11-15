@@ -5,7 +5,7 @@
 // checked_values.hpp
 //------------------------------------------------------------------------------
 
-#include "Document.hpp"
+#include "ZoneDocument.hpp"
 #include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include <cstddef>
@@ -69,7 +69,7 @@ namespace quetzal::stratum_format::detail
     discrete_vector_type read_direction(const raw_values_type& v, const std::string& path);
 
     // The cell the wall belongs to, and the normal pointing out of the wall's surface into that cell
-    WallAddress read_wall_address(const raw_values_type& v, const std::string& path);
+    WallPlacement read_wall_placement(const raw_values_type& v, const std::string& path);
 
     // Returns null if the entry has no components
     raw_values_type read_components(const raw_values_type& v, const std::string& path);

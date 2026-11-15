@@ -14,7 +14,7 @@ that zones are made from. Saving and opening a game are in
   and zone from the game's region specs, each zone with its `ZoneSpec`, its name, its position, and its seed, and no
   content. A world created again from the same world seed is the same world.
 - **A zone's content is generated when it is needed,** the first time the zone is entered or loaded, from its
-  `ZoneSpec` and its seed. A zone's content is created whole: the generator returns a `stratum_format::Document`, which
+  `ZoneSpec` and its seed. A zone's content is created whole: the generator returns a `stratum_format::ZoneDocument`, which
   `World` builds into the zone in one pass.
 - **A region spec's `zone.` keys define each zone in the region.** The keys, their patterns resolved with the zone's
   position and zone counter (`region_spec_plan.md`, `## Patterns`), are the zone's `ZoneSpec`, its template and the zone
@@ -22,7 +22,7 @@ that zones are made from. Saving and opening a game are in
   resolved when the structure is created, so every zone's `ZoneSpec` is complete before play starts.
 - **The zone generator applies the `ZoneSpec` to its template** (`template_plan.md`).
 - **A game has one zone generator,** chosen by the game's notation, since a zone generator writes one zone format. It
-  creates one zone's content, as a function from a `ZoneSpec` to a `Document`, and reads nothing from the world.
+  creates one zone's content, as a function from a `ZoneSpec` to a `ZoneDocument`, and reads nothing from the world.
 - **The host only passes specs.** The host delegates game, world, and character creation to `Game`. It calls
   `Game::create` with the specs for each of these.
 
@@ -45,15 +45,15 @@ struct RegionSpec
 // A request to create a zone. The structure sets the position, and the region spec's zone.* keys the other keys
 struct ZoneSpec
 {
-    ZonePosition position() const;
-    void set_position(const ZonePosition& position);
+    Position position() const;
+    void set_position(const Position& position);
 
     KeyValueStore keys;
 };
 // name, position, template, ...
 // parameters.*: the zone's generation parameters, which its generator reads, the seed among them
 
-using zone_generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
+using zone_generator_type = std::function<stratum_format::ZoneDocument(const ZoneSpec& zone_spec)>;
 
 class Game
 {
@@ -88,9 +88,9 @@ The entities:
 //     Zone tag
 //     PersistentId
 //     its name and its region
-//     ZonePosition         its position in its worldspace
+//     Position         its position in its worldspace
 //     ZoneSpec             complete, with its seed and its generator's parameters
-//     ZoneLayout and its layout entities and entities, built from the Document once its content is
+//     Layout and its layout entities and entities, built from the ZoneDocument once its content is
 //     generated
 ```
 
@@ -99,7 +99,7 @@ The entities:
 - **The ids are `flecs::entity` in memory and `PersistentId` when stored.** A zone refers to its region by the
   region's persistent id or its extended name (`zone_plan.md`, `### Identity`).
 - **A zone keeps its `ZoneSpec`** until it is decided whether one is needed after its content is generated. The
-  generator writes the parameters it ran with into the `Document`'s `generator` section, so a zone's file has every
+  generator writes the parameters it ran with into the `ZoneDocument`'s `generator` section, so a zone's file has every
   parameter of its generation.
 
 ## Registries
@@ -176,7 +176,7 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
     ZoneSpec resolved_zone_spec = resolve_zone_spec(region_spec, zone_spec);
 
     flecs::entity zone = create the zone in the worldspace, with a new PersistentId, its name from the resolved
-        naming pattern, its region, the ZonePosition of zone_spec, and resolved_zone_spec;
+        naming pattern, its region, the Position of zone_spec, and resolved_zone_spec;
     add the zone's id to the region's zone ids;
     return zone;
 }
@@ -301,7 +301,7 @@ void World::generate(flecs::entity zone)
     const ZoneSpec& zone_spec = zone.get<ZoneSpec>();
 
     // the zone generator applies the spec to the spec's template, if it has one
-    stratum_format::Document document = m_zone_generator(zone_spec);
+    stratum_format::ZoneDocument document = m_zone_generator(zone_spec);
 
     // check the document with check_buildable before building anything
     load_layout(zone, document);
@@ -311,7 +311,7 @@ void World::generate(flecs::entity zone)
 
 - **A zone's content is generated once,** the first time it is entered or loaded, so every zone is built in the same
   way.
-- **The generator writes the zone's position into the `Document`.**
+- **The generator writes the zone's position into the `ZoneDocument`.**
 
 ## Targets
 
@@ -331,7 +331,7 @@ Game           m_world.create({surface, barrow_dungeon})
 World            worldspace surface, its region starting_area and its subregions, every zone with its ZoneSpec
 World            worldspace barrow_dungeon, its region, every zone with its ZoneSpec
 World            generate(the starting region's first zone)
-World              the zone generator, template forest               -> Document, a staircase to barrow_dungeon/level_1
+World              the zone generator, template forest               -> ZoneDocument, a staircase to barrow_dungeon/level_1
 World              load_layout, populate
 World          entry_point(the first zone, waypoint, 0)              -> access point
 Game           m_session.start(access point)

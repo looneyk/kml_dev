@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_DOCUMENT_HPP)
-#define QUETZAL_STRATUM_FORMAT_DOCUMENT_HPP
+#if !defined(QUETZAL_STRATUM_FORMAT_ZONEDOCUMENT_HPP)
+#define QUETZAL_STRATUM_FORMAT_ZONEDOCUMENT_HPP
 //------------------------------------------------------------------------------
 // stratum_format
-// Document.hpp
+// ZoneDocument.hpp
 //------------------------------------------------------------------------------
 
 #include "Notation.hpp"
@@ -50,12 +50,12 @@ namespace quetzal::stratum_format
 
     //--------------------------------------------------------------------------
     // The wall on a face of a cell. The normal is the vector pointing toward a viewer who is facing the wall
-    struct WallAddress
+    struct WallPlacement
     {
         discrete_point_type cell_position;
         discrete_vector_type normal;
 
-        friend bool operator==(const WallAddress&, const WallAddress&) = default;
+        friend bool operator==(const WallPlacement&, const WallPlacement&) = default;
     };
 
     //--------------------------------------------------------------------------
@@ -109,7 +109,7 @@ namespace quetzal::stratum_format
     //--------------------------------------------------------------------------
     struct Wall
     {
-        WallAddress address;
+        WallPlacement placement;
         raw_values_type components;
     };
 
@@ -149,7 +149,7 @@ namespace quetzal::stratum_format
     struct Site
     {
         Relation relation = Relation::In;
-        std::optional<std::variant<WallAddress, FlatCell, ZoneCell>> address;
+        std::optional<std::variant<WallPlacement, FlatCell, ZoneCell>> address;
         std::optional<surface_point_type> position;
         std::optional<discrete_vector_type> orientation;
     };
@@ -192,7 +192,7 @@ namespace quetzal::stratum_format
 
     //--------------------------------------------------------------------------
     // The data structure analog of a layout file
-    struct Document
+    struct ZoneDocument
     {
         std::string version;
         std::optional<Generator> generator;
@@ -220,4 +220,4 @@ namespace quetzal::stratum_format
 
 } // namespace quetzal::stratum_format
 
-#endif // QUETZAL_STRATUM_FORMAT_DOCUMENT_HPP
+#endif // QUETZAL_STRATUM_FORMAT_ZONEDOCUMENT_HPP

@@ -121,7 +121,7 @@ assets/
 
 ## Key abstractions
 
-**Zone and Layout.** A `Zone` is an independently loadable area --- a dungeon, a town, a moor. Its `Layout` is how that
+**Zone and Layout.** A `Zone` is an independently loadable area --- a dungeon, a town, a moor. Its `LayoutBase` is how that
 area is arranged and the interface for querying it: where an actor ends up, which wall is ahead, which placements are
 adjacent, and which are visible. `DiscreteLayout` is the implementation and `ContinuousLayout` is declared and not written. Occupancy is on
 neither: it composes with topology on `World`, which contains both. `sim_zone_model.md` works out both, and how the
@@ -187,8 +187,8 @@ the rebuild loop. Godot does not enter the build until Phase 3.
 
 **Phase 1 --- The two core interfaces**
 
-`Layout` and a grid implementation (cells, neighbors, per-edge walls), `Scheduler` and a turn-based energy
-implementation, and movement, turning and interaction commands. Occupancy is on `World` rather than on `Layout`. Zones
+`LayoutBase` and a grid implementation (cells, neighbors, per-edge walls), `Scheduler` and a turn-based energy
+implementation, and movement, turning and interaction commands. Occupancy is on `World` rather than on `LayoutBase`. Zones
 are read from both generators' output into the one structure.
 
 *Proves:* a walkable dungeon exists, verified entirely in headless tests. No rendering.
@@ -245,7 +245,7 @@ moves. Orthographic follows as a camera projection flag.
 
 **Phase 7 --- Generalization checkpoint**
 
-Write `ContinuousLayout`, the second implementation of `Layout`, already declared with every member pure. This is
+Write `ContinuousLayout`, the second implementation of `LayoutBase`, already declared with every member pure. This is
 where FPS and third-person become possible, the abstraction corrected against a second real case. Continuous time is
 done; continuous space is this phase.
 

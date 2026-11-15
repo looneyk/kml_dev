@@ -10,7 +10,7 @@ add_library(quetzal_stratum_sim STATIC
     Config.cpp
     decode_components.cpp
     DiscreteLayout.cpp
-    DiscretePlacementIndex.cpp
+    DiscreteProximityIndex.cpp
     EventQueue.cpp
     file_components.cpp
     layout_entities.cpp
@@ -56,7 +56,7 @@ add_library(quetzal_stratum_sim STATIC
     decode_components.hpp
     DirectionMask.hpp
     DiscreteLayout.hpp
-    DiscretePlacementIndex.hpp
+    DiscreteProximityIndex.hpp
     Event.hpp
     EventQueue.hpp
     file_components.hpp
@@ -68,14 +68,14 @@ add_library(quetzal_stratum_sim STATIC
     GridMapping.hpp
     IdAllocator.hpp
     Intent.hpp
-    Layout.hpp
+    LayoutBase.hpp
     load_character.hpp
     load_layout.hpp
     make_document.hpp
     Name.hpp
     PatternResolver.hpp
     PersistentId.hpp
-    PlacementIndex.hpp
+    ProximityIndexBase.hpp
     properties.hpp
     RandomStream.hpp
     Region.hpp

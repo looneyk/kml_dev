@@ -10,7 +10,7 @@
 #include "quetzal/stratum_sim/EventQueue.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
+#include "quetzal/stratum_sim/DiscreteProximityIndex.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
@@ -20,7 +20,7 @@
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/actors.hpp"
 #include "quetzal/stratum_sim/World.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
@@ -39,15 +39,15 @@ namespace
     TEST_SUITE_BEGIN("occupancy");
 
     //--------------------------------------------------------------------------
-    TEST_CASE("placement index")
+    TEST_CASE("proximity index")
     {
-        using entity_ids_type = stratum_sim::PlacementIndex::entity_ids_type;
+        using entity_ids_type = stratum_sim::ProximityIndexBase::entity_ids_type;
 
         stratum_sim::DiscreteLayout layout {stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
-        unique_ptr<stratum_sim::PlacementIndex> index = layout.create_placement_index();
-        auto* discrete_index = dynamic_cast<stratum_sim::DiscretePlacementIndex*>(index.get());
+        unique_ptr<stratum_sim::ProximityIndexBase> index = layout.create_proximity_index();
+        auto* discrete_index = dynamic_cast<stratum_sim::DiscreteProximityIndex*>(index.get());
 
-        CHECK_CASE("a discrete layout creates an empty discrete placement index", discrete_index != nullptr && index->entity_count() == 0);
+        CHECK_CASE("a discrete layout creates an empty discrete proximity index", discrete_index != nullptr && index->entity_count() == 0);
         if (discrete_index == nullptr)
         {
             return;
@@ -158,7 +158,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    TEST_CASE_FIXTURE(WorldFixture, "zone placement index")
+    TEST_CASE_FIXTURE(WorldFixture, "zone proximity index")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
         TestWorld world(id_allocator);
@@ -190,14 +190,14 @@ namespace
                     found = found && find(at.begin(), at.end(), e) != at.end();
                 });
 
-            return found && scanned_count == world.placement_index(zone).entity_count();
+            return found && scanned_count == world.proximity_index(zone).entity_count();
         };
 
-        CHECK_CASE("a zone loaded from a file has an empty index", world.placement_index(hall).entity_count() == 0 && index_agrees(hall));
+        CHECK_CASE("a zone loaded from a file has an empty index", world.proximity_index(hall).entity_count() == 0 && index_agrees(hall));
 
         flecs::entity rat = world.create_entity(hall, place(1, 1));
         flecs::entity bat = world.create_entity(hall, place(2, 1));
-        CHECK_CASE("a created entity is indexed", world.placement_index(hall).entity_count() == 2 && index_agrees(hall));
+        CHECK_CASE("a created entity is indexed", world.proximity_index(hall).entity_count() == 2 && index_agrees(hall));
 
         stratum_sim::set_placement(rat, place(3, 1));
         CHECK_CASE("a moved entity is indexed where it moved", world.entities_at(hall, stratum_sim::discrete_point_type {3, 1})
@@ -211,20 +211,20 @@ namespace
 
         flecs::entity torch = world.create_entity(hall, place(2, 1));
         torch.set<stratum_sim::Site>(stratum_sim::Site {stratum_sim::Relation::On,
-            stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}});
-        CHECK_CASE("an entity sited on an address leaves the index", !world.placement_index(hall).contains(torch.id())
+            stratum_sim::FlatCellPosition {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}});
+        CHECK_CASE("an entity sited on an address leaves the index", !world.proximity_index(hall).contains(torch.id())
             && world.entities_at(hall, stratum_sim::discrete_point_type {2, 1}) == stratum_sim::World::entities_type {bat} && index_agrees(hall));
 
         flecs::entity chest = world.create_entity(hall, place(5, 1));
         flecs::entity coin = world.create_entity(hall, place(5, 1));
         stratum_sim::reparent(coin, chest, stratum_sim::Site {stratum_sim::Relation::In, {}, {}});
-        CHECK_CASE("an entity put in another leaves the index", !world.placement_index(hall).contains(coin.id())
+        CHECK_CASE("an entity put in another leaves the index", !world.proximity_index(hall).contains(coin.id())
             && world.entities_at(hall, stratum_sim::discrete_point_type {5, 1}) == stratum_sim::World::entities_type {chest} && index_agrees(hall));
 
         world.relocate(chest, moor, place(1, 1));
-        CHECK_CASE("a relocated entity leaves its zone's index for the other's", !world.placement_index(hall).contains(chest.id())
+        CHECK_CASE("a relocated entity leaves its zone's index for the other's", !world.proximity_index(hall).contains(chest.id())
             && world.entities_at(moor, stratum_sim::discrete_point_type {1, 1}) == stratum_sim::World::entities_type {chest}
-            && !world.placement_index(moor).contains(coin.id()) && index_agrees(hall) && index_agrees(moor));
+            && !world.proximity_index(moor).contains(coin.id()) && index_agrees(hall) && index_agrees(moor));
 
         flecs::entity wanderer = world.entities().entity();
         world.relocate(wanderer, hall, place(5, 1));
@@ -232,11 +232,11 @@ namespace
             == stratum_sim::World::entities_type {wanderer} && index_agrees(hall));
 
         world.relocate(wanderer, moor, place(5, 1));
-        CHECK_CASE("and moves to the index of the zone it is relocated to", !world.placement_index(hall).contains(wanderer.id())
-            && world.placement_index(moor).contains(wanderer.id()) && index_agrees(hall) && index_agrees(moor));
+        CHECK_CASE("and moves to the index of the zone it is relocated to", !world.proximity_index(hall).contains(wanderer.id())
+            && world.proximity_index(moor).contains(wanderer.id()) && index_agrees(hall) && index_agrees(moor));
 
         bat.destruct();
-        CHECK_CASE("a deleted entity leaves the index", world.placement_index(hall).entity_count() == 1 && index_agrees(hall));
+        CHECK_CASE("a deleted entity leaves the index", world.proximity_index(hall).entity_count() == 1 && index_agrees(hall));
 
         world.unload_zone(moor);
         CHECK_CASE("unloading a zone leaves the game's entity in no zone", wanderer.is_alive() && !stratum_sim::zone_of(wanderer));
@@ -245,13 +245,13 @@ namespace
         CHECK_CASE("from which it is relocated into another zone's index", world.entities_at(hall, stratum_sim::discrete_point_type {5, 1})
             == stratum_sim::World::entities_type {wanderer} && index_agrees(hall));
 
-        stratum_format::Document saved = stratum_sim::make_document(hall);
+        stratum_format::ZoneDocument saved = stratum_sim::make_document(hall);
         bool saved_without_wanderer = none_of(saved.entities.begin(), saved.entities.end(),
             [&](const stratum_format::Entity& entity) { return entity.id == wanderer.get<stratum_sim::PersistentId>().id; });
         CHECK_CASE("and is left out of the zone's saved document", saved_without_wanderer);
 
         flecs::entity loaded = world.load_zone(world.region_id, "data/door.zone");
-        CHECK_CASE("a populated zone indexes its denizen and not its staircase", world.placement_index(loaded).entity_count() == 1
+        CHECK_CASE("a populated zone indexes its denizen and not its staircase", world.proximity_index(loaded).entity_count() == 1
             && index_agrees(loaded));
 
         return;

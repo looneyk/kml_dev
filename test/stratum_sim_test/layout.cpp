@@ -10,7 +10,7 @@
 #include "quetzal/stratum_sim/EventQueue.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
+#include "quetzal/stratum_sim/DiscreteProximityIndex.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Clock.hpp"
 #include "quetzal/stratum_sim/Scheduler.hpp"
@@ -18,7 +18,7 @@
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/World.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <set>
@@ -63,13 +63,13 @@ namespace
     // The layouts that are declared but not implemented; compiling their headers is most of the check
     TEST_CASE("layout hierarchy")
     {
-        CHECK_CASE("a discrete layout is a Layout",
-            is_base_of_v<stratum_sim::Layout, stratum_sim::DiscreteLayout>);
+        CHECK_CASE("a discrete layout is a LayoutBase",
+            is_base_of_v<stratum_sim::LayoutBase, stratum_sim::DiscreteLayout>);
         CHECK_CASE("and can be built, being the one that is written",
             !is_abstract_v<stratum_sim::DiscreteLayout>);
 
-        CHECK_CASE("a continuous layout is a Layout too",
-            is_base_of_v<stratum_sim::Layout, stratum_sim::ContinuousLayout>);
+        CHECK_CASE("a continuous layout is a LayoutBase too",
+            is_base_of_v<stratum_sim::LayoutBase, stratum_sim::ContinuousLayout>);
         CHECK_CASE("and cannot be built, nothing behind it being written",
             is_abstract_v<stratum_sim::ContinuousLayout>);
 
@@ -180,7 +180,7 @@ namespace
         open_walled(layout, 2, 0, 4, 1);
 
         // Within one room there is no wall at all, so nothing can block
-        stratum_sim::Layout::crossable_function_type shut;
+        stratum_sim::LayoutBase::crossable_function_type shut;
         CHECK_CASE("cells inside one area are always crossable", layout.crossable(stratum_sim::discrete_point_type {0, 0}, cardinal_direction(CardinalDirection::East), shut));
         CHECK_CASE("crossing within an area is symmetric", layout.crossable(stratum_sim::discrete_point_type {1, 0}, cardinal_direction(CardinalDirection::West), shut));
         CHECK_CASE("a wall nothing crosses blocks", !layout.crossable(stratum_sim::discrete_point_type {1, 0}, cardinal_direction(CardinalDirection::East), shut));
@@ -192,7 +192,7 @@ namespace
 
         // The caller's predicate decides which walls may be crossed
         std::set<id_type> open_walls {wall_a};
-        stratum_sim::Layout::crossable_function_type crossable = [&](id_type id) { return open_walls.contains(id); };
+        stratum_sim::LayoutBase::crossable_function_type crossable = [&](id_type id) { return open_walls.contains(id); };
 
         CHECK_CASE("opening a wall lets a mover out", layout.crossable(stratum_sim::discrete_point_type {1, 0}, cardinal_direction(CardinalDirection::East), crossable));
         CHECK_CASE("the other side is untouched, so the way back stays shut", !layout.crossable(stratum_sim::discrete_point_type {2, 0}, cardinal_direction(CardinalDirection::West), crossable));
@@ -240,8 +240,8 @@ namespace
         CHECK_CASE("what stopped it is the wall on its own side of the edge", far.blocking_wall_id == corridor_end);
 
         // Opening that wall lets it through
-        stratum_sim::Layout::crossable_function_type crossable = [id = far.blocking_wall_id](id_type wall_id) { return wall_id == id; };
-        stratum_sim::MoveResult through = layout.move(start, east, 7.0f, crossable, stratum_sim::Layout::blocker_function_type());
+        stratum_sim::LayoutBase::crossable_function_type crossable = [id = far.blocking_wall_id](id_type wall_id) { return wall_id == id; };
+        stratum_sim::MoveResult through = layout.move(start, east, 7.0f, crossable, stratum_sim::LayoutBase::blocker_function_type());
         CHECK_CASE("an opened wall no longer stops it", layout.cell_position_at(through.placement.position()) == stratum_sim::discrete_point_type(4, 0));
         CHECK_CASE("it stops at the next block instead", through.blocking_wall_id != nullid && through.blocking_wall_id != far.blocking_wall_id);
 
@@ -335,7 +335,7 @@ namespace
 
         // A doorway into a dead end has one wall
         std::set<id_type> open_walls {doorway};
-        stratum_sim::Layout::crossable_function_type crossable = [&](id_type wall_id) { return open_walls.contains(wall_id); };
+        stratum_sim::LayoutBase::crossable_function_type crossable = [&](id_type wall_id) { return open_walls.contains(wall_id); };
 
         open_walls.erase(doorway);
         CHECK_CASE_EQUAL("closing it removes the neighbor", layout.neighbors(at(3, 2), crossable).size(), 3);

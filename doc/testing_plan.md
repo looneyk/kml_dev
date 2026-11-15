@@ -135,7 +135,7 @@ file defines it, so no file lists another's test cases. Each file is a test suit
 | --- | --- |
 | `scheduling.cpp` | command queue, event queue, scheduler, clock, driver, commands |
 | `layout.cpp` | layout hierarchy, zone layout, rooms, grid, flats, blocking, movement, adjacency and sight, walk, polygon containment |
-| `occupancy.cpp` | placement index, zone placement index, occupancy, world move |
+| `occupancy.cpp` | proximity index, zone proximity index, occupancy, world move |
 | `loading.cpp` | load layout, load walls, doors, door entities, loaded entities, decoded components, properties, layout entities |
 | `world.cpp` | world, persistent ids, residency, saved zone documents, ai |
 | `relocation.cpp` | specs, regions, level targets, access points, relocating through, entering access points, interacting with access points |

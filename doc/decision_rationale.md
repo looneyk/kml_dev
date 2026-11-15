@@ -9,7 +9,7 @@ state what is true without repeating any of this.
 
 ## Layouts split on discrete versus continuous, and on nothing else
 
-`Layout` is the interface, and `DiscreteLayout` and `ContinuousLayout` are the two classes beneath it with nothing in
+`LayoutBase` is the interface, and `DiscreteLayout` and `ContinuousLayout` are the two classes beneath it with nothing in
 between. Geometry is not a second axis of classes.
 
 **Flat is the default, not a restriction.** A discrete layout with no height data has a floor at a constant height,
@@ -59,7 +59,7 @@ its own, so objects on thousands of different cells split storage into thousands
 orders of magnitude past the test zones multiplies that. A pair marked `DontFragment` avoids the split at a cost to
 iteration, and a component with the target and no list on the target leaves finding what is on a cell a scan of every
 object. Reverse links make both directions a lookup, the zone's location map reaching a wall's or a cell's entity from
-its id. The cost is keeping both ends in sync when an entity moves or is destroyed (`addressing_plan.md`).
+its id. The cost is keeping both ends in sync when an entity moves or is destroyed (`archived/addressing_plan.md`).
 
 It depends on wall ids being stable. An id encodes the cell and the side, so it is stable with no store behind it;
 what must not change is the grid it encodes against, or every link by wall id silently retargets. That constraint
@@ -68,7 +68,7 @@ shaped the mining decision below.
 ## An entity's site and parent are file components
 
 A zone file lists its entities once, and what an entity is in or on and its parent are its `site` and `parent` file
-components (`addressing.md`, `### Entities`, in parts 1 and 2).
+components (`archived/addressing.md`, `### Entities`, in parts 1 and 2).
 
 **A site is not an entity type.** There are places, which are geometry, and entities, which have identity; a site is
 the link from one to the other, and in the world it is a component on the entity. A list of attachments beside the
@@ -96,7 +96,7 @@ written by generators and tools, so grouping them by place for a reader would ga
 
 ## An entity has three ids
 
-An entity has a local id in a template, a persistent id in a world, and a runtime entity while loaded (`addressing.md`,
+An entity has a local id in a template, a persistent id in a world, and a runtime entity while loaded (`archived/addressing.md`,
 `### Ids`).
 
 **The persistent id cannot include the zone.** A key taken from one zone to another, or an item dropped in a zone that
@@ -126,7 +126,7 @@ Multiplayer does not reverse it. One server allocating is the same count, and a 
 temporary id, which the server replaces. Several servers divide the bits between which one allocated and its own
 count, as Twitter's Snowflake ids and Bethesda's form ids do. Only creation with no coordination at all --- peer to
 peer, merging worlds saved separately, moving an entity from one save to another --- needs UUIDs, and then as the alias
-throughout or at the boundary between worlds alone, which the rules in `addressing.md` keep a change to the allocator
+throughout or at the boundary between worlds alone, which the rules in `archived/addressing.md` keep a change to the allocator
 and the alias.
 
 ## The world index has only the entities something refers to
@@ -140,9 +140,9 @@ first reference to it is made, so a reference finds it even after the entity has
 ## Topology and occupancy compose on `World`
 
 `World::move` resolves where an actor ends up, composing the layout's geometry with whatever occupies the cell ahead.
-`Layout` takes a predicate and stays independent of entities.
+`LayoutBase` takes a predicate and stays independent of entities.
 
-Two other places were considered. Putting it on `Layout`, with `entities_within` on the interface, means giving the
+Two other places were considered. Putting it on `LayoutBase`, with `entities_within` on the interface, means giving the
 layout a view of the entities, which would stop it being geometry and topology alone. Putting it in the rule means the
 rule repeats a path the layout has just walked. `World` contains the layouts and the entities both, so it is the only
 place that pays neither cost.
@@ -156,10 +156,10 @@ design against.
 It also settles that a pushed boulder blocks the way a monster in a doorway does, which would otherwise diverge
 between the two layout models.
 
-## Actors are found through a zone placement index
+## Actors are found through a zone proximity index
 
 An actor's site has a placement and no address, and each zone has an index of the entities placed in it by place,
-derived from the placements (`addressing.md`, `### Actors`).
+derived from the placements (`archived/addressing.md`, `### Actors`).
 
 **Not a scan.** Checking every placed entity in the zone costs more as the zone fills, and `World::move` queries what is
 at a cell for every cell it moves into.
@@ -190,7 +190,7 @@ Sight through an open door is the case that makes it three call sites rather tha
 ## A staircase is a block
 
 A stair cell is a block with a wall on each side, and the staircase entity is sited on the wall on its open side
-(`addressing.md`, `### Places`). A staircase sited on the floor had to be given an orientation of its own and kept
+(`archived/addressing.md`, `### Places`). A staircase sited on the floor had to be given an orientation of its own and kept
 consistent with the walls around it.
 
 **Its direction is its wall's.** The normal of the wall on the open side is the direction of travel from the staircase
@@ -283,7 +283,7 @@ instead of a property of the type.
 
 A zone is constructed whole when it is encountered, geometry and contents, so `World::create_zone` from a generator
 is the general entry, and a zone file is a snapshot of part of the same construction, loaded by the narrower
-`load_zone`. A generator and the zone file reader each return a `Document`, and both build the zone from it through one
+`load_zone`. A generator and the zone file reader each return a `ZoneDocument`, and both build the zone from it through one
 function, which checks the document, makes the zone, has the loader fill it, and populates it, so neither route drifts
 from the other.
 
@@ -438,10 +438,10 @@ read-only on-demand parser, suited to a hot path rather than to a reader that re
 `stratum_format` writes its own output because no library's pretty-printer produces the written form the format
 specifies, and that form is what makes a zone file diff.
 
-**JSON stops at loading.** A `Document`'s component objects are `ordered_json`, the file being content the format does
+**JSON stops at loading.** A `ZoneDocument`'s component objects are `ordered_json`, the file being content the format does
 not interpret, arbitrarily nested and in written order. A value type defined in `stratum_format`, as tinygltf's `Value`
 is for glTF extras, would hide the library but remain a JSON tree under another name, with no gain in typing, so the
-`Document` keeps nlohmann's and nothing outside the file layer includes it. Keeping the tree on entities instead would
+`ZoneDocument` keeps nlohmann's and nothing outside the file layer includes it. Keeping the tree on entities instead would
 cost a string lookup on every property read, defer every error to the first read, and allocate a node per value in a
 world orders of magnitude larger than the test zones; typed components are read directly, checked at load, and stored
 packed.
@@ -470,7 +470,7 @@ closest precedent: a grid dungeon crawler whose mods define objects as component
 behavior in Lua. Script state in components is what keeps saving a matter of components, and the seeded random source
 is what keeps generation reproducible.
 
-**The limit.** A new type of layout is a `Layout` subclass in C++. Every data-driven game places the engine line there.
+**The limit.** A new type of layout is a `LayoutBase` subclass in C++. Every data-driven game places the engine line there.
 
 ## Lua for scripts and patterns
 

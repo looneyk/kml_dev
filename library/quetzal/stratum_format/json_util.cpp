@@ -40,9 +40,9 @@ namespace
     {
         std::vector<std::string> members {std::format("\"relation\": {}", string_text(name(site.relation)))};
 
-        if (const WallAddress* address = site.address.has_value() ? std::get_if<WallAddress>(&*site.address) : nullptr; address != nullptr)
+        if (const WallPlacement* placement = site.address.has_value() ? std::get_if<WallPlacement>(&*site.address) : nullptr; placement != nullptr)
         {
-            members.push_back(std::format("\"wall\": {}", address_text(*address)));
+            members.push_back(std::format("\"wall\": {}", wall_placement_text(*placement)));
         }
         else if (const FlatCell* flat_cell = site.address.has_value() ? std::get_if<FlatCell>(&*site.address) : nullptr; flat_cell != nullptr)
         {
@@ -191,10 +191,10 @@ std::string quetzal::stratum_format::detail::direction_text(const discrete_vecto
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_format::detail::address_text(const WallAddress& address)
+std::string quetzal::stratum_format::detail::wall_placement_text(const WallPlacement& placement)
 {
-    return object_text({std::format("\"cell_position\": {}", cell_position_text(address.cell_position)),
-        std::format("\"normal\": {}", direction_text(address.normal))});
+    return object_text({std::format("\"cell_position\": {}", cell_position_text(placement.cell_position)),
+        std::format("\"normal\": {}", direction_text(placement.normal))});
 }
 
 //------------------------------------------------------------------------------

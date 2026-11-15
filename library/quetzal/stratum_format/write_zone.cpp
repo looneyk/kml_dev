@@ -170,7 +170,7 @@ namespace
     //--------------------------------------------------------------------------
     entry_type wall_entry(const Wall& wall)
     {
-        entry_type entry {{"wall", address_text(wall.address)}};
+        entry_type entry {{"wall", wall_placement_text(wall.placement)}};
         add_components(entry, wall.components);
         return entry;
     }
@@ -224,7 +224,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Sections in the order of the format's key table, omitting empty ones
-    std::string document_text(const Document& document)
+    std::string document_text(const ZoneDocument& document)
     {
         std::vector<std::string> sections
         {
@@ -317,14 +317,14 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_format::write(std::ostream& os, const Document& document)
+void quetzal::stratum_format::write(std::ostream& os, const ZoneDocument& document)
 {
     os << document_text(document);
     return;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_format::write(const std::filesystem::path& filepath, const Document& document)
+void quetzal::stratum_format::write(const std::filesystem::path& filepath, const ZoneDocument& document)
 {
     write_file(filepath, document_text(document));
     return;

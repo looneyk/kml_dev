@@ -5,7 +5,7 @@
 
 #include "test_support.hpp"
 #include "quetzal/settings/Settings.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
@@ -25,12 +25,12 @@ namespace
 {
 
     //--------------------------------------------------------------------------
-    // Returns the Document of the spec's zone file, at the requested position, and without the unpopulated flag, which a
+    // Returns the ZoneDocument of the spec's zone file, at the requested position, and without the unpopulated flag, which a
     // zone generator does not set
-    stratum_format::Document generate_from_zone_file(const stratum_sim::ZoneSpec& zone_spec)
+    stratum_format::ZoneDocument generate_from_zone_file(const stratum_sim::ZoneSpec& zone_spec)
     {
-        stratum_format::Document document = stratum_format::read_zone(zone_spec.store.value(stratum_sim_test::zone_file_key).value());
-        const stratum_sim::ZonePosition position = zone_spec.position();
+        stratum_format::ZoneDocument document = stratum_format::read_zone(zone_spec.store.value(stratum_sim_test::zone_file_key).value());
+        const stratum_sim::Position position = zone_spec.position();
         document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
         document.is_unpopulated = false;
         return document;
@@ -116,12 +116,12 @@ stratum_sim::PersistentId stratum_sim_test::top_level_region(const stratum_sim::
 stratum_sim::ZoneSpec stratum_sim_test::test_zone_spec(stratum_sim::level_type level)
 {
     stratum_sim::ZoneSpec zone_spec;
-    zone_spec.set_position(stratum_sim::ZonePosition {0, 0, level});
+    zone_spec.set_position(stratum_sim::Position {0, 0, level});
     return zone_spec;
 }
 
 //------------------------------------------------------------------------------
-stratum_sim::ZonePosition stratum_sim_test::zone_position_at_level(stratum_sim::level_type level)
+stratum_sim::Position stratum_sim_test::zone_position_at_level(stratum_sim::level_type level)
 {
     return {0, 0, level};
 }
@@ -129,14 +129,14 @@ stratum_sim::ZonePosition stratum_sim_test::zone_position_at_level(stratum_sim::
 //------------------------------------------------------------------------------
 stratum_format::zone_position_type stratum_sim_test::document_position_at_level(stratum_sim::level_type level)
 {
-    const stratum_sim::ZonePosition position = zone_position_at_level(level);
+    const stratum_sim::Position position = zone_position_at_level(level);
     return {position.x, position.y, position.z};
 }
 
 //------------------------------------------------------------------------------
 stratum_sim::level_type stratum_sim_test::level_of(flecs::entity zone)
 {
-    return zone.get<stratum_sim::ZonePosition>().z;
+    return zone.get<stratum_sim::Position>().z;
 }
 
 //------------------------------------------------------------------------------
@@ -216,10 +216,10 @@ flecs::entity stratum_sim_test::load_zone_unpopulated(TestWorld& world, const st
 
 //------------------------------------------------------------------------------
 flecs::entity stratum_sim_test::load_zone_unpopulated_at(stratum_sim::World& world, stratum_sim::PersistentId worldspace_id,
-    const stratum_sim::ZonePosition& position, const string& filepath)
+    const stratum_sim::Position& position, const string& filepath)
 {
     flecs::entity zone = world.entity(world.worldspace(worldspace_id).zone_ids.at(position));
-    stratum_format::Document document = stratum_format::read_zone(filepath);
+    stratum_format::ZoneDocument document = stratum_format::read_zone(filepath);
     document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
     stratum_sim::load_layout(zone, document);
     return zone;

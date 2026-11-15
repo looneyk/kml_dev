@@ -17,7 +17,7 @@ describes what is built, and `doc/game_system_principles.md` the principles.
 
 - **Every game supports mods and custom content:** objects, geometry, styles, and behavior, added as data and script
   without recompiling and with no vocabulary known in advance. No closed enums, C++-only registration, or hardcoded type
-  cases for content; `PlaceType` is a known blocker. JSON stops at loading (`ordered_json` in `stratum_format::Document`),
+  cases for content; `PlaceType` is a known blocker. JSON stops at loading (`ordered_json` in `stratum_format::ZoneDocument`),
   and components are typed in the world with schemas from C++ or data (principle 8, `doc/modding_plan.md`).
 - **A component encodes the state, never an interpretation of it.** A smashed door is `Access` open, off its hinges, or
   closed, a blocking pile of rubble; there is no `Crossable` tag. A conclusion such as passable or visible is derived in
@@ -85,7 +85,7 @@ describes what is built, and `doc/game_system_principles.md` the principles.
 - **A door is not `fills`;** `relationship` is written only where it distinguishes, as `contained_in` from `on`.
 - **A cell is not a cell position.** A cell is the square of the grid, and its cell position `[i, j]` is where it is.
   Every key and code name for one is `cell_position`.
-- **A wall address is a cell position and a unit normal,** kept separate, `{ "cell_position": [i, j], "normal": [ni, nj] }`,
+- **A wall placement is a cell position and a unit normal,** kept separate, `{ "cell_position": [i, j], "normal": [ni, nj] }`,
   and combined only by `encode_wall_id(cell_position, normal)`. `wall_toward` is the movement query.
 - **Junction `[u, v]`** is the lower-left (SW) corner of the cell at `[u, v]`.
 

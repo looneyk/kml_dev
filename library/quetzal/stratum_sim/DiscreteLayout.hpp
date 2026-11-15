@@ -8,7 +8,7 @@
 #include "Cell.hpp"
 #include "Flat.hpp"
 #include "GridMapping.hpp"
-#include "Layout.hpp"
+#include "LayoutBase.hpp"
 #include "Site.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
@@ -20,7 +20,7 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // A zone's layout with its geometry on a grid, stored as arrays indexed by id
     // A wall is one side of one cell edge, a bit on the cell it faces, independent of the other side
-    class DiscreteLayout : public Layout
+    class DiscreteLayout : public LayoutBase
     {
     public:
 
@@ -28,7 +28,7 @@ namespace quetzal::stratum_sim
         using cells_type = std::vector<Cell>;
         using cell_positions_type = std::vector<discrete_point_type>;
 
-        using Layout::move; // Hidden by the override otherwise
+        using LayoutBase::move; // Hidden by the override otherwise
 
         DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector_type& extent);
         DiscreteLayout(const DiscreteLayout&) = default;
@@ -112,8 +112,8 @@ namespace quetzal::stratum_sim
         // The wall of the placement's cell in its facing direction snapped to a cardinal direction if any
         id_type ahead(const placement_type& placement) const override;
 
-        // A DiscretePlacementIndex over this layout
-        std::unique_ptr<PlacementIndex> create_placement_index() const override;
+        // A DiscreteProximityIndex over this layout
+        std::unique_ptr<ProximityIndexBase> create_proximity_index() const override;
 
         // The position must be on the grid
         size_t slot(const discrete_point_type& cell_position) const;

@@ -62,7 +62,7 @@ The verb *relocate* remains, since relocation is what going through an access po
 (`zone_plan.md`, `## Implementation`).
 
 `can_enter` also requires a target. The reference documents that use *relocator* for the component are swept in the
-same commit as the code: `addressing.md`, `discrete_layout.md`, `game_system_reference.md`, `game_file_spec.md`,
+same commit as the code: `archived/addressing.md`, `discrete_layout.md`, `game_system_reference.md`, `game_file_spec.md`,
 `testing_plan.md`, `catagen_reference.md`, and `dungen_reference.md`.
 
 ## Order

@@ -290,19 +290,19 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A wall is addressed from the cell it faces, which is a floor/door cell
-    void check_wall_address(const Cells& cells, const WallAddress& address, const std::string& path)
+    // A wall is placed by the cell it faces, which is a floor/door cell
+    void check_wall_placement(const Cells& cells, const WallPlacement& placement, const std::string& path)
     {
-        check_on_grid(cells, address.cell_position, path);
+        check_on_grid(cells, placement.cell_position, path);
 
-        if (!floor_door_cell(cells, address.cell_position))
+        if (!floor_door_cell(cells, placement.cell_position))
         {
             fail(path, "not a floor/door cell");
         }
 
-        if (!has_wall(cells, address.cell_position, {-address.normal.x(), -address.normal.y()}))
+        if (!has_wall(cells, placement.cell_position, {-placement.normal.x(), -placement.normal.y()}))
         {
-            fail(path, "no wall in the grid at that address");
+            fail(path, "no wall in the grid at that placement");
         }
 
         return;
@@ -507,7 +507,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Rejects two rooms containing one cell. Cells are compared only for rooms whose bounding boxes intersect
-    void check_rooms(const Document& document)
+    void check_rooms(const ZoneDocument& document)
     {
         for (size_t r = 0; r < document.rooms.size(); ++r)
         {
@@ -565,9 +565,9 @@ namespace
         object(v, path);
 
         Wall wall;
-        std::string address_path = member_path(path, "wall");
-        wall.address = read_wall_address(required_member(v, path, "wall"), address_path);
-        check_wall_address(cells, wall.address, address_path);
+        std::string placement_path = member_path(path, "wall");
+        wall.placement = read_wall_placement(required_member(v, path, "wall"), placement_path);
+        check_wall_placement(cells, wall.placement, placement_path);
 
         wall.components = read_components(v, path);
         return wall;
@@ -673,9 +673,9 @@ namespace
         if (wall != nullptr)
         {
             std::string wall_path = member_path(path, "wall");
-            WallAddress address = read_wall_address(*wall, wall_path);
-            check_wall_address(cells, address, wall_path);
-            site.address = address;
+            WallPlacement placement = read_wall_placement(*wall, wall_path);
+            check_wall_placement(cells, placement, wall_path);
+            site.address = placement;
         }
         else if (flat != nullptr)
         {
@@ -898,9 +898,9 @@ namespace
     using wall_key_type = std::array<coord_type, 4>;
 
     //--------------------------------------------------------------------------
-    wall_key_type wall_key(const WallAddress& address)
+    wall_key_type wall_key(const WallPlacement& placement)
     {
-        return {address.cell_position.i(), address.cell_position.j(), address.normal.x(), address.normal.y()};
+        return {placement.cell_position.i(), placement.cell_position.j(), placement.normal.x(), placement.normal.y()};
     }
 
     //--------------------------------------------------------------------------
@@ -912,25 +912,25 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
-    const WallAddress* wall_address(const Entity& entity)
+    const WallPlacement* wall_placement(const Entity& entity)
     {
-        return sited_on_geometry(entity) ? std::get_if<WallAddress>(&*entity.site->address) : nullptr;
+        return sited_on_geometry(entity) ? std::get_if<WallPlacement>(&*entity.site->address) : nullptr;
     }
 
     //--------------------------------------------------------------------------
-    std::string wall_text(const WallAddress& address)
+    std::string wall_text(const WallPlacement& placement)
     {
-        return std::format("[{}, {}] normal [{}, {}]", address.cell_position.i(), address.cell_position.j(),
-            address.normal.x(), address.normal.y());
+        return std::format("[{}, {}] normal [{}, {}]", placement.cell_position.i(), placement.cell_position.j(),
+            placement.normal.x(), placement.normal.y());
     }
 
     //--------------------------------------------------------------------------
-    std::string walls_text(const std::vector<WallAddress>& addresses)
+    std::string walls_text(const std::vector<WallPlacement>& placements)
     {
         std::string text;
-        for (size_t i = 0; i < addresses.size(); ++i)
+        for (size_t i = 0; i < placements.size(); ++i)
         {
-            text += std::format("{}{}", i == 0 ? "" : " and ", wall_text(addresses[i]));
+            text += std::format("{}{}", i == 0 ? "" : " and ", wall_text(placements[i]));
         }
 
         return text;
@@ -955,9 +955,9 @@ namespace
             const Entity& entity = entities[slot];
             index.slots_by_id.emplace(entity.id, slot);
 
-            if (const WallAddress* address = wall_address(entity); address != nullptr)
+            if (const WallPlacement* placement = wall_placement(entity); placement != nullptr)
             {
-                index.slots_by_wall[wall_key(*address)].push_back(slot);
+                index.slots_by_wall[wall_key(*placement)].push_back(slot);
             }
 
             if (entity.parent_id.has_value())
@@ -1070,7 +1070,7 @@ namespace
     //--------------------------------------------------------------------------
     // In a template every reference is an entity's id. A saved zone's references may point into another zone, so they are
     // not checked
-    void check_references(const Document& document, const EntityIndex& index)
+    void check_references(const ZoneDocument& document, const EntityIndex& index)
     {
         if (document.zone_id.has_value())
         {
@@ -1146,22 +1146,22 @@ namespace
 
     //--------------------------------------------------------------------------
     // Each door glyph is one entity whose children are sited on exactly the walls of its doorway
-    void check_door_glyphs(const Document& document, const EntityIndex& index)
+    void check_door_glyphs(const ZoneDocument& document, const EntityIndex& index)
     {
-        auto child_on = [&](stored_entity_id_type parent, const WallAddress& address)
+        auto child_on = [&](stored_entity_id_type parent, const WallPlacement& placement)
         {
-            auto i = index.slots_by_wall.find(wall_key(address));
+            auto i = index.slots_by_wall.find(wall_key(placement));
             return i != index.slots_by_wall.end()
                 && std::ranges::any_of(i->second, [&](size_t slot) { return document.entities[slot].parent_id == parent; });
         };
 
-        for (const std::vector<WallAddress>& walls : door_walls(document.cells.value()))
+        for (const std::vector<WallPlacement>& walls : door_walls(document.cells.value()))
         {
             std::set<stored_entity_id_type> parents;
 
-            for (const WallAddress& address : walls)
+            for (const WallPlacement& placement : walls)
             {
-                auto i = index.slots_by_wall.find(wall_key(address));
+                auto i = index.slots_by_wall.find(wall_key(placement));
                 if (i == index.slots_by_wall.end())
                 {
                     continue;
@@ -1179,7 +1179,7 @@ namespace
             std::vector<stored_entity_id_type> doors;
             for (stored_entity_id_type parent : parents)
             {
-                if (std::ranges::all_of(walls, [&](const WallAddress& address) { return child_on(parent, address); }))
+                if (std::ranges::all_of(walls, [&](const WallPlacement& placement) { return child_on(parent, placement); }))
                 {
                     doors.push_back(parent);
                 }
@@ -1199,9 +1199,9 @@ namespace
 
             for (size_t slot : index.slots_by_parent.find(doors.front())->second)
             {
-                const WallAddress* address = wall_address(document.entities[slot]);
+                const WallPlacement* placement = wall_placement(document.entities[slot]);
 
-                if (address != nullptr && std::ranges::find(walls, *address) == walls.end())
+                if (placement != nullptr && std::ranges::find(walls, *placement) == walls.end())
                 {
                     fail(element_path("entities", slot), std::format("sited on a wall that is not one of the walls of its door's doorway at {}", text));
                 }
@@ -1213,9 +1213,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // The walls the open neighbors of each stair cell present to it, one of which is the staircase's open side
-    std::map<discrete_point_type, std::vector<WallAddress>> stair_cell_walls(const Cells& cells)
+    std::map<discrete_point_type, std::vector<WallPlacement>> stair_cell_walls(const Cells& cells)
     {
-        std::map<discrete_point_type, std::vector<WallAddress>> result;
+        std::map<discrete_point_type, std::vector<WallPlacement>> result;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
@@ -1227,7 +1227,7 @@ namespace
                     continue;
                 }
 
-                std::vector<WallAddress> walls;
+                std::vector<WallPlacement> walls;
 
                 for (const auto& direction : quetzal::math::cardinal_directions<coord_type, 2>)
                 {
@@ -1252,8 +1252,8 @@ namespace
     //--------------------------------------------------------------------------
     // Each stair glyph is one access point: in the block notation sited on the floor of its cell, and in the wall notation
     // on the wall on its open side. The glyphs are visual aids, so a discrepancy is a warning
-    void check_stair_glyphs(const Document& document, const EntityIndex& index,
-        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
+    void check_stair_glyphs(const ZoneDocument& document, const EntityIndex& index,
+        const std::map<discrete_point_type, std::vector<WallPlacement>>& stair_walls, const warn_type& warn)
     {
         const bool block_notation = document.cells.value().notation == Notation::Block;
 
@@ -1281,9 +1281,9 @@ namespace
                 }
             }
 
-            for (const WallAddress& address : walls)
+            for (const WallPlacement& placement : walls)
             {
-                auto i = index.slots_by_wall.find(wall_key(address));
+                auto i = index.slots_by_wall.find(wall_key(placement));
                 if (i == index.slots_by_wall.end())
                 {
                     continue;
@@ -1320,7 +1320,7 @@ namespace
     // The cell in which an actor arriving at an access point with the site is placed: the wall's cell, or the flat cell
     discrete_point_type arrival_cell_position(const Site& site)
     {
-        if (const auto* wall = std::get_if<WallAddress>(&*site.address))
+        if (const auto* wall = std::get_if<WallPlacement>(&*site.address))
         {
             return wall->cell_position;
         }
@@ -1334,26 +1334,26 @@ namespace
     // actor arriving at it is placed in the cell its site determines, which must be one an actor can stand in. An access
     // point on a wall that is not the open side of a cell written '<' or '>' is a warning, since the glyphs are visual
     // aids, and so is an access point type that is neither the entity's type nor its parent's
-    void check_access_points(const Document& document, const EntityIndex& index,
-        const std::map<discrete_point_type, std::vector<WallAddress>>& stair_walls, const warn_type& warn)
+    void check_access_points(const ZoneDocument& document, const EntityIndex& index,
+        const std::map<discrete_point_type, std::vector<WallPlacement>>& stair_walls, const warn_type& warn)
     {
         const std::string path = "layout.components.access_points";
 
         std::set<wall_key_type> open_sides;
         for (const auto& [cell_position, walls] : stair_walls)
         {
-            for (const WallAddress& address : walls)
+            for (const WallPlacement& placement : walls)
             {
-                open_sides.insert(wall_key(address));
+                open_sides.insert(wall_key(placement));
             }
         }
 
         std::set<wall_key_type> door_sides;
         for (const auto& walls : door_walls(document.cells.value()))
         {
-            for (const WallAddress& address : walls)
+            for (const WallPlacement& placement : walls)
             {
-                door_sides.insert(wall_key(address));
+                door_sides.insert(wall_key(placement));
             }
         }
 
@@ -1385,13 +1385,13 @@ namespace
                 fail(point_path, "an entity that is not sited on a surface: a wall, the floor or the ceiling");
             }
 
-            const WallAddress* address = wall_address(entity);
-            if (address == nullptr && !entity.site->orientation.has_value())
+            const WallPlacement* placement = wall_placement(entity);
+            if (placement == nullptr && !entity.site->orientation.has_value())
             {
                 fail(member_path(components_path, "site"), "an access point on the floor or the ceiling with no orientation");
             }
 
-            if (address != nullptr && !open_sides.contains(wall_key(*address)) && !door_sides.contains(wall_key(*address)))
+            if (placement != nullptr && !open_sides.contains(wall_key(*placement)) && !door_sides.contains(wall_key(*placement)))
             {
                 warn(point_path, "an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall");
             }
@@ -1445,11 +1445,11 @@ namespace
 
     //--------------------------------------------------------------------------
     // The grid is read first, as every address refers to it
-    Document read_zone_document(const raw_values_type& v, const warn_type& warn)
+    ZoneDocument read_zone_document(const raw_values_type& v, const warn_type& warn)
     {
         check_file_header(v, format_name, format_version);
 
-        Document document;
+        ZoneDocument document;
         document.version = std::string(format_version);
 
         if (const raw_values_type* p = member(v, "zone"); p != nullptr)
@@ -1547,14 +1547,14 @@ namespace
             const raw_values_type& a = array(*p, "walls");
             document.walls.reserve(a.size());
 
-            std::set<std::array<coord_type, 4>> addresses;
+            std::set<std::array<coord_type, 4>> placements;
 
             for (size_t i = 0; i < a.size(); ++i)
             {
                 Wall wall = read_wall(a[i], element_path("walls", i), cells);
 
-                const WallAddress& address = wall.address;
-                if (!addresses.insert({address.cell_position.i(), address.cell_position.j(), address.normal.x(), address.normal.y()}).second)
+                const WallPlacement& placement = wall.placement;
+                if (!placements.insert({placement.cell_position.i(), placement.cell_position.j(), placement.normal.x(), placement.normal.y()}).second)
                 {
                     fail(member_path(element_path("walls", i), "wall"), "a second entry for one wall");
                 }
@@ -1610,7 +1610,7 @@ namespace
         check_entities_acyclic(document.entities, index);
         check_references(document, index);
 
-        std::map<discrete_point_type, std::vector<WallAddress>> stair_walls = stair_cell_walls(cells);
+        std::map<discrete_point_type, std::vector<WallPlacement>> stair_walls = stair_cell_walls(cells);
         check_door_glyphs(document, index);
         check_stair_glyphs(document, index, stair_walls, warn);
         check_access_points(document, index, stair_walls, warn);
@@ -1621,9 +1621,9 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istream& is, const std::string& stream_name)
+quetzal::stratum_format::ZoneDocument quetzal::stratum_format::read_zone(std::istream& is, const std::string& stream_name)
 {
-    return detail::read_document<Document>(is, stream_name, [&](const raw_values_type& v)
+    return detail::read_document<ZoneDocument>(is, stream_name, [&](const raw_values_type& v)
     {
         return read_zone_document(v, [&](const std::string& path, std::string_view what)
         {
@@ -1633,7 +1633,7 @@ quetzal::stratum_format::Document quetzal::stratum_format::read_zone(std::istrea
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_format::read_zone(const std::filesystem::path& filepath)
+quetzal::stratum_format::ZoneDocument quetzal::stratum_format::read_zone(const std::filesystem::path& filepath)
 {
     std::ifstream is(filepath, std::ios::binary);
     if (!is)

@@ -1,16 +1,16 @@
 //------------------------------------------------------------------------------
 // stratum_sim
-// DiscretePlacementIndex.cpp
+// DiscreteProximityIndex.cpp
 //------------------------------------------------------------------------------
 
-#include "DiscretePlacementIndex.hpp"
+#include "DiscreteProximityIndex.hpp"
 #include "DiscreteLayout.hpp"
 #include <algorithm>
 #include <cassert>
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::DiscretePlacementIndex::DiscretePlacementIndex(const DiscreteLayout& discrete_layout) :
-    PlacementIndex(),
+quetzal::stratum_sim::DiscreteProximityIndex::DiscreteProximityIndex(const DiscreteLayout& discrete_layout) :
+    ProximityIndexBase(),
     m_discrete_layout(discrete_layout),
     m_entity_ids_by_slot(),
     m_placements_by_entity_id()
@@ -18,7 +18,7 @@ quetzal::stratum_sim::DiscretePlacementIndex::DiscretePlacementIndex(const Discr
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscretePlacementIndex::place(id_type entity_id, const placement_type& placement)
+void quetzal::stratum_sim::DiscreteProximityIndex::place(id_type entity_id, const placement_type& placement)
 {
     size_t slot = slot_at(placement);
 
@@ -41,7 +41,7 @@ void quetzal::stratum_sim::DiscretePlacementIndex::place(id_type entity_id, cons
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscretePlacementIndex::remove(id_type entity_id)
+void quetzal::stratum_sim::DiscreteProximityIndex::remove(id_type entity_id)
 {
     auto it = m_placements_by_entity_id.find(entity_id);
     assert(it != m_placements_by_entity_id.end());
@@ -52,32 +52,32 @@ void quetzal::stratum_sim::DiscretePlacementIndex::remove(id_type entity_id)
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::DiscretePlacementIndex::contains(id_type entity_id) const
+bool quetzal::stratum_sim::DiscreteProximityIndex::contains(id_type entity_id) const
 {
     return m_placements_by_entity_id.contains(entity_id);
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::DiscretePlacementIndex::entity_count() const
+size_t quetzal::stratum_sim::DiscreteProximityIndex::entity_count() const
 {
     return m_placements_by_entity_id.size();
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::PlacementIndex::entity_ids_type quetzal::stratum_sim::DiscretePlacementIndex::entities_at(const placement_type& placement) const
+quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::DiscreteProximityIndex::entities_at(const placement_type& placement) const
 {
     return entities_at(m_discrete_layout.cell_position_at(placement.position()));
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::PlacementIndex::entity_ids_type quetzal::stratum_sim::DiscretePlacementIndex::entities_at(const discrete_point_type& cell_position) const
+quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::DiscreteProximityIndex::entities_at(const discrete_point_type& cell_position) const
 {
     auto it = m_entity_ids_by_slot.find(m_discrete_layout.slot(cell_position));
     return it != m_entity_ids_by_slot.end() ? it->second : entity_ids_type();
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::PlacementIndex::entity_ids_type quetzal::stratum_sim::DiscretePlacementIndex::entities_within(const placement_type& placement,
+quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::DiscreteProximityIndex::entities_within(const placement_type& placement,
     value_type range) const
 {
     assert(range >= value_type(0));
@@ -150,13 +150,13 @@ quetzal::stratum_sim::PlacementIndex::entity_ids_type quetzal::stratum_sim::Disc
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::DiscretePlacementIndex::slot_at(const placement_type& placement) const
+size_t quetzal::stratum_sim::DiscreteProximityIndex::slot_at(const placement_type& placement) const
 {
     return m_discrete_layout.slot(m_discrete_layout.cell_position_at(placement.position()));
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscretePlacementIndex::insert_entity_id(size_t slot, id_type entity_id)
+void quetzal::stratum_sim::DiscreteProximityIndex::insert_entity_id(size_t slot, id_type entity_id)
 {
     entity_ids_type& entity_ids = m_entity_ids_by_slot[slot];
     entity_ids.insert(std::lower_bound(entity_ids.begin(), entity_ids.end(), entity_id), entity_id);
@@ -164,7 +164,7 @@ void quetzal::stratum_sim::DiscretePlacementIndex::insert_entity_id(size_t slot,
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscretePlacementIndex::erase_entity_id(size_t slot, id_type entity_id)
+void quetzal::stratum_sim::DiscreteProximityIndex::erase_entity_id(size_t slot, id_type entity_id)
 {
     auto it = m_entity_ids_by_slot.find(slot);
     assert(it != m_entity_ids_by_slot.end());

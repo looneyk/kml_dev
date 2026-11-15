@@ -5,7 +5,7 @@
 // grid.hpp
 //------------------------------------------------------------------------------
 
-#include "Document.hpp"
+#include "ZoneDocument.hpp"
 #include <set>
 #include <vector>
 
@@ -32,11 +32,11 @@ namespace quetzal::stratum_format
 
     // The cells of each room, by room id: the fill from its location, or the floor/door cells within its perimeter.
     // The document must be one that read accepted
-    std::vector<std::set<discrete_point_type>> room_cells(const Document& document);
+    std::vector<std::set<discrete_point_type>> room_cells(const ZoneDocument& document);
 
     // The walls of each door marked in the rows, one for every side it presents to a floor cell: both sides of a door edge
     // in the wall notation, and in the block notation the faces a doorway block presents to the floor on either side
-    std::vector<std::vector<WallAddress>> door_walls(const Cells& cells);
+    std::vector<std::vector<WallPlacement>> door_walls(const Cells& cells);
 
 } // namespace quetzal::stratum_format
 

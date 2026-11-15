@@ -7,7 +7,7 @@
 
 #include "Generation.hpp"
 #include "IdAllocator.hpp"
-#include "Layout.hpp"
+#include "LayoutBase.hpp"
 #include "PersistentId.hpp"
 #include "properties.hpp"
 #include "RandomStream.hpp"
@@ -104,7 +104,7 @@ namespace quetzal::stratum_sim
         flecs::entity create_zone(PersistentId region_id, PersistentId zone_id);
 
         // Create a zone in the region with the given layout
-        flecs::entity create_zone(PersistentId region_id, std::unique_ptr<Layout> layout);
+        flecs::entity create_zone(PersistentId region_id, std::unique_ptr<LayoutBase> layout);
 
         // Read a zone into the region from a file and optionally populate it.
         // Throws std::runtime_error, before anything is built, if the reader rejects the file, check_buildable finds a
@@ -116,13 +116,13 @@ namespace quetzal::stratum_sim
         // Throws std::runtime_error if the reader rejects the file, the file is a saved zone, the worldspace has no zone at
         // the position, that zone cannot be read back or is not empty, or check_buildable finds a reason the world cannot
         // build it
-        flecs::entity load_template(PersistentId worldspace_id, const ZonePosition& position, const std::filesystem::path& filepath,
+        flecs::entity load_template(PersistentId worldspace_id, const Position& position, const std::filesystem::path& filepath,
             const ZoneSpec& zone_spec);
 
         // Returns the zone at the position in the worldspace, read back if it has unloaded, with its content generated if it
         // is empty. Throws std::runtime_error if the worldspace has no zone at the position or that zone cannot be read back,
         // and passes on what the zone generator throws
-        flecs::entity load_zone_at(PersistentId worldspace_id, const ZonePosition& position);
+        flecs::entity load_zone_at(PersistentId worldspace_id, const Position& position);
 
         // Read a zone that has been unvisited or unloaded from the game directory
         // Throws std::runtime_error if the world has no game directory, no region lists the zone, or as load_zone does
@@ -167,16 +167,16 @@ namespace quetzal::stratum_sim
         // The layout's queries, run from the entity's zone and placement. A wall is crossable or not as the entity
         // perceives what is on it. In move, every Blocking entity other than e blocks the way
         MoveResult move(flecs::entity e, const vector_type& direction, value_type distance) const;
-        Layout::placements_type neighbors(flecs::entity e) const;
+        LayoutBase::placements_type neighbors(flecs::entity e) const;
         bool visible(flecs::entity e, const placement_type& to) const;
 
-        Layout& layout(flecs::entity zone);
-        const Layout& layout(flecs::entity zone) const;
+        LayoutBase& layout(flecs::entity zone);
+        const LayoutBase& layout(flecs::entity zone) const;
 
         // The entities in the zone whose sites have no address, by location
-        const PlacementIndex& placement_index(flecs::entity zone) const;
+        const ProximityIndexBase& proximity_index(flecs::entity zone) const;
 
-        // Each in ascending id order, from the zone's placement index
+        // Each in ascending id order, from the zone's proximity index
         entities_type entities_at(flecs::entity zone, const placement_type& placement) const;
         entities_type entities_at(flecs::entity zone, const discrete_point_type& cell_position) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type range) const;
@@ -211,7 +211,7 @@ namespace quetzal::stratum_sim
         // Throws std::runtime_error, reporting the source before anything is built, if check_buildable finds a reason the world
         // cannot build it, it is a saved zone that is already loaded, or its position is outside its worldspace's extent or is
         // another zone's position in its worldspace
-        flecs::entity build_zone(PersistentId region_id, PersistentId zone_id, const stratum_format::Document& document, std::string_view source);
+        flecs::entity build_zone(PersistentId region_id, PersistentId zone_id, const stratum_format::ZoneDocument& document, std::string_view source);
 
         // Returns the spec of a zone in the region: the region spec's zone. keys, with a default name, the position of the
         // empty zone's spec, and its seed unless the zone. keys have one, its patterns resolved with the zone's symbols. The
@@ -221,7 +221,7 @@ namespace quetzal::stratum_sim
 
         // Create an empty zone with only a position, seed, and a placeholder name
         // Throws std::runtime_error if the position is outside the worldspace's extent or is another zone's position in it
-        flecs::entity create_zone(PersistentId region_id, const ZonePosition& position, std::size_t zone_counter, seed_type seed);
+        flecs::entity create_zone(PersistentId region_id, const Position& position, std::size_t zone_counter, seed_type seed);
 
         // Create a region tree from the region spec tree
         // Throws std::runtime_error if a subregion spec has no extent, or a subregion's extent reaches outside the worldspace,
@@ -233,12 +233,12 @@ namespace quetzal::stratum_sim
 
         // Returns the zone at the position in the worldspace, read back if it has unloaded
         // Throws std::runtime_error if the worldspace has no zone at the position or that zone cannot be read back
-        flecs::entity zone_at(PersistentId worldspace_id, const ZonePosition& position);
+        flecs::entity zone_at(PersistentId worldspace_id, const Position& position);
 
         // Fills the empty zone from the document and optionally populates it. The zone keeps its position and its name
         // Throws std::runtime_error, reporting the source before anything is built, if check_buildable finds a reason the world
         // cannot build it
-        void fill_zone(flecs::entity zone, const stratum_format::Document& document, std::string_view source);
+        void fill_zone(flecs::entity zone, const stratum_format::ZoneDocument& document, std::string_view source);
 
         // Creates, for each of the zone's access points that has a region spec, the worldspace its target's region refers to,
         // from that region spec, if the world has no worldspace of that name
@@ -258,9 +258,9 @@ namespace quetzal::stratum_sim
         // derived from the world seed and the access point's persistent id
         seed_type target_seed(flecs::entity access_point) const;
 
-        // Returns the Document that the game's zone generator creates for the resolved spec, unpopulated, and passes on what
+        // Returns the ZoneDocument that the game's zone generator creates for the resolved spec, unpopulated, and passes on what
         // the zone generator throws
-        stratum_format::Document generate_zone(const ZoneSpec& zone_spec);
+        stratum_format::ZoneDocument generate_zone(const ZoneSpec& zone_spec);
 
         // The file of a saved zone in the game directory
         std::filesystem::path saved_zone_path(PersistentId zone_id) const;
@@ -274,7 +274,7 @@ namespace quetzal::stratum_sim
 
         // The position of a new zone in the worldspace, at the given level. A placeholder until the world's layout is designed:
         // x and y are 0, and z is the level
-        ZonePosition new_zone_position(PersistentId worldspace_id, level_type level) const;
+        Position new_zone_position(PersistentId worldspace_id, level_type level) const;
 
         // Sets the zone's Name to one unique in its region, and lists it in its region by that name. The name is the zone's
         // Name, or else the region's default with the zone's coordinates, or else the region's name, with a suffix from
@@ -339,8 +339,8 @@ namespace quetzal::stratum_sim
     // Throws std::runtime_error if start_cell is neither, or the zone has no such cell an actor can occupy
     placement_type start_placement(flecs::entity zone, std::string_view start_cell);
 
-    // Sets the zone's layout, and the empty placement index the layout creates
-    void set_layout(flecs::entity zone, std::unique_ptr<Layout> layout);
+    // Sets the zone's layout, and the empty proximity index the layout creates
+    void set_layout(flecs::entity zone, std::unique_ptr<LayoutBase> layout);
 
     //--------------------------------------------------------------------------
     // Sets an entity's parent and site together

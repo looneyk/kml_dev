@@ -86,7 +86,7 @@ Generation:
 - `remove_doors` --- shared, and run by `maze1` and `grid1` after every other pass. Each algorithm places every doorway
   as a door, and this keeps each door with probability `door_probability`, in the algorithm's group, and leaves the rest
   of the doorways open as corridor.
-- `make_document` --- builds the zone's `stratum_format::Document` in memory, which `load_layout` reads directly.
+- `make_document` --- builds the zone's `stratum_format::ZoneDocument` in memory, which `load_layout` reads directly.
 - `write_zone` --- writes that document as the zone file.
 
 ## maze1

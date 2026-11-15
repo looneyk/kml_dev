@@ -1,11 +1,11 @@
-#if !defined(QUETZAL_STRATUM_SIM_DISCRETE_PLACEMENT_INDEX_HPP)
-#define QUETZAL_STRATUM_SIM_DISCRETE_PLACEMENT_INDEX_HPP
+#if !defined(QUETZAL_STRATUM_SIM_DISCRETE_PROXIMITY_INDEX_HPP)
+#define QUETZAL_STRATUM_SIM_DISCRETE_PROXIMITY_INDEX_HPP
 //------------------------------------------------------------------------------
 // stratum_sim
-// DiscretePlacementIndex.hpp
+// DiscreteProximityIndex.hpp
 //------------------------------------------------------------------------------
 
-#include "PlacementIndex.hpp"
+#include "ProximityIndexBase.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <unordered_map>
@@ -17,12 +17,12 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The entities placed in one zone of a discrete layout, by the cell each is in
-    class DiscretePlacementIndex final : public PlacementIndex
+    class DiscreteProximityIndex final : public ProximityIndexBase
     {
     public:
 
         // The layout must outlive the index
-        explicit DiscretePlacementIndex(const DiscreteLayout& discrete_layout);
+        explicit DiscreteProximityIndex(const DiscreteLayout& discrete_layout);
 
         void place(id_type entity_id, const placement_type& placement) override;
         void remove(id_type entity_id) override;
@@ -50,4 +50,4 @@ namespace quetzal::stratum_sim
 
 } // namespace quetzal::stratum_sim
 
-#endif // QUETZAL_STRATUM_SIM_DISCRETE_PLACEMENT_INDEX_HPP
+#endif // QUETZAL_STRATUM_SIM_DISCRETE_PROXIMITY_INDEX_HPP

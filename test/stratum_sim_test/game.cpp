@@ -11,7 +11,7 @@
 #include "quetzal/stratum_sim/EventQueue.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
+#include "quetzal/stratum_sim/DiscreteProximityIndex.hpp"
 #include "quetzal/stratum_sim/Name.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
@@ -29,7 +29,7 @@
 #include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/World.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
@@ -78,7 +78,7 @@ namespace
         flecs::entity carried = world.entities().entity();
         stratum_sim::set_parent(carried, character);
 
-        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed), stratum_sim::ZonePosition {});
+        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed), stratum_sim::Position {});
         world.make_reference(world.create_entity(elsewhere, stratum_sim::placement_type()));
 
         played.clear();
@@ -119,7 +119,7 @@ namespace
         CHECK_CASE("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
             && name_of(first_character) == "Ailis");
         CHECK_CASE("and starts play in a worldspace made from the spec, named for it, in the zone and at the cell the start settings state",
-            sequence_session.loaded() && first_zone.get<stratum_sim::ZonePosition>() == stratum_sim::ZonePosition {0, 0, -1}
+            sequence_session.loaded() && first_zone.get<stratum_sim::Position>() == stratum_sim::Position {0, 0, -1}
             && zone_file_of(first_region.region_spec) == "data/walls.zone" && first_worldspace.name == region_spec_name
             && stratum_sim::placement_of(first_character).position()
                 == stratum_sim::start_placement(first_zone, stratum_sim::center_start).position());
@@ -302,7 +302,7 @@ namespace
 
         if (filesystem::exists(zone_file(saving_first_id)))
         {
-            stratum_format::Document saved_document = stratum_format::read_zone(zone_file(saving_first_id));
+            stratum_format::ZoneDocument saved_document = stratum_format::read_zone(zone_file(saving_first_id));
             saved_back = saved_document.zone_id == saving_first_id.id
                 && saved_document.position == stratum_format::zone_position_type {0, 0, -1};
         }
@@ -483,8 +483,8 @@ namespace
         CHECK_CASE("and the worldspace, with its name and its zones by position, loaded or not", region_opened
             && saving_world.worldspaces().front().worldspace_id == worldspace_id && saving_world.worldspace(worldspace_id).name == region_spec_name
             && saving_world.worldspace(worldspace_id).zone_ids.size() == test_extent_zone_count
-            && saving_world.worldspace(worldspace_id).zone_ids.at(stratum_sim::ZonePosition {0, 0, -1}) == saving_first_id
-            && saving_world.worldspace(worldspace_id).zone_ids.at(stratum_sim::ZonePosition {0, 0, -2}) == saving_second_id);
+            && saving_world.worldspace(worldspace_id).zone_ids.at(stratum_sim::Position {0, 0, -1}) == saving_first_id
+            && saving_world.worldspace(worldspace_id).zone_ids.at(stratum_sim::Position {0, 0, -2}) == saving_second_id);
         CHECK_CASE("and the region's name and its zones by name, loaded or not", region_opened && saving_world.region(region_id).name == region_spec_name
             && saving_world.region(region_id).named_zone_ids.size() == test_extent_zone_count
             && saving_world.region(region_id).named_zone_ids.at("dungeon_9") == saving_first_id

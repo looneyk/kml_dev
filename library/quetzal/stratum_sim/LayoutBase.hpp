@@ -1,8 +1,8 @@
-#if !defined(QUETZAL_STRATUM_SIM_LAYOUT_HPP)
-#define QUETZAL_STRATUM_SIM_LAYOUT_HPP
+#if !defined(QUETZAL_STRATUM_SIM_LAYOUT_BASE_HPP)
+#define QUETZAL_STRATUM_SIM_LAYOUT_BASE_HPP
 //------------------------------------------------------------------------------
 // stratum_sim
-// Layout.hpp
+// LayoutBase.hpp
 //------------------------------------------------------------------------------
 
 #include "types.hpp"
@@ -15,7 +15,7 @@
 namespace quetzal::stratum_sim
 {
 
-    class PlacementIndex;
+    class ProximityIndexBase;
 
     //--------------------------------------------------------------------------
     enum class Rotation
@@ -37,7 +37,7 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // A zone's geometry and topology. It determines where a move ends, which wall is ahead, which placements are adjacent,
     // and which are visible
-    class Layout
+    class LayoutBase
     {
     public:
 
@@ -49,7 +49,7 @@ namespace quetzal::stratum_sim
         // Returns true if the wall with the given id may be crossed
         using crossable_function_type = std::function<bool(id_type)>;
 
-        virtual ~Layout() = default;
+        virtual ~LayoutBase() = default;
 
         virtual MoveResult move(const placement_type& placement, const vector_type& direction, value_type distance,
             const crossable_function_type& is_wall_crossable, const blocker_function_type& blocker_at) const = 0;
@@ -76,20 +76,20 @@ namespace quetzal::stratum_sim
         virtual value_type step_distance() const = 0;
 
         // An empty index of the entities placed in the zone, which must not outlive the layout
-        virtual std::unique_ptr<PlacementIndex> create_placement_index() const = 0;
+        virtual std::unique_ptr<ProximityIndexBase> create_proximity_index() const = 0;
 
     protected:
 
-        Layout() = default;
-        Layout(const Layout&) = default;
-        Layout(Layout&&) noexcept = default;
+        LayoutBase() = default;
+        LayoutBase(const LayoutBase&) = default;
+        LayoutBase(LayoutBase&&) noexcept = default;
 
-        Layout& operator=(const Layout&) = default;
-        Layout& operator=(Layout&&) noexcept = default;
+        LayoutBase& operator=(const LayoutBase&) = default;
+        LayoutBase& operator=(LayoutBase&&) noexcept = default;
     };
 
     //--------------------------------------------------------------------------
-    inline MoveResult Layout::move(const placement_type& placement, const vector_type& direction, value_type distance) const
+    inline MoveResult LayoutBase::move(const placement_type& placement, const vector_type& direction, value_type distance) const
     {
         return move(placement, direction, distance, crossable_function_type(), blocker_function_type());
     }
@@ -97,7 +97,7 @@ namespace quetzal::stratum_sim
     //--------------------------------------------------------------------------
     // The layout as its concrete class, which must be L
     template<typename L>
-    L& layout_as(Layout& layout)
+    L& layout_as(LayoutBase& layout)
     {
         L* p = dynamic_cast<L*>(&layout);
         assert(p != nullptr);
@@ -106,7 +106,7 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     template<typename L>
-    const L& layout_as(const Layout& layout)
+    const L& layout_as(const LayoutBase& layout)
     {
         const L* p = dynamic_cast<const L*>(&layout);
         assert(p != nullptr);
@@ -115,4 +115,4 @@ namespace quetzal::stratum_sim
 
 } // namespace quetzal::stratum_sim
 
-#endif // QUETZAL_STRATUM_SIM_LAYOUT_HPP
+#endif // QUETZAL_STRATUM_SIM_LAYOUT_BASE_HPP

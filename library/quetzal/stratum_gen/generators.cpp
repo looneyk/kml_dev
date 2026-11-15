@@ -18,7 +18,7 @@ static_assert(std::is_same_v<quetzal::stratum_gen::zone_position_type, quetzal::
 static_assert(std::is_same_v<quetzal::stratum_gen::seed_type, quetzal::catagen::Parameters::seed_type>);
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_gen::generate_dungen(const ZoneRequest& request)
+quetzal::stratum_format::ZoneDocument quetzal::stratum_gen::generate_dungen(const ZoneRequest& request)
 {
     dungen::Parameters parameters;
 
@@ -35,7 +35,7 @@ quetzal::stratum_format::Document quetzal::stratum_gen::generate_dungen(const Zo
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::stratum_gen::generate_catagen(const ZoneRequest& request)
+quetzal::stratum_format::ZoneDocument quetzal::stratum_gen::generate_catagen(const ZoneRequest& request)
 {
     catagen::Parameters parameters;
 

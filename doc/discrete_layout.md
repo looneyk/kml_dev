@@ -36,7 +36,7 @@ entered or left, and going through one moves an actor to its target; a staircase
 that have one.
 
 A file is either a template a zone is made from or a saved zone. A template does not store the zone's
-identity, a zone being an entity with a persistent id given when it is made (`addressing.md`); a saved
+identity, a zone being an entity with a persistent id given when it is made (`archived/addressing.md`); a saved
 zone writes that id in `zone` and every id in the file is then persistent. `layout.components.name` is
 what the zone is called for a player to read.
 
@@ -118,11 +118,11 @@ A position in the zone is three numbers, `[x, y, z]`. The grid lies in the xy-pl
 
 ### Addresses
 
-A wall address is `{ "cell_position": [i, j], "normal": [ni, nj] }`, the cell the wall belongs to and
+A wall placement is `{ "cell_position": [i, j], "normal": [ni, nj] }`, the cell the wall belongs to and
 the normal pointing out of the wall's surface into that cell. A flat cell address is the flat's role and
 a cell position, `"flat": "floor"` and `"cell_position": [i, j]`. The file never refers to a wall by id.
 
-`addressing.md` specifies edges, walls, addresses and every other identifier, and the rules each follows.
+`archived/addressing.md` specifies edges, walls, addresses and every other identifier, and the rules each follows.
 
 ### Components
 
@@ -172,7 +172,7 @@ A reader accepts any valid JSON. A writer emits this form, so a zone file diffs 
 - One entry per line for a room, a wall, a flat cell and an entity, however long the line. A flat
   with `rooms` or `cells` breaks before each of them, and writes their entries one per line.
 - Content written as it was read, each component object inline on the line of the key it belongs to.
-- Coordinates, coordinate arrays and wall addresses inline: `{ "cell_position": [3, 1], "normal": [1, 0] }`
+- Coordinates, coordinate arrays and wall placements inline: `{ "cell_position": [3, 1], "normal": [1, 0] }`
   on the line that uses it, never one number per line.
 
 ## version
@@ -575,7 +575,7 @@ The object the entity is in or on, and where on it.
 | Key | |
 | --- | --- |
 | `relation` | `in` or `on`. Required |
-| `wall` | A wall address, if the entity is sited on a wall |
+| `wall` | A wall placement, if the entity is sited on a wall |
 | `flat`, `cell_position` | A flat cell: the flat by role, and a cell position of the cell grid, if the entity is sited on a floor or ceiling |
 | `cell_position` alone | A cell of the zone, if the entity is in the zone at that cell |
 | `position` | Where on it: along and up on a wall, xy within the cell on a flat, or in the parent's frame if there is no address. Centered if absent |
@@ -650,7 +650,7 @@ where it leads is its `target`, bound or unbound.
 "access_point": { "type": "staircase", "target": "-1", "order": 0 }
 ```
 
-**Bound: the access point arrived at,** as a reference (`addressing.md`, `### Access points`). A target is bound by
+**Bound: the access point arrived at,** as a reference (`archived/addressing.md`, `### Access points`). A target is bound by
 having been traveled: until a way has been gone through, nothing has fixed where it arrives. A zone long since
 generated still has access points nobody has used, and every one of them is unbound. A zone template's access points
 are all unbound; a bound target is written only in a saved zone, `"target": { "entity": 90412 }`.
@@ -743,7 +743,7 @@ every check has passed, so a rejected file leaves nothing behind.
   floor/door cells.
 - Two rooms share a cell.
 - A barrier is at a position off the grid.
-- A wall address has no wall in the grid, or its cell is not a floor/door cell.
+- A wall placement has no wall in the grid, or its cell is not a floor/door cell.
 - More than one entry in `walls` for one wall.
 - A flat refers to a room that does not exist, or to a cell off the grid, or has more than one entry
   for one room or one cell.

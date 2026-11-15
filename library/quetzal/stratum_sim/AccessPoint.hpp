@@ -86,8 +86,8 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // Returns an access point sited on the wall or the flat cell, or a null entity if there is none
-    flecs::entity find_access_point(flecs::entity zone, const WallAddress& address);
-    flecs::entity find_access_point(flecs::entity zone, const FlatCellAddress& address);
+    flecs::entity find_access_point(flecs::entity zone, const WallId& wall);
+    flecs::entity find_access_point(flecs::entity zone, const FlatCellPosition& flat_cell);
 
     // Returns true if the actor can go through the access point: it has a target, its access, if it has any, is open, and
     // the actor does not find it concealed

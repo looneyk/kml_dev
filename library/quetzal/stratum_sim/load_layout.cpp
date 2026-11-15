@@ -13,7 +13,7 @@
 #include "properties.hpp"
 #include "World.hpp"
 #include "Zone.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include <algorithm>
@@ -34,7 +34,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the access point's entity. The reader has checked that it is sited on a surface and has an access_point
-    const quetzal::stratum_format::Entity& access_point_entity(const quetzal::stratum_format::Document& document,
+    const quetzal::stratum_format::Entity& access_point_entity(const quetzal::stratum_format::ZoneDocument& document,
         quetzal::stratum_format::stored_entity_id_type id)
     {
         return *std::find_if(document.entities.begin(), document.entities.end(), [&](const auto& e) { return e.id == id; });
@@ -60,14 +60,14 @@ namespace
 
         if (site.address.has_value())
         {
-            if (const auto* wall = std::get_if<stratum_format::WallAddress>(&*site.address))
+            if (const auto* wall = std::get_if<stratum_format::WallPlacement>(&*site.address))
             {
-                result.address = WallAddress {layout.wall_toward(wall->cell_position, -wall->normal)};
+                result.address = WallId {layout.wall_toward(wall->cell_position, -wall->normal)};
             }
             else
             {
                 const auto& flat_cell = std::get<stratum_format::FlatCell>(*site.address);
-                result.address = FlatCellAddress {flat_cell.role == stratum_format::FlatRole::Floor ? layout.floor_id() : layout.ceiling_id(),
+                result.address = FlatCellPosition {flat_cell.role == stratum_format::FlatRole::Floor ? layout.floor_id() : layout.ceiling_id(),
                     flat_cell.cell_position};
             }
         }
@@ -126,7 +126,7 @@ namespace
     // Returns the components of the layout and of each room, wall, flat, and flat override for a room or a cell, with the
     // path to each
     std::vector<std::pair<const quetzal::stratum_format::raw_values_type*, std::string>> layout_component_objects(
-        const quetzal::stratum_format::Document& document)
+        const quetzal::stratum_format::ZoneDocument& document)
     {
         std::vector<std::pair<const quetzal::stratum_format::raw_values_type*, std::string>> objects {{&document.components, "layout"}};
 
@@ -162,7 +162,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-std::optional<std::string> quetzal::stratum_sim::check_buildable(const flecs::world& world, const stratum_format::Document& document)
+std::optional<std::string> quetzal::stratum_sim::check_buildable(const flecs::world& world, const stratum_format::ZoneDocument& document)
 {
     for (stratum_format::stored_entity_id_type id : document.access_points)
     {
@@ -195,18 +195,18 @@ std::optional<std::string> quetzal::stratum_sim::check_buildable(const flecs::wo
 }
 
 //------------------------------------------------------------------------------
-std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone, const stratum_format::Document& document)
+std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone, const stratum_format::ZoneDocument& document)
 {
-    assert(zone && zone.has<Zone>() && !zone.has<ZoneLayout>());
+    assert(zone && zone.has<Zone>() && !zone.has<Layout>());
 
-    auto zone_document = std::make_shared<stratum_format::Document>(document);
+    auto zone_document = std::make_shared<stratum_format::ZoneDocument>(document);
     zone_document->entities.clear();
     zone_document->is_unpopulated = false;
-    zone.set<ZoneDocument>(ZoneDocument {std::move(zone_document)});
+    zone.set<Document>(Document {std::move(zone_document)});
 
     if (document.position.has_value())
     {
-        zone.set<ZonePosition>(ZonePosition {document.position->x(), document.position->y(), document.position->z()});
+        zone.set<Position>(Position {document.position->x(), document.position->y(), document.position->z()});
     }
 
     flecs::world world = zone.world();
@@ -370,23 +370,23 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     ensure_flat_entity(zone, zone_layout.floor_id());
     ensure_flat_entity(zone, zone_layout.ceiling_id());
 
-    auto decode_layout_components = [&](const auto& address, const stratum_format::raw_values_type& components, const std::string& path)
+    auto decode_layout_components = [&](const auto& key, const stratum_format::raw_values_type& components, const std::string& path)
     {
         if (!component_objects(components).empty())
         {
-            decode_components(ensure_layout_entity(zone, address), components, path, resolve);
+            decode_components(ensure_layout_entity(zone, key), components, path, resolve);
         }
     };
 
     for (size_t i = 0; i < document.rooms.size(); ++i)
     {
-        decode_layout_components(RoomAddress {i}, document.rooms[i].components, std::format("rooms[{}]", i));
+        decode_layout_components(RoomId {i}, document.rooms[i].components, std::format("rooms[{}]", i));
     }
 
     for (size_t i = 0; i < document.walls.size(); ++i)
     {
-        const stratum_format::WallAddress& wall = document.walls[i].address;
-        decode_layout_components(WallAddress {zone_layout.wall_toward(wall.cell_position, -wall.normal)}, document.walls[i].components, std::format("walls[{}]", i));
+        const stratum_format::WallPlacement& wall = document.walls[i].placement;
+        decode_layout_components(WallId {zone_layout.wall_toward(wall.cell_position, -wall.normal)}, document.walls[i].components, std::format("walls[{}]", i));
     }
 
     for (size_t i = 0; i < document.flats.size(); ++i)
@@ -395,16 +395,20 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
         id_type flat_id = flat.role == stratum_format::FlatRole::Floor ? zone_layout.floor_id() : zone_layout.ceiling_id();
         std::string flat_path = std::format("flats[{}]", i);
 
-        decode_layout_components(FlatAddress {flat_id}, flat.properties.components, flat_path);
+        decode_layout_components(FlatId {flat_id}, flat.properties.components, flat_path);
 
         for (const auto& [room_id, properties] : flat.rooms)
         {
-            decode_layout_components(FlatRoomAddress {flat_id, room_id}, properties.components, flat_room_path(flat_path, room_id));
+            if (!component_objects(properties.components).empty())
+            {
+                decode_components(ensure_flat_room_entity(zone, flat_id, room_id), properties.components, flat_room_path(flat_path, room_id),
+                    resolve);
+            }
         }
 
         for (const auto& [cell_position, properties] : flat.cells)
         {
-            decode_layout_components(FlatCellAddress {flat_id, cell_position}, properties.components, flat_cell_path(flat_path, cell_position));
+            decode_layout_components(FlatCellPosition {flat_id, cell_position}, properties.components, flat_cell_path(flat_path, cell_position));
         }
     }
 

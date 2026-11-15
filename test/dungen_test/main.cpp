@@ -43,14 +43,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
-    const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
+    const stratum_format::WallPlacement* wall_placement(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
         {
             return nullptr;
         }
 
-        return get_if<stratum_format::WallAddress>(&*entity.site->address);
+        return get_if<stratum_format::WallPlacement>(&*entity.site->address);
     }
 
     //--------------------------------------------------------------------------
@@ -133,7 +133,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the zone as the reader decodes it. Throws std::runtime_error if the reader rejects it
-    stratum_format::Document document_of(const string& zone)
+    stratum_format::ZoneDocument document_of(const string& zone)
     {
         istringstream is(zone);
         return stratum_format::read_zone(is, "zone");
@@ -259,7 +259,7 @@ namespace
             try
             {
                 // The name is the zone's, not a parameter of its run, so it is copied as the file wrote it
-                stratum_format::Document document = document_of(reference);
+                stratum_format::ZoneDocument document = document_of(reference);
                 string name = document.components.is_object() ? document.components.value("name", string()) : string();
 
                 dungen::Parameters parameters = parameters_of(document.generator);
@@ -294,7 +294,7 @@ namespace
         // A position, when given, is written into the layout and the parameters both
         dungen::Parameters positioned = scenarios().front().parameters;
         positioned.position = dungen::zone_position_type {3, -4, -2};
-        stratum_format::Document positioned_document = document_of(zone_text(positioned));
+        stratum_format::ZoneDocument positioned_document = document_of(zone_text(positioned));
 
         CHECK_CASE("a zone given a position has it in its layout", positioned_document.position == positioned.position);
         CHECK_CASE("and in its parameters, from which it regenerates", parameters_of(positioned_document.generator).position
@@ -325,8 +325,8 @@ namespace
 
         CHECK_CASE("a Zone's id is not written to its file", write(0, "one") == write(7, "one"));
 
-        stratum_format::Document named = document_of(write(0, "Cistern Level 1"));
-        stratum_format::Document unnamed = document_of(write(0, ""));
+        stratum_format::ZoneDocument named = document_of(write(0, "Cistern Level 1"));
+        stratum_format::ZoneDocument unnamed = document_of(write(0, ""));
         CHECK_CASE("a Zone's name is written as the layout's name",
             named.components.is_object() && named.components.value("name", string()) == "Cistern Level 1");
         CHECK_CASE("an empty name is not written", !unnamed.components.is_object() || !unnamed.components.contains("name"));
@@ -394,7 +394,7 @@ namespace
     {
         const Scenario surface1 = scenarios().back();
         REQUIRE(surface1.name == "surface1");
-        stratum_format::Document document = document_of(zone_text(surface1.parameters, surface1.zone_name));
+        stratum_format::ZoneDocument document = document_of(zone_text(surface1.parameters, surface1.zone_name));
 
         vector<string> targets;
         bool region_specs_written = true;
@@ -431,7 +431,7 @@ namespace
             try
             {
                 string text = zone_text(scenario.parameters, scenario.zone_name);
-                stratum_format::Document document = document_of(text);
+                stratum_format::ZoneDocument document = document_of(text);
                 rows = document.cells.value().rows;
                 CHECK_CASE(format("{} is a zone the reader accepts", scenario.name), true);
 
@@ -512,7 +512,7 @@ namespace
     // in the order door_walls returns them, and no door facing anywhere else
     bool doors_have_entities(const string& zone, string& detail)
     {
-        stratum_format::Document document;
+        stratum_format::ZoneDocument document;
 
         try
         {
@@ -524,8 +524,8 @@ namespace
             return false;
         }
 
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
-        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
+        vector<vector<stratum_format::WallPlacement>> doors = stratum_format::door_walls(document.cells.value());
+        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallPlacement>> walls_by_door;
         size_t door_count = 0;
 
         for (const stratum_format::Entity& entity : document.entities)
@@ -541,14 +541,14 @@ namespace
                 continue;
             }
 
-            const auto* address = wall_address(entity);
-            if (address == nullptr || !entity.parent_id.has_value())
+            const auto* placement = wall_placement(entity);
+            if (placement == nullptr || !entity.parent_id.has_value())
             {
                 detail = format("a door facing with id {} that is not a child attached to a wall", entity.id);
                 return false;
             }
 
-            walls_by_door[*entity.parent_id].push_back(*address);
+            walls_by_door[*entity.parent_id].push_back(*placement);
         }
 
         if (door_count != doors.size() || walls_by_door.size() != doors.size())
@@ -557,11 +557,11 @@ namespace
             return false;
         }
 
-        for (const vector<stratum_format::WallAddress>& walls : doors)
+        for (const vector<stratum_format::WallPlacement>& walls : doors)
         {
             if (none_of(walls_by_door.begin(), walls_by_door.end(), [&walls](const auto& entry) { return entry.second == walls; }))
             {
-                const stratum_format::WallAddress& wall = walls.front();
+                const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
                     wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
                 return false;
@@ -816,7 +816,7 @@ namespace
         using stratum_format::discrete_point_type;
         using stratum_format::discrete_vector_type;
 
-        stratum_format::Document document;
+        stratum_format::ZoneDocument document;
 
         try
         {

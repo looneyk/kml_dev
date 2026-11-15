@@ -249,7 +249,7 @@ quetzal::stratum_format::discrete_vector_type quetzal::stratum_format::detail::r
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::WallAddress quetzal::stratum_format::detail::read_wall_address(const raw_values_type& v, const std::string& path)
+quetzal::stratum_format::WallPlacement quetzal::stratum_format::detail::read_wall_placement(const raw_values_type& v, const std::string& path)
 {
     object(v, path);
     return {read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")),

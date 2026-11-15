@@ -118,10 +118,10 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   the tree.
 - [x] 6. **Seeds from the worldspace.** The draws in `## Design`, and each worldspace's seed saved in `world.json`.
   `RegionPosition`, `new_region_position`, and the coordinate derivation in `region_seed` and `zone_seed` go.
-- [ ] 7. **Access point targets.** `AccessPointTarget` is the zone reference and position of `## Design`, read and
-  written in its notation, and `RelativeZone`, `AbsoluteZone`, and region targets go. `load_layout` replaces
-  placeholder zone names. Going through an unbound target resolves it by zone id, by region id and zone name, or by
-  extended name, first creating the worldspace from the tree of the name's root region if it does not exist.
+- [ ] 7. **Access point targets.** `AccessPointTarget` is the zone reference and position of `## Design`,
+  and `RelativeZone`, `AbsoluteZone`, and region targets go. `load_layout` replaces
+  placeholder zone names. Going through an unbound target resolves it using zone id, since the target zone (and worldspace as needed)
+  will be created in the access point traversal process.
   `entry_point` takes the lowest-ordered access point of the arrival type that has no target or an unbound target to
   the zone the actor came from. A staircase has a `Rise`, and `create_target_worldspaces` goes. Until the form of a
   region spec's destinations is designed, the surface spec in `region_specs.json` has a placeholder key,

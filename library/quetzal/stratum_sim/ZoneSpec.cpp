@@ -9,13 +9,13 @@
 #include <string>
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::ZonePosition quetzal::stratum_sim::ZoneSpec::position() const
+quetzal::stratum_sim::Position quetzal::stratum_sim::ZoneSpec::position() const
 {
     return {store.value_or<coord_type>(position_x_key, 0), store.value_or<coord_type>(position_y_key, 0), store.value_or<coord_type>(position_z_key, 0)};
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::ZoneSpec::set_position(const ZonePosition& position)
+void quetzal::stratum_sim::ZoneSpec::set_position(const Position& position)
 {
     store.insert(std::string(position_x_key), std::to_string(position.x));
     store.insert(std::string(position_y_key), std::to_string(position.y));

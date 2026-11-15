@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
             throw runtime_error(format("unable to open zone file {}", filepath));
         }
 
-        stratum_format::Document document = catagen::make_document(zone, parameters);
+        stratum_format::ZoneDocument document = catagen::make_document(zone, parameters);
         document.is_unpopulated = true;
 
         stratum_format::write(os, document);

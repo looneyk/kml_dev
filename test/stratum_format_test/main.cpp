@@ -50,7 +50,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Reads the zone, adding the messages of the warnings it writes to the process-wide log to warnings
-    stratum_format::Document read_zone_with_warnings(istream& is, const string& stream_name, vector<string>& warnings)
+    stratum_format::ZoneDocument read_zone_with_warnings(istream& is, const string& stream_name, vector<string>& warnings)
     {
         log::logger().add_sink([&warnings](const log::LogEntry& entry)
         {
@@ -62,7 +62,7 @@ namespace
 
         try
         {
-            stratum_format::Document document = stratum_format::read_zone(is, stream_name);
+            stratum_format::ZoneDocument document = stratum_format::read_zone(is, stream_name);
             log::logger().clear_sinks();
             return document;
         }
@@ -88,11 +88,11 @@ namespace
 
     //--------------------------------------------------------------------------
     // Reports whether the file reads, so a file failing to read fails one case, not the run
-    optional<stratum_format::Document> read_case(const string& name, const filesystem::path& filepath)
+    optional<stratum_format::ZoneDocument> read_case(const string& name, const filesystem::path& filepath)
     {
         try
         {
-            stratum_format::Document document = stratum_format::read_zone(filepath);
+            stratum_format::ZoneDocument document = stratum_format::read_zone(filepath);
             CHECK_CASE(name, true);
             return document;
         }
@@ -139,9 +139,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    map_type address_map(const stratum_format::WallAddress& address)
+    map_type wall_placement_map(const stratum_format::WallPlacement& placement)
     {
-        return {{"cell_position", cell_position_map(address.cell_position)}, {"normal", direction_map(address.normal)}};
+        return {{"cell_position", cell_position_map(placement.cell_position)}, {"normal", direction_map(placement.normal)}};
     }
 
     //--------------------------------------------------------------------------
@@ -220,14 +220,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
-    const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
+    const stratum_format::WallPlacement* wall_placement(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
         {
             return nullptr;
         }
 
-        return get_if<stratum_format::WallAddress>(&*entity.site->address);
+        return get_if<stratum_format::WallPlacement>(&*entity.site->address);
     }
 
     //--------------------------------------------------------------------------
@@ -235,9 +235,9 @@ namespace
     {
         map_type m;
 
-        if (const auto* address = site.address.has_value() ? get_if<stratum_format::WallAddress>(&*site.address) : nullptr; address != nullptr)
+        if (const auto* placement = site.address.has_value() ? get_if<stratum_format::WallPlacement>(&*site.address) : nullptr; placement != nullptr)
         {
-            m["wall"] = address_map(*address);
+            m["wall"] = wall_placement_map(*placement);
         }
         else if (const auto* flat_cell = site.address.has_value() ? get_if<stratum_format::FlatCell>(&*site.address) : nullptr; flat_cell != nullptr)
         {
@@ -285,8 +285,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The document as nested maps: walls keyed by address and flats by role, since neither has an order of its own
-    map_type document_map(const stratum_format::Document& document)
+    // The document as nested maps: walls keyed by placement and flats by role, since neither has an order of its own
+    map_type document_map(const stratum_format::ZoneDocument& document)
     {
         const stratum_format::Cells& cells = document.cells.value();
 
@@ -321,7 +321,7 @@ namespace
         m["walls"] = map_type::object();
         for (const auto& wall : document.walls)
         {
-            m["walls"][address_map(wall.address).dump()] = components_map(wall.components);
+            m["walls"][wall_placement_map(wall.placement).dump()] = components_map(wall.components);
         }
 
         m["flats"] = map_type::object();
@@ -386,13 +386,13 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("read, wall notation")
     {
-        optional<stratum_format::Document> read = read_case("cistern.json reads", data_directory / "cistern.json");
+        optional<stratum_format::ZoneDocument> read = read_case("cistern.json reads", data_directory / "cistern.json");
         if (!read.has_value())
         {
             return;
         }
 
-        const stratum_format::Document& document = *read;
+        const stratum_format::ZoneDocument& document = *read;
 
         const stratum_format::Cells& cells = document.cells.value();
         CHECK_CASE("the notation is wall", cells.notation == stratum_format::Notation::Wall);
@@ -412,8 +412,8 @@ namespace
             locator != nullptr && locator->cell_position == stratum_format::discrete_point_type {3, 1});
         CHECK_CASE("a style is a component kept as written", document.rooms[0].components["style"]["terrain"] == "water");
 
-        CHECK_CASE("the wall address's normal points into its cell",
-            document.walls[0].address == stratum_format::WallAddress {{1, 1}, {-1, 0}});
+        CHECK_CASE("the wall placement's normal points into its cell",
+            document.walls[0].placement == stratum_format::WallPlacement {{1, 1}, {-1, 0}});
 
         CHECK_CASE_EQUAL("two flats", document.flats.size(), 2);
         CHECK_CASE("the first flat is the floor", document.flats[0].role == stratum_format::FlatRole::Floor);
@@ -426,17 +426,17 @@ namespace
             !document.entities[0].site.has_value() && !document.entities[0].parent_id.has_value());
         CHECK_CASE("a door facing is a child of its door", document.entities[1].parent_id == 1u);
 
-        const auto* door_wall = wall_address(document.entities[1]);
+        const auto* door_wall = wall_placement(document.entities[1]);
         CHECK_CASE("a door facing is sited on a wall of its doorway",
-            door_wall != nullptr && *door_wall == stratum_format::WallAddress {{1, 1}, {-1, 0}});
+            door_wall != nullptr && *door_wall == stratum_format::WallPlacement {{1, 1}, {-1, 0}});
 
         CHECK_CASE("site and parent are decoded out of components",
             !document.entities[1].components.contains("site") && !document.entities[1].components.contains("parent"));
         CHECK_CASE("a file component the format does not define is kept as written", document.entities[2].components["concealed"] == true);
 
-        const auto* stair_wall = wall_address(document.entities[3]);
+        const auto* stair_wall = wall_placement(document.entities[3]);
         CHECK_CASE("a staircase is sited on the wall on its open side",
-            stair_wall != nullptr && *stair_wall == stratum_format::WallAddress {{3, 1}, {0, -1}});
+            stair_wall != nullptr && *stair_wall == stratum_format::WallPlacement {{3, 1}, {0, -1}});
         const auto& stair_access_point = document.entities[3].access_point;
         CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
             && stair_access_point->type == "staircase" && stair_access_point->order == 0 && stair_access_point->target.has_value()
@@ -479,13 +479,13 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("read, block notation")
     {
-        optional<stratum_format::Document> read = read_case("block.json reads", data_directory / "block.json");
+        optional<stratum_format::ZoneDocument> read = read_case("block.json reads", data_directory / "block.json");
         if (!read.has_value())
         {
             return;
         }
 
-        const stratum_format::Document& document = *read;
+        const stratum_format::ZoneDocument& document = *read;
 
         const stratum_format::Cells& cells = document.cells.value();
         CHECK_CASE("the notation is block", cells.notation == stratum_format::Notation::Block);
@@ -513,8 +513,8 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("read, runs")
     {
-        optional<stratum_format::Document> runs = read_case("runs.json reads", data_directory / "runs.json");
-        optional<stratum_format::Document> characters = read_case("cistern.json reads", data_directory / "cistern.json");
+        optional<stratum_format::ZoneDocument> runs = read_case("runs.json reads", data_directory / "runs.json");
+        optional<stratum_format::ZoneDocument> characters = read_case("cistern.json reads", data_directory / "cistern.json");
         if (!runs.has_value() || !characters.has_value())
         {
             return;
@@ -631,9 +631,9 @@ namespace
                 "entities[1].components.site: wall and flat are never both given"},
             {"a site on its parent where the entity has none", [](auto& v) { v["entities"][3]["components"]["site"].erase("wall"); },
                 "entities[3]: sited on its parent and has none"},
-            {"a wall address that is not an object", [](auto& v) { v["entities"][1]["components"]["site"]["wall"] = parse_values("[1, 1, -1, 0]"); },
+            {"a wall placement that is not an object", [](auto& v) { v["entities"][1]["components"]["site"]["wall"] = parse_values("[1, 1, -1, 0]"); },
                 "entities[1].components.site.wall: an object was expected"},
-            {"a wall address with no normal", [](auto& v) { v["entities"][1]["components"]["site"]["wall"].erase("normal"); },
+            {"a wall placement with no normal", [](auto& v) { v["entities"][1]["components"]["site"]["wall"].erase("normal"); },
                 "entities[1].components.site.wall.normal: required and absent"},
             {"a flat cell with no cell position", [](auto& v) { v["entities"][5]["components"]["site"].erase("cell_position"); },
                 "entities[5].components.site.cell_position: required and absent"},
@@ -916,23 +916,23 @@ namespace
                 "rooms[0].perimeter[0]: the edge from this junction between cell [2, 0] inside and cell [2, -1] outside"},
             {"two rooms covering one cell", [](auto& v) { v["rooms"].push_back(parse_values(R"({ "cell_position": [0, 0] })")); },
                 "rooms[2]: covers the cell [0, 0], which rooms[0] also covers"},
-            {"a wall address with no wall in the grid",
+            {"a wall placement with no wall in the grid",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [1, 1], "normal": [1, 0] })"); },
-                "walls[0].wall: no wall in the grid at that address"},
-            {"a wall address from a blank cell",
+                "walls[0].wall: no wall in the grid at that placement"},
+            {"a wall placement from a blank cell",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [2, 2], "normal": [0, 1] })"); },
                 "walls[0].wall: not a floor/door cell"},
-            {"a wall address from a stair cell",
+            {"a wall placement from a stair cell",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [0, -1] })"); },
                 "walls[0].wall: not a floor/door cell"},
-            {"a wall address on a floor cell's side toward a stair cell",
+            {"a wall placement on a floor cell's side toward a stair cell",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [3, 1], "normal": [0, -1] })"); }, ""},
             {"a second entry for one wall",
                 [](auto& v) { v["walls"].push_back(parse_values(R"({ "wall": { "cell_position": [1, 1], "normal": [-1, 0] } })")); },
                 "walls[1].wall: a second entry for one wall"},
             {"an entity on a wall the grid does not have",
                 [](auto& v) { v["entities"][2]["components"]["site"]["wall"] = parse_values(R"({ "cell_position": [2, 1], "normal": [-1, 0] })"); },
-                "entities[2].components.site.wall: no wall in the grid at that address"},
+                "entities[2].components.site.wall: no wall in the grid at that placement"},
             {"a flat referring to a room that does not exist", [](auto& v) { v["flats"][0]["rooms"][0]["room"] = 5; },
                 "flats[0].rooms[0].room: no room of that id"},
             {"a flat cell off the grid", [](auto& v) { v["flats"][1]["cells"] = parse_values(R"([{ "cell_position": [4, 0] }])"); },
@@ -957,10 +957,10 @@ namespace
         {
             {"a wall on a door cell's side toward floor",
                 [](auto& v) { v["walls"][1]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [1, 0] })"); },
-                "walls[1].wall: no wall in the grid at that address"},
+                "walls[1].wall: no wall in the grid at that placement"},
             {"a wall on a floor cell's side toward a stair cell, which is floor in the block notation",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [4, 2], "normal": [-1, 0] })"); },
-                "walls[0].wall: no wall in the grid at that address"},
+                "walls[0].wall: no wall in the grid at that placement"},
             {"a room cell on a door cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[3, 2]"); },
                 "rooms[0].cell_position: not a floor cell"},
             {"a room cell on a solid cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[0, 0]"); },
@@ -977,7 +977,7 @@ namespace
                 "rooms[1].perimeter[0]: the edge from this junction between cell [3, 1] inside and cell [3, 0] outside"},
             {"a perimeter covering a cell the fill covers", [](auto& v) { v["rooms"][1]["perimeter"] = parse_values("[[2, 2], [3, 2], [3, 3], [2, 3]]"); },
                 "rooms[1]: covers the cell [2, 2], which rooms[0] also covers"},
-            {"a wall address off the grid",
+            {"a wall placement off the grid",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [7, 1], "normal": [0, 1] })"); }, "walls[0].wall: off the grid"}
         });
 
@@ -1026,7 +1026,7 @@ namespace
 
         for (const auto& filename : {"cistern.json", "block.json", "pillar.json", "runs.json"})
         {
-            optional<stratum_format::Document> document = read_case(format("{} reads", filename), data_directory / filename);
+            optional<stratum_format::ZoneDocument> document = read_case(format("{} reads", filename), data_directory / filename);
             if (!document.has_value())
             {
                 continue;
@@ -1066,7 +1066,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("empty zone")
     {
-        stratum_format::Document document;
+        stratum_format::ZoneDocument document;
         document.zone_id = 7;
         document.position = stratum_format::zone_position_type {0, 0, -2};
         document.zone_spec = KeyValueStore {{"seed", "12"}, {"parameters.denizens", "few"}};
@@ -1074,7 +1074,7 @@ namespace
         ostringstream os;
         stratum_format::write(os, document);
         istringstream is(os.str());
-        const stratum_format::Document read = stratum_format::read_zone(is, "empty zone");
+        const stratum_format::ZoneDocument read = stratum_format::read_zone(is, "empty zone");
         CHECK_CASE("an empty zone written reads back with its id, its position and its zone spec, and no cells", !read.cells.has_value()
             && read.zone_id == 7 && read.position == stratum_format::zone_position_type {0, 0, -2} && read.access_points.empty()
             && read.zone_spec.has_value() && read.zone_spec->value("seed") == "12" && read.zone_spec->value("parameters.denizens") == "few",

@@ -5,7 +5,7 @@
 // write_zone.hpp
 //------------------------------------------------------------------------------
 
-#include "Document.hpp"
+#include "ZoneDocument.hpp"
 #include <filesystem>
 #include <iosfwd>
 
@@ -14,8 +14,8 @@ namespace quetzal::stratum_format
 
     // Writes the document in the written form the format specifies: one grid row per line, one
     // entry per line, and coordinate arrays inline on the line that uses them
-    void write(const std::filesystem::path& filepath, const Document& document);
-    void write(std::ostream& os, const Document& document);
+    void write(const std::filesystem::path& filepath, const ZoneDocument& document);
+    void write(std::ostream& os, const ZoneDocument& document);
 
 } // namespace quetzal::stratum_format
 

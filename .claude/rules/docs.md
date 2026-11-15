@@ -41,9 +41,12 @@ These rules apply to the documents in `doc/`, alongside the Documents section of
   situation warrants. A detail that looks redundant, ambiguous, or misleading is improved, with the reason, or raised
   first, and a choice is never justified only by pointing to a document. Comments and names are written fresh rather
   than copied from a plan's phrase, and an unclear phrase is fixed in the document too.
+- **The design evolves.** It is incremental like the code, and a documented or built design is not a good reason
+  against a change. A section the user writes into a document is a decision that changes the design and the code, and
+  the existing plan, reference, and code are what it changes.
 - **Speculation stays tentative.** The author's guess ("dimetric may be little more than a change of tile set") goes in
   as a guess, with "might" or "has not been examined", never as a fact, a plan step, or a later reason for a design.
-- **A "Proposed" section is pseudocode.** Its wording is loose ("position" for a site or a `ZonePosition`) and defines no
+- **A "Proposed" section is pseudocode.** Its wording is loose ("position" for a site or a `Position`) and defines no
   terms. Its substance, conflicts with settled decisions, and gaps are reviewed, not its wording.
 - **A question is never written into a document as a proposal,** an option weighed, or a decision. An alternative is
   written down only when the author proposed it or asked for it.

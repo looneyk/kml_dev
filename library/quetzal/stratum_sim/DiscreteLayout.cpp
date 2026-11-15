@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "DiscreteLayout.hpp"
-#include "DiscretePlacementIndex.hpp"
+#include "DiscreteProximityIndex.hpp"
 #include "quetzal/math/floating_point.hpp"
 #include <cassert>
 #include <cmath>
@@ -37,7 +37,7 @@ namespace
 
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::DiscreteLayout::DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector_type& extent) :
-    Layout(),
+    LayoutBase(),
     m_grid {origin, scale, extent},
     m_cells(static_cast<size_t>(extent.x()) * extent.y())
 {
@@ -258,14 +258,14 @@ quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::arriv
 {
     assert(site.relation == Relation::On && site.address.has_value());
 
-    if (const auto* wall = std::get_if<WallAddress>(&*site.address))
+    if (const auto* wall = std::get_if<WallId>(&*site.address))
     {
         const discrete_vector_type& toward_wall = wall_direction(wall->wall_id);
         return placement_type(position(wall_cell_position(wall->wall_id)),
             vector_type(static_cast<value_type>(-toward_wall.x()), static_cast<value_type>(-toward_wall.y()), value_type(0)));
     }
 
-    return placement_type(position(std::get<FlatCellAddress>(*site.address).cell_position), site.placement.direction());
+    return placement_type(position(std::get<FlatCellPosition>(*site.address).cell_position), site.placement.direction());
 }
 
 //------------------------------------------------------------------------------
@@ -500,8 +500,8 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_typ
 }
 
 //------------------------------------------------------------------------------
-std::unique_ptr<quetzal::stratum_sim::PlacementIndex> quetzal::stratum_sim::DiscreteLayout::create_placement_index() const
+std::unique_ptr<quetzal::stratum_sim::ProximityIndexBase> quetzal::stratum_sim::DiscreteLayout::create_proximity_index() const
 {
-    return std::make_unique<DiscretePlacementIndex>(*this);
+    return std::make_unique<DiscreteProximityIndex>(*this);
 }
 

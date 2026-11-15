@@ -65,14 +65,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
-    const stratum_format::WallAddress* wall_address(const stratum_format::Entity& entity)
+    const stratum_format::WallPlacement* wall_placement(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
         {
             return nullptr;
         }
 
-        return get_if<stratum_format::WallAddress>(&*entity.site->address);
+        return get_if<stratum_format::WallPlacement>(&*entity.site->address);
     }
 
     //--------------------------------------------------------------------------
@@ -80,7 +80,7 @@ namespace
     string rows_of(const string& filepath)
     {
         string s;
-        const stratum_format::Document document = stratum_format::read_zone(filepath);
+        const stratum_format::ZoneDocument document = stratum_format::read_zone(filepath);
         for (const string& row : document.cells.value().rows)
         {
             s += row + '\n';
@@ -408,7 +408,7 @@ namespace
 
         // An access point on the floor is drawn as stairs, down if its target is below the zone and up otherwise
         flecs::entity hatch = stratum_sim::create_access_point(zone, stratum_sim::access_type(world.entities(), "portal"),
-            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}}, 0,
+            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellPosition {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}}, 0,
             *stratum_format::parse_access_point_target("-1"));
         CHECK_CASE("an access point on the floor leading down draws as stairs down", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '>'
             && stratum_view::render_lattice(world, zone, no_viewer).at({5, 3}) == '>');
@@ -744,10 +744,10 @@ namespace
 
     //--------------------------------------------------------------------------
     // One door entity per door glyph, its door facings on the walls of that doorway, and no door facing anywhere else
-    bool doors_have_entities(const stratum_format::Document& document, string& detail)
+    bool doors_have_entities(const stratum_format::ZoneDocument& document, string& detail)
     {
-        vector<vector<stratum_format::WallAddress>> doors = stratum_format::door_walls(document.cells.value());
-        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallAddress>> walls_by_door;
+        vector<vector<stratum_format::WallPlacement>> doors = stratum_format::door_walls(document.cells.value());
+        map<stratum_format::stored_entity_id_type, vector<stratum_format::WallPlacement>> walls_by_door;
         size_t door_count = 0;
 
         for (const stratum_format::Entity& entity : document.entities)
@@ -763,14 +763,14 @@ namespace
                 continue;
             }
 
-            const auto* address = wall_address(entity);
-            if (address == nullptr || !entity.parent_id.has_value())
+            const auto* placement = wall_placement(entity);
+            if (placement == nullptr || !entity.parent_id.has_value())
             {
                 detail = format("a door facing with id {} that is not a child attached to a wall", entity.id);
                 return false;
             }
 
-            walls_by_door[*entity.parent_id].push_back(*address);
+            walls_by_door[*entity.parent_id].push_back(*placement);
         }
 
         if (door_count != doors.size() || walls_by_door.size() != doors.size())
@@ -779,12 +779,12 @@ namespace
             return false;
         }
 
-        for (const vector<stratum_format::WallAddress>& walls : doors)
+        for (const vector<stratum_format::WallPlacement>& walls : doors)
         {
             if (none_of(walls_by_door.begin(), walls_by_door.end(), [&walls](const auto& entry)
                 { return is_permutation(entry.second.begin(), entry.second.end(), walls.begin(), walls.end()); }))
             {
-                const stratum_format::WallAddress& wall = walls.front();
+                const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
                     wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
                 return false;

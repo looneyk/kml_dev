@@ -11,8 +11,7 @@ The design behind the items is in these documents, which the items refer to by s
 
 - `access_point_plan.md` merges `Relocator` into one `AccessPoint` component with an optional target, and derives the
   arrival placement from the site of the access point's entity.
-- `addressing.md` specifies ids and addressing, and `addressing_plan.md` is the design of saved zones, the zone actor
-  index, and the links and migration they build on.
+- `component_names_plan.md` renames the zone components and the layout entity ids to follow ECS convention.
 - `difficulty_plan.md` covers the difficulty modes: the settings each is a preset of, permadeath among them.
 - `discrete_layout.md` is the zone file format, and `discrete_layout_plan.md` the structures a zone file loads into.
 - `game_file_spec.md` is how a game is saved: a directory with a file for the game's state and settings, one for the
@@ -70,9 +69,12 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 `zone_plan.md` has the design.
 
+- [ ] **Component names** (`component_names_plan.md`, `## Steps`): the zone components and the layout entity ids
+  renamed, and a flat's room overrides kept in the flat's map.
+
 - [x] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
       flecs parent of its zones, with its coordinate system from its top-level region's spec, and each zone's
-      `ZonePosition` in its worldspace, unique there.
+      `Position` in its worldspace, unique there.
 - [x] **Top-level regions** (`zone_plan.md`, `### Regions`): one region for each worldspace, created from its region
       spec, with the worldspace's extent, and a zone referring to its region by persistent id.
 - [x] **Extended names** (`zone_plan.md`, `### Identity`): a name and an extended name for every worldspace, zone and
@@ -136,7 +138,8 @@ boxes are removed at the start of the next piece of work, since the reference do
       Deleting the assembly would seal the doorway, since a wall with nothing on it is solid.
 - [ ] **Crossing that depends on the actor, kept affordable** (`archived/attachment_plan.md`, `## The seam`): only
       attachments marked overridable consult the actor's properties, so the common case never looks.
-- [ ] **A key that opens a lock.** `Access` has `Locked`, and nothing unlocks it.
+- [ ] **A key that opens a lock.** `Access` has `Locked`, and nothing unlocks it. A key and its lock have the same lock
+  value, not a reference, so a key in one zone matches a door in a zone that is not generated yet.
 
 ## Views
 
@@ -215,7 +218,7 @@ places it at Phase 3b, with the rest of the Godot 3D view in Phase 6.
 Not gating anything before Phase 7.
 
 **`value_type`, `float` or `double`.** Float resolves to roughly a millimetre at ten thousand units,
-which no zone comes near, and `Layout::move` regenerates position from the cell it reached rather
+which no zone comes near, and `LayoutBase::move` regenerates position from the cell it reached rather
 than accumulating, so a discrete layout does not drift however often it is called --- real time
 included. What argues for double is neither of those: every vertex today is grid-derived and
 therefore exactly representable, which arbitrary angled walls end, turning every tolerance the
@@ -279,8 +282,10 @@ These are the open questions.
 
 ### Ids and addressing
 
-- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `AddressIndex`, `Access`,
+- **Names.** `PersistentId`, `EntityReference`, `make_reference`, `AttachedEntities`, `EntityIndex`, `Access`,
   `Detection` and `InterzonePursuitCapability` are working names.
+- **Is a barrier's wall placement consistent with the neighbor's wall?** Where only the edge matters, as for a barrier,
+  the wall placement from either side of the edge identifies it.
 
 ### Modding
 
@@ -327,7 +332,7 @@ These are the open questions.
 - **`cardinal_directions`, `discrete_point_type`, `grid_step` and `discrete_vector_type` are in `types.hpp`,** which
   every layout includes, so the discrete vocabulary is in the neutral header. Moving it under `DiscreteLayout.hpp`
   touches every file in the library, and is worth doing alongside other work.
-- **Do rooms rise to `Layout`?** A room is `room_id` on a `DiscreteLayout`'s cells and an entity with its
+- **Do rooms rise to `LayoutBase`?** A room is `room_id` on a `DiscreteLayout`'s cells and an entity with its
   components. The entity is neutral and the cells are not, so rooms stay on `DiscreteLayout` until something
   continuous needs one.
 - **`DiscreteLayout::field_of_view` is declared and not defined.** A shadowcasting sweep computes every cell around one

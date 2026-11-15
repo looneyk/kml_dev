@@ -59,7 +59,7 @@ namespace
     {
         std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.store.value<quetzal::stratum_gen::seed_type>(sim::seed_key);
         assert(seed.has_value());
-        const sim::ZonePosition position = zone_spec.position();
+        const sim::Position position = zone_spec.position();
 
         quetzal::KeyValueStore parameters = sim::select_prefixed(zone_spec.store, sim::parameters_prefix);
         if (!parameters.contains("extent"))
@@ -500,7 +500,7 @@ void StratumWorld::advance()
         if (const sim::Blocked* pblocked = event.try_get<sim::Blocked>())
         {
             flecs::entity access_point = pblocked->blocking_wall_id != quetzal::nullid
-                ? sim::find_access_point(m_session.zone(), sim::WallAddress {pblocked->blocking_wall_id}) : flecs::entity();
+                ? sim::find_access_point(m_session.zone(), sim::WallId {pblocked->blocking_wall_id}) : flecs::entity();
             std::string name = access_point ? sim::access_type_name(access_point) : std::string();
 
             m_message = access_point ? std::format("There is a {} before you.", name.empty() ? "way" : name) : std::string();
@@ -514,7 +514,7 @@ void StratumWorld::advance()
         else if (event.is<sim::Relocated>())
         {
             // A level is shown as its distance from the surface
-            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<sim::ZonePosition>().z));
+            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<sim::Position>().z));
         }
         else if (event.is<sim::Died>())
         {

@@ -5,7 +5,7 @@
 // ContinuousLayout.hpp
 //------------------------------------------------------------------------------
 
-#include "Layout.hpp"
+#include "LayoutBase.hpp"
 
 namespace quetzal::stratum_sim
 {
@@ -22,7 +22,7 @@ namespace quetzal::stratum_sim
     //   Topology and occupancy solve together rather than one after the other: a blocker
     //   partway along changes where the slide happens, so a sequence gives results that are
     //   wrong rather than approximate
-    class ContinuousLayout : public Layout
+    class ContinuousLayout : public LayoutBase
     {
     public:
 

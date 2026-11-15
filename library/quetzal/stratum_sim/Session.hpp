@@ -8,7 +8,7 @@
 #include "Clock.hpp"
 #include "Command.hpp"
 #include "EventQueue.hpp"
-#include "Layout.hpp"
+#include "LayoutBase.hpp"
 #include "Character.hpp"
 #include "Scheduler.hpp"
 #include "World.hpp"
@@ -61,8 +61,8 @@ namespace quetzal::stratum_sim
         const World& world() const;
 
         // Requires a loaded zone
-        Layout& layout();
-        const Layout& layout() const;
+        LayoutBase& layout();
+        const LayoutBase& layout() const;
 
         Scheduler& scheduler();
         const Scheduler& scheduler() const;

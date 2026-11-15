@@ -16,9 +16,10 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
 - **Fold a concept into an existing mechanism** where it is an instance of one, case by case: `style` is an ordinary
   inherited component, not a key beside `components` with its own table, struct, and reader checks. Before a local fix,
   consider whether the problem belongs in a structure, a spec, or a mechanism already there.
-- **Existing interfaces, types, and helpers can change.** The code is under active incremental development, and
-  scaffolding or an abstraction from an earlier step that no longer fits the next one is refactored or replaced
-  cleanly, not worked around.
+- **The current code is not a constraint.** The code is under active incremental development, and scaffolding or an
+  abstraction from an earlier step that no longer fits the next one is refactored or replaced cleanly, not worked
+  around. A proposed change is answered with the better design and what it would take to get there. A real cost is
+  given as a cost for the user to weigh, not as a reason the change cannot be made.
 - **Remove code that adds no value.** A nicety the output does not need, such as `number_text` forcing a `.0` on JSON
   reals, and a wrapper around one call, such as `skip_bracket` over `skip_delimiter`, are removed, not kept as an
   option. If the output changes, the references are regenerated and the docs updated.
@@ -35,15 +36,18 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
   of a region in zones in the x direction", not "Region width" or "east to west". Compass directions, levels, up and
   down, width, and depth come from data files, and an axis is never mapped to a game concept such as level unless the
   design does.
-- **Follow what major open source projects do** when choosing between options, and say what they do. One shared `detail`
+- **Follow what major open source projects do** when choosing between options, and say what they do.
+  An established practice is the first answer to a design question, not one reached after an objection. One shared `detail`
   namespace per library is the norm (Boost, Eigen, fmt, folly, range-v3, Qt), with collisions managed by naming: a name
   that is the bare noun of its namespace, or a bare generic verb, gets a qualifier (`compare` becomes `compare_models`).
+- **Follow the conventions of the framework in use.** An ECS component is named for the data it contains, not for the
+  entity it is attached to, with no prefix or suffix marking it as a component (flecs, EnTT, Bevy, Unity DOTS).
 
 ## Values and state
 
 - **No pointers, `std::variant`, or `std::any`** unless absolutely necessary. Objects are held by value and cleared and
   refilled in place (`session.clear()`, `create()`, `load()`), not replaced through a `std::unique_ptr`. The existing
-  uses in stratum (`Command` and `Event` over `std::any`, `ZoneLayout`'s `std::unique_ptr<Layout>`, and others) are not
+  uses in stratum (`Command` and `Event` over `std::any`, `Layout`'s `std::unique_ptr<LayoutBase>`, and others) are not
   extended.
 - **No valid value is reserved as a marker.** "Unset" or "none" is `std::optional`, and validation checks that it has
   a value: a seed that rejects 0 as "never assigned" costs `--seed 0`. `quetzal::id_type` with `nullid` is the one

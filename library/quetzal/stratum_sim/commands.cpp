@@ -52,7 +52,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         return 0;
     }
 
-    const Layout& layout = world.layout(zone);
+    const LayoutBase& layout = world.layout(zone);
     placement_type placement = psite->placement;
 
     if (const Step* pstep = command.try_get<Step>())
@@ -83,7 +83,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         if constexpr (enter_access_point_by_moving)
         {
             flecs::entity access_point = result.blocking_wall_id != nullid && e.has<ControlledActor>()
-                ? find_access_point(zone, WallAddress {result.blocking_wall_id}) : flecs::entity();
+                ? find_access_point(zone, WallId {result.blocking_wall_id}) : flecs::entity();
 
             if (access_point && can_enter(access_point, e))
             {
@@ -131,7 +131,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        flecs::entity access_point = e.has<ControlledActor>() ? find_access_point(zone, WallAddress {wall_id}) : flecs::entity();
+        flecs::entity access_point = e.has<ControlledActor>() ? find_access_point(zone, WallId {wall_id}) : flecs::entity();
         if (access_point && can_enter(access_point, e))
         {
             return enter_access_point(world, e, access_point, events);
@@ -156,7 +156,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
     {
         // Only a discrete layout has flat cells
         const auto* discrete_layout = dynamic_cast<const DiscreteLayout*>(&layout);
-        flecs::entity access_point = discrete_layout != nullptr && e.has<ControlledActor>() ? find_access_point(zone, FlatCellAddress {discrete_layout->floor_id(),
+        flecs::entity access_point = discrete_layout != nullptr && e.has<ControlledActor>() ? find_access_point(zone, FlatCellPosition {discrete_layout->floor_id(),
             discrete_layout->cell_position_at(placement.position())}) : flecs::entity();
 
         return access_point && can_enter(access_point, e) ? enter_access_point(world, e, access_point, events) : 0;

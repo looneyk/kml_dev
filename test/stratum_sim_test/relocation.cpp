@@ -11,7 +11,7 @@
 #include "quetzal/stratum_sim/Intent.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
+#include "quetzal/stratum_sim/DiscreteProximityIndex.hpp"
 #include "quetzal/stratum_sim/Name.hpp"
 #include "quetzal/stratum_sim/PatternResolver.hpp"
 #include "quetzal/stratum_sim/RegionSpec.hpp"
@@ -28,7 +28,7 @@
 #include "quetzal/stratum_sim/specs.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_sim/WorldDefinition.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/AccessPointTarget.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
@@ -192,18 +192,18 @@ namespace
             world.zone_of(monk_reference.persistent_id) == chapel_id && !world.entity(monk_reference.persistent_id));
 
         // A zone's position, from its file or from the region that makes it
-        flecs::entity leveled = load_zone_unpopulated_at(world, world.worldspace_id, stratum_sim::ZonePosition {0, 0, -3}, "data/door.zone");
+        flecs::entity leveled = load_zone_unpopulated_at(world, world.worldspace_id, stratum_sim::Position {0, 0, -3}, "data/door.zone");
 
-        const auto* leveled_position = leveled.try_get<stratum_sim::ZonePosition>();
-        const map<stratum_sim::ZonePosition, stratum_sim::PersistentId>& positioned_zone_ids = world.worldspace(world.worldspace_id).zone_ids;
+        const auto* leveled_position = leveled.try_get<stratum_sim::Position>();
+        const map<stratum_sim::Position, stratum_sim::PersistentId>& positioned_zone_ids = world.worldspace(world.worldspace_id).zone_ids;
         CHECK_CASE("a zone loaded at a position has that position", leveled_position != nullptr && leveled_position->x == 0
             && leveled_position->y == 0 && leveled_position->z == -3);
         CHECK_CASE("and is listed in its worldspace at that position, with a zone at each other position of the extent",
             positioned_zone_ids.size() == test_extent_zone_count
-            && positioned_zone_ids.at(stratum_sim::ZonePosition {0, 0, -3}) == leveled.get<stratum_sim::PersistentId>());
-        CHECK_CASE("and none where its file states none", field.try_get<stratum_sim::ZonePosition>() == nullptr);
+            && positioned_zone_ids.at(stratum_sim::Position {0, 0, -3}) == leveled.get<stratum_sim::PersistentId>());
+        CHECK_CASE("and none where its file states none", field.try_get<stratum_sim::Position>() == nullptr);
 
-        stratum_format::Document named_document = stratum_format::read_zone("data/door.zone");
+        stratum_format::ZoneDocument named_document = stratum_format::read_zone("data/door.zone");
         named_document.components["name"] = "The Narrow Door";
         bool named_buildable = !stratum_sim::check_buildable(world.entities(), named_document).has_value();
         flecs::entity named = world.create_zone(world.region_id, world.next_id());
@@ -222,7 +222,7 @@ namespace
 
         flecs::entity made = world.load_zone_at(dungeon_worldspace, zone_position_at_level(-1));
         CHECK_CASE("loading the zone at a position generates its content from its region spec", made == empty
-            && level_of(made) == -1 && made.has<stratum_sim::ZoneLayout>());
+            && level_of(made) == -1 && made.has<stratum_sim::Layout>());
 
         return;
     }
@@ -293,7 +293,7 @@ namespace
             && name_of(empty) == "dungeon_9");
         CHECK_CASE("and keeps that name when its content is generated", made == empty && name_of(made) == "dungeon_9");
 
-        auto zone_name_at = [&](stratum_sim::PersistentId worldspace_id, const stratum_sim::ZonePosition& position)
+        auto zone_name_at = [&](stratum_sim::PersistentId worldspace_id, const stratum_sim::Position& position)
         {
             return name_of(world.entity(world.worldspace(worldspace_id).zone_ids.at(position)));
         };
@@ -320,7 +320,7 @@ namespace
         CHECK_CASE("the game's region spec file has the surface and the dungeon",
             region_specs.contains("surface") && region_specs.contains("dungeon"));
         CHECK_CASE("and a surface zone is named for the surface and its x and y",
-            zone_name_at(world.create_worldspace("surface", {{.region_spec = region_specs.at("surface")}}, test_worldspace_seed), stratum_sim::ZonePosition {3, 4, 0}) == "surface_3_4");
+            zone_name_at(world.create_worldspace("surface", {{.region_spec = region_specs.at("surface")}}, test_worldspace_seed), stratum_sim::Position {3, 4, 0}) == "surface_3_4");
 
         const stratum_sim::WorldDefinition world_definition = stratum_sim::load_world_definition("../../assets");
         CHECK_CASE("the game's world definition file starts in the surface tree, its root spec based on the surface",
@@ -432,9 +432,9 @@ namespace
             { "name": "tor", "parent": "moor", "difficulty": "&parent.difficulty + 1", "extent": { "arrangement": "ranges", "boxes": [{ "x": [1, 2] }] } },
             { "name": "cairn", "parent": "tor", "display_name": "The Cairn", "extent": { "arrangement": "positions", "positions": [[2, 0, 0]] } })"),
             test_worldspace_seed);
-        auto zone_at_x = [&](stratum_sim::coord_type x) { return world.entity(world.worldspace(moor).zone_ids.at(stratum_sim::ZonePosition {x, 0, 0})); };
+        auto zone_at_x = [&](stratum_sim::coord_type x) { return world.entity(world.worldspace(moor).zone_ids.at(stratum_sim::Position {x, 0, 0})); };
         auto region_name_at_x = [&](stratum_sim::coord_type x) { return world.region(stratum_sim::region_of(zone_at_x(x))).name; };
-        auto zone_spec_at_x = [&](stratum_sim::coord_type x) { return zone_at_x(x).get<stratum_sim::ZoneDocument>().document->zone_spec.value(); };
+        auto zone_spec_at_x = [&](stratum_sim::coord_type x) { return zone_at_x(x).get<stratum_sim::Document>().document->zone_spec.value(); };
         const stratum_sim::RegionTree& moor_regions = world.worldspace(moor).regions;
 
         CHECK_CASE("a worldspace has a region for each spec of its tree, with its parent, name and display name",
@@ -498,10 +498,10 @@ namespace
 
         stratum_sim::PersistentId second_worldspace = world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed);
         flecs::entity made = world.load_zone_at(second_worldspace, zone_position_at_level(-3));
-        const stratum_sim::ZonePosition& made_position = made.get<stratum_sim::ZonePosition>();
+        const stratum_sim::Position& made_position = made.get<stratum_sim::Position>();
         CHECK_CASE("a zone is at the position its spec has", made_position.x == 0 && made_position.y == 0 && made_position.z == -3);
 
-        const stratum_format::Document made_document = stratum_sim::make_document(made);
+        const stratum_format::ZoneDocument made_document = stratum_sim::make_document(made);
         CHECK_CASE("and a saved zone keeps its position", made_document.position == stratum_format::zone_position_type {0, 0, -3});
 
         CHECK_CASE("a coordinate a spec does not have is 0", stratum_sim::ZoneSpec {KeyValueStore {{string(stratum_sim::position_z_key), "5"}}}.position().x == 0
@@ -585,8 +585,8 @@ namespace
         generation.m_zone_generator = [&generated_seeds](const stratum_sim::ZoneSpec& requested_zone_spec)
         {
             generated_seeds.push_back(*requested_zone_spec.store.value<stratum_sim::seed_type>(stratum_sim::seed_key));
-            stratum_format::Document document = stratum_format::read_zone("data/door.zone");
-            const stratum_sim::ZonePosition position = requested_zone_spec.position();
+            stratum_format::ZoneDocument document = stratum_format::read_zone("data/door.zone");
+            const stratum_sim::Position position = requested_zone_spec.position();
             document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
             document.is_unpopulated = false;
             return document;
@@ -711,7 +711,7 @@ namespace
         first_up.get_mut<stratum_sim::AccessPoint>().region_spec.reset();
 
         // data/walls.zone with its staircase leading down retargeted to the worldspace vault, created from the staircase spec
-        stratum_format::Document vault_document = stratum_format::read_zone("data/walls.zone");
+        stratum_format::ZoneDocument vault_document = stratum_format::read_zone("data/walls.zone");
         for (auto& entity : vault_document.entities)
         {
             const stratum_format::AccessPointTarget leading_down = stratum_format::parse_access_point_target("-1").value();
@@ -751,7 +751,7 @@ namespace
         CHECK_CASE("finding the zone at the level in its own worldspace empty, it generates its content and arrives at its entry point", made
             && stratum_sim::region_of(made) == dungeon && level_of(made) == -3 && arrival == up_of(made));
         CHECK_CASE("the placeholder finds the zone at x 0 and y 0, at its level",
-            made && made.get<stratum_sim::ZonePosition>() == stratum_sim::ZonePosition {0, 0, -3});
+            made && made.get<stratum_sim::Position>() == stratum_sim::Position {0, 0, -3});
 
         arrival = world.resolve_target(first_up);
         made = zone_arrived_in(arrival);
@@ -851,7 +851,7 @@ namespace
         // A portal on the floor, in the middle of a room
         stratum_sim::placement_type north(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(0.0f, 1.0f, 0.0f));
         flecs::entity portal = stratum_sim::create_access_point(zone, portal_type,
-            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {0, 1}}, north},
+            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellPosition {layout.floor_id(), stratum_sim::discrete_point_type {0, 1}}, north},
             0, stratum_format::AccessPointTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
         CHECK_CASE("an access point of any type, on any surface, is an entry point", stratum_sim::entry_point(zone, portal_type, 0) == portal);
         CHECK_CASE("an actor arrives on the floor of the access point's flat cell, facing in the site's orientation",
@@ -891,7 +891,7 @@ namespace
 
         flecs::entity game_portal_type = stratum_sim::access_type(game.world().entities(), "portal");
         stratum_sim::create_access_point(portal_only, game_portal_type,
-            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {portal_only_layout.floor_id(), stratum_sim::discrete_point_type {0, 0}},
+            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellPosition {portal_only_layout.floor_id(), stratum_sim::discrete_point_type {0, 0}},
             stratum_sim::placement_type(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(1.0f, 0.0f, 0.0f))}, 0,
             stratum_format::AccessPointTarget {nullopt, stratum_format::RelativeZone {0}, nullopt});
 
@@ -1016,7 +1016,7 @@ namespace
         auto on_floor = [&](flecs::entity zone, stratum_sim::discrete_point_type cell_position)
         {
             const stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
-            return stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), cell_position},
+            return stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellPosition {layout.floor_id(), cell_position},
                 stratum_sim::placement_type(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(1.0f, 0.0f, 0.0f))};
         };
 
@@ -1113,7 +1113,7 @@ namespace
         // in the second zone
         stratum_sim::DiscreteLayout& layout = zone_layout(world, first);
         flecs::entity hatch = stratum_sim::create_access_point(first, stratum_sim::access_type(world.entities(), "portal"),
-            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellAddress {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}}, 0);
+            stratum_sim::Site {stratum_sim::Relation::On, stratum_sim::FlatCellPosition {layout.floor_id(), stratum_sim::discrete_point_type {2, 1}}, {}}, 0);
 
         session.character().submit(stratum_sim::Enter {});
         stratum_sim::EventQueue arrival_only_events;

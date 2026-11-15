@@ -5,9 +5,9 @@
 // Zone.hpp
 //------------------------------------------------------------------------------
 
-#include "Layout.hpp"
+#include "LayoutBase.hpp"
 #include "PersistentId.hpp"
-#include "PlacementIndex.hpp"
+#include "ProximityIndexBase.hpp"
 #include "Site.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
@@ -24,7 +24,7 @@
 
 namespace quetzal::stratum_format
 {
-    struct Document;
+    struct ZoneDocument;
 }
 
 namespace quetzal::stratum_sim
@@ -38,35 +38,35 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The zone's geometry and topology
-    struct ZoneLayout
+    struct Layout
     {
-        std::unique_ptr<Layout> layout;
+        std::unique_ptr<LayoutBase> layout;
     };
 
     //--------------------------------------------------------------------------
     // The entities in the zone whose sites have no address, by location, in an index that the zone's layout creates
-    struct ZonePlacementIndex
+    struct ProximityIndex
     {
-        std::unique_ptr<PlacementIndex> placement_index;
+        std::unique_ptr<ProximityIndexBase> proximity_index;
     };
 
     //--------------------------------------------------------------------------
     // The document the zone was built from, without its entities. A saved zone is written with its geometry, which does not
     // change during play. Shared, so that nlohmann reaches only the files that read or write a document
-    struct ZoneDocument
+    struct Document
     {
-        std::shared_ptr<const stratum_format::Document> document;
+        std::shared_ptr<const stratum_format::ZoneDocument> document;
     };
 
     //--------------------------------------------------------------------------
     // A zone's position in its worldspace, each coordinate signed
-    struct ZonePosition
+    struct Position
     {
         coord_type x = 0;
         coord_type y = 0;
         coord_type z = 0;
 
-        auto operator<=>(const ZonePosition&) const = default;
+        auto operator<=>(const Position&) const = default;
     };
 
     //--------------------------------------------------------------------------
@@ -77,14 +77,14 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // The worldspace that a zone is in
-    struct ZoneWorldspace
+    struct WorldspaceId
     {
         PersistentId worldspace_id;
     };
 
     //--------------------------------------------------------------------------
     // The region that a zone is in
-    struct ZoneRegion
+    struct RegionId
     {
         PersistentId region_id;
     };
@@ -95,51 +95,41 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // A room of the zone's layout
-    struct RoomAddress
+    struct RoomId
     {
         id_type room_id = nullid;
 
-        auto operator<=>(const RoomAddress&) const = default;
+        auto operator<=>(const RoomId&) const = default;
     };
 
     //--------------------------------------------------------------------------
-    // The address of a flat, whose entity has the components that apply across the whole flat
-    struct FlatAddress
+    // The id of a flat, whose entity has the components that apply across the whole flat
+    struct FlatId
     {
         id_type flat_id = nullid;
 
-        auto operator<=>(const FlatAddress&) const = default;
-    };
-
-    //--------------------------------------------------------------------------
-    // The address of a flat's override for one room
-    struct FlatRoomAddress
-    {
-        id_type flat_id = nullid;
-        id_type room_id = nullid;
-
-        auto operator<=>(const FlatRoomAddress&) const = default;
+        auto operator<=>(const FlatId&) const = default;
     };
 
     //--------------------------------------------------------------------------
     // Tag for the entity of a part of a layout: a room, a wall, a flat, a flat's override for a room, or a flat cell. The
-    // entity has its address as a component, by which it is found, and has no persistent id
+    // entity has its key as a component, by which it is found, and has no persistent id
     struct LayoutEntity
     {
     };
 
     //--------------------------------------------------------------------------
-    // The zone's layout entities of one address type
-    template<typename Address>
-    struct AddressIndex
+    // The zone's layout entities of one key type
+    template<typename T>
+    struct EntityIndex
     {
-        std::map<Address, flecs::entity> entities; // <address, entity>
+        std::map<T, flecs::entity> entities; // <key, entity>
     };
 
     //--------------------------------------------------------------------------
-    // Calls f with std::type_identity<Address> for each address type of the parts of a layout that can have an entity of their own
+    // Calls f with std::type_identity<T> for each key type of the parts of a layout that can have an entity of their own
     template<typename F>
-    void for_each_layout_address(F&& f);
+    void for_each_layout_entity(F&& f);
 
     namespace detail
     {
@@ -158,9 +148,9 @@ decltype(auto) quetzal::stratum_sim::with_in_zone(Builder&& builder, flecs::enti
 
 //------------------------------------------------------------------------------
 template<typename F>
-void quetzal::stratum_sim::for_each_layout_address(F&& f)
+void quetzal::stratum_sim::for_each_layout_entity(F&& f)
 {
-    detail::for_each_type<RoomAddress, WallAddress, FlatAddress, FlatRoomAddress, FlatCellAddress>(std::forward<F>(f));
+    detail::for_each_type<RoomId, WallId, FlatId, FlatCellPosition>(std::forward<F>(f));
     return;
 }
 

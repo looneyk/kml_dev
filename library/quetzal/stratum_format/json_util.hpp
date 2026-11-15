@@ -5,7 +5,7 @@
 // json_util.hpp
 //------------------------------------------------------------------------------
 
-#include "Document.hpp"
+#include "ZoneDocument.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include <cstddef>
 #include <filesystem>
@@ -35,7 +35,7 @@ namespace quetzal::stratum_format::detail
     std::string text_values_text(const KeyValueStore& values);
     std::string cell_position_text(const discrete_point_type& cell_position);
     std::string direction_text(const discrete_vector_type& direction);
-    std::string address_text(const WallAddress& address);
+    std::string wall_placement_text(const WallPlacement& placement);
     std::string reference_text(stored_entity_id_type id);
 
     // A member per line, each value inline

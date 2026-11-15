@@ -161,13 +161,13 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zone, const Parameters& parameters)
+quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone& zone, const Parameters& parameters)
 {
     auto [nx, ny] = zone.extent().rep();
 
     assert(!zone.staircases().empty());
 
-    stratum_format::Document document;
+    stratum_format::ZoneDocument document;
     document.version = stratum_format::format_version;
     document.generator = generator(zone, parameters);
 
@@ -251,9 +251,9 @@ quetzal::stratum_format::Document quetzal::dungen::make_document(const Zone& zon
         stored_entity_id_type door_id = ++id;
         document.entities.push_back({door_id, "door", nullopt, nullopt, {}});
 
-        for (const auto& address : walls)
+        for (const auto& wall : walls)
         {
-            document.entities.push_back({++id, "door_facing", stratum_format::Site {stratum_format::Relation::On, address, nullopt, nullopt}, door_id, {}});
+            document.entities.push_back({++id, "door_facing", stratum_format::Site {stratum_format::Relation::On, wall, nullopt, nullopt}, door_id, {}});
         }
     }
 

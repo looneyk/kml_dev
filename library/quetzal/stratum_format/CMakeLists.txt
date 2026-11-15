@@ -1,7 +1,6 @@
 add_library(quetzal_stratum_format STATIC
     AccessPointTarget.cpp
     checked_values.cpp
-    Document.cpp
     GameManifestDocument.cpp
     grid.cpp
     json_util.cpp
@@ -22,12 +21,12 @@ add_library(quetzal_stratum_format STATIC
     write_game.cpp
     write_world.cpp
     write_zone.cpp
+    ZoneDocument.cpp
     AccessPointTarget.hpp
     CharacterDocument.hpp
     checked_values.hpp
     config_format.hpp
     ConfigDocument.hpp
-    Document.hpp
     GameDocument.hpp
     GameManifestDocument.hpp
     Notation.hpp
@@ -53,6 +52,7 @@ add_library(quetzal_stratum_format STATIC
     write_game.hpp
     write_world.hpp
     write_zone.hpp
+    ZoneDocument.hpp
 )
 
 set_property(TARGET quetzal_stratum_format PROPERTY FOLDER "library")

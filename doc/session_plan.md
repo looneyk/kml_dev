@@ -100,14 +100,14 @@ void World::trim_zones(flecs::entity zone_entered);
   does every save of the game, explicit, quick or auto, for each loaded zone. Leaving a zone does not save it.
 - **`create_region_zone(region_spec, zone_spec)`** creates a region and its first zone, and returns the zone; it is how
   every region is created. **`create_zone(region, zone_spec)`** creates a zone in the region: the region spec's zone
-  pattern is resolved for the zone, the game's zone generator returns the zone's `Document`, and `World` builds the
+  pattern is resolved for the zone, the game's zone generator returns the zone's `ZoneDocument`, and `World` builds the
   zone from it and populates it (`world_generation_plan.md`).
 - **The registries** of zone generators and region specs are `Game`'s, and `World` takes them by
   reference in its constructor, as it takes the id allocator.
 - **`load_zone(region, filepath)`** makes an empty zone, has the loader fill it from the file, and populates it if the
   file's `unpopulated` flag is set. A file whose denizens are already placed is not unpopulated, and a saved zone never
   is.
-- **A zone's doors are in its `Document`,** generated or read, and `load_layout` builds them. `World` handles none.
+- **A zone's doors are in its `ZoneDocument`,** generated or read, and `load_layout` builds them. `World` handles none.
 - **Neither unloads anything.** Creating and loading add a zone to the world.
 - **`populate(zone)`** places the zone's denizens. Until placement is built (`placement_plan.md`), it places one
   pursuer at the last open cell.

@@ -5,7 +5,7 @@ written
 Date: 2026-08-25, revised 2026-09-26
 
 This is the companion to `game_system_principles.md`, which has the architecture and the phased plan. It covers what
-that document defers: what a `Zone` is made of, and what the `Layout` interface over it is in the discrete and the
+that document defers: what a `Zone` is made of, and what the `LayoutBase` interface over it is in the discrete and the
 continuous case. `decision_rationale.md` has the argument for the larger decisions.
 
 Every section is marked **Settled**, **Leaning**, or **Open**, and what is deferred rather than undecided is marked
@@ -23,10 +23,10 @@ entities   ids and composed components                        have placements, n
 rules      behavior over entities                             have commands, events, queries
 ```
 
-A `Layout` is geometric --- it has positions, normals, and extents. Geometry travels outward through it toward the
-view, and never inward into the rules: a rule queries the `Layout` for where a move ends and computes no destination itself.
+A `LayoutBase` is geometric --- it has positions, normals, and extents. Geometry travels outward through it toward the
+view, and never inward into the rules: a rule queries the `LayoutBase` for where a move ends and computes no destination itself.
 
-Movement is requested of `World` rather than of a `Layout` directly, because only `World` has both the walls and the
+Movement is requested of `World` rather than of a `LayoutBase` directly, because only `World` has both the walls and the
 entities that block an actor. See The Layout interface.
 
 ## World, Zones, and Levels
@@ -85,17 +85,17 @@ that subtree. The partition is a subtree, not a separate registry.
 **A `Zone`'s contents are its subtree rather than its children.** An entity with a parent of its own, such as a door
 facing whose parent is its door, belongs to the `Zone` through that parent, so a query for the `Zone`'s children finds
 what is placed directly in it --- as occupancy and the view need --- while anything over the whole `Zone` walks the
-subtree. Deletion reaches all of it (`addressing.md`, `### Children`).
+subtree. Deletion reaches all of it (`archived/addressing.md`, `### Children`).
 
 **Ownership follows current location, not origin.** A monster that chases the character through an access point migrates into
 the destination, so the `Zone` it came from can unload without it. The character is the exception: always in a resident
 `Zone`, but owned by the game rather than by that `Zone`, so unloading or saving the `Zone` leaves it out
-(`addressing.md`, `### The character`).
+(`archived/addressing.md`, `### The character`).
 
 **Entity ids are global though entities are partitioned by `Zone`,** so migration does not renumber and references to
 a denizen --- a quest, a leash, a summoner --- survive the move. Between loaded zones one flecs world supplies this, and
 reparenting leaves the runtime entity unchanged, which `test/flecs_test` verifies. Across an unload, a save and a
-session it is the entity's persistent id, which includes no zone (`addressing.md`, `### Ids`).
+session it is the entity's persistent id, which includes no zone (`archived/addressing.md`, `### Ids`).
 
 **A denizen's home is data, not ownership.** Origin `Zone` and leash point are fields on the entity, so it can belong to
 the crypt while standing in the corridor outside.
@@ -135,7 +135,7 @@ schedules advance; anything needing pathfinding or combat resolution stays froze
 **Settled.**
 
 - **`Zone`** is an independently loadable area --- a dungeon, a town, a moor.
-- **`Layout`** is how a `Zone` is arranged, and the queries over it.
+- **`LayoutBase`** is how a `Zone` is arranged, and the queries over it.
 - **`World`** is the set of `Zone`s, one `flecs::world` with each `Zone` an entity in it.
 - **Worldspace** is a coordinate space of `Zone`s, and **region** a named subdivision of a worldspace's `Zone`s.
 - **`Flat`** is a horizontal surface, floor or ceiling.
@@ -246,7 +246,7 @@ This depends on wall ids being stable. A wall id encodes its cell and side, and 
 at generation, so mining reveals geometry rather than creating or destroying walls, and nothing renumbers.
 
 Containment uses the parent link: an item in an alcove is the alcove's child, sited `In` it, and the site refers to no
-wall or flat cell (`addressing.md`, `### Entities`).
+wall or flat cell (`archived/addressing.md`, `### Entities`).
 
 ### Flats
 
@@ -308,15 +308,15 @@ when their extents overlap.
 
 ## The Layout interface
 
-A `Zone` is a place; its `Layout` is how that place is arranged and what can be asked of it.
+A `Zone` is a place; its `LayoutBase` is how that place is arranged and what can be asked of it.
 
 **Settled: the layouts split on how movement is resolved, and on nothing else.** A class is earned where two cases differ
 in behavior rather than in data.
 
-- **`Layout`** is the interface every layout satisfies: where an actor ends up, what is ahead, what is adjacent, what is
+- **`LayoutBase`** is the interface every layout satisfies: where an actor ends up, what is ahead, what is adjacent, what is
   visible, and how far one action of movement travels. It declares no cells and no walls.
 - **`DiscreteLayout`** is movement quantized to a grid of cells. It is the whole of the discrete side: nothing lies
-  between it and `Layout`.
+  between it and `LayoutBase`.
 - **`ContinuousLayout`** is movement that integrates, through geometry that is ordinary 3D models.
   Declared and not written: every member is pure, so nothing constructs one.
 
@@ -344,7 +344,7 @@ each axis being a displacement. A query about what adjoins a cell takes that cel
 not exist. `GridMapping::contains` is called only in assertions: the loader walls every boundary cell, so a move off the
 grid cannot be made.
 
-The interface as written is in `Layout.hpp`, described in `game_system_reference.md`.
+The interface as written is in `LayoutBase.hpp`, described in `game_system_reference.md`.
 
 `MoveResult` is a placement and what stopped the actor, the wall or the entity, neither set meaning nothing did. It
 reports "the door is locked" without a second query from the rule.
@@ -363,7 +363,7 @@ cells moved; a continuous one returns wherever the collision left the actor, inc
 **Blocking has two sources:** zone topology, and blocking entities. A pushed boulder blocks the way a monster in a
 doorway does.
 
-**Settled: the two compose on `World`, not on `Layout`,** and are resolved in one solve, not in sequence
+**Settled: the two compose on `World`, not on `LayoutBase`,** and are resolved in one solve, not in sequence
 (`decision_rationale.md`, "Topology and occupancy compose on `World`").
 
 ## Entities and zone data
@@ -401,7 +401,7 @@ entity id unchanged, unload as a subtree delete, per-`Zone` serialization, and w
 
 A `Parent` hierarchy, which a door's door facings use, is the exception: flecs writes one and cannot read it back,
 `from_json` aborting on a world with one (Flecs 4.1.6). So a zone is written in the zone file format, where a child
-states its own parent, rather than through flecs JSON (`addressing_plan.md`, `## Flecs`).
+states its own parent, rather than through flecs JSON (`archived/addressing_plan.md`, `## Flecs`).
 
 Attachment and containment are not relationship pairs: an attachment is a component with its target, and the target has
 a component listing the entities attached to it (`decision_rationale.md`, "Sites and places link both ways"). flecs
@@ -422,7 +422,7 @@ only has to guarantee that the wall can find what is attached to it.
 
 ## Discrete and continuous
 
-**Settled.** Separate `Layout` classes, not two simulations. See The Layout interface for which
+**Settled.** Separate `LayoutBase` subclasses, not two simulations. See The Layout interface for which
 they are and what each name means.
 
 Shared: entity and component core, command and event vocabulary, level model, generator, renderer.
@@ -431,7 +431,7 @@ touch space and stay shared.
 
 Block-oriented is a *subset* of wall-oriented, not a sibling of it --- solid cells cannot express a
 wall or a door between two open cells without spending a whole cell on it, and per-edge subsumes
-them while the reverse does not hold. So the first game is not a second `Layout` implementation; it is
+them while the reverse does not hold. So the first game is not a second `LayoutBase` implementation; it is
 one generator emitting zones whose only walls are solid boundaries.
 
 What genuinely differs between the two `Zone` implementations:

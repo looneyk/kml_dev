@@ -13,7 +13,7 @@ std::optional<quetzal::id_type> quetzal::stratum_sim::wall_id_of(const Site& sit
         return std::nullopt;
     }
 
-    const WallAddress* address = std::get_if<WallAddress>(&*site.address);
+    const WallId* address = std::get_if<WallId>(&*site.address);
     return address != nullptr ? std::optional<id_type>(address->wall_id) : std::nullopt;
 }
 

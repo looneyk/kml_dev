@@ -16,7 +16,7 @@ and `## Zones and regions`).
   zone is a specialization of the same form, with persistent ids in place of local ones (`discrete_layout.md`,
   `## File structure`).
 - **A template's entity ids are local,** and loading it assigns each entity a new persistent id, so one template can be
-  made into several zones (`addressing.md`, `### Ids`; `addressing_plan.md`, `### Loading a template`;
+  made into several zones (`archived/addressing.md`, `### Ids`; `archived/addressing_plan.md`, `### Loading a template`;
   `decision_rationale.md`). Every target in a template is unbound (`discrete_layout.md`, `### An access point's target`).
 - **A `ZoneSpec` may accompany a zone template file** for making a zone from it.
 - **A zone's population strategy comes from the template it was loaded from,** or from the guidance it was generated

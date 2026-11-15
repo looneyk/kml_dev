@@ -17,7 +17,7 @@
 
 namespace quetzal::stratum_format
 {
-    struct Document;
+    struct ZoneDocument;
 }
 
 namespace quetzal::stratum_sim
@@ -42,7 +42,7 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        using zone_generator_type = std::function<stratum_format::Document(const ZoneSpec& zone_spec)>;
+        using zone_generator_type = std::function<stratum_format::ZoneDocument(const ZoneSpec& zone_spec)>;
 
         std::map<stratum_format::Notation, zone_generator_type> m_zone_generators;
         zone_generator_type m_zone_generator;

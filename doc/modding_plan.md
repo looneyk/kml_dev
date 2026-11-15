@@ -59,7 +59,7 @@ to the installation, and the user is told.
 
 - **A component is typed in the world.** Loading a zone decodes each component object in the file into the component
   registered under its name, through flecs reflection, and keeps no JSON. `load_layout` decodes them from the
-  `Document` as it builds the zone (`game_system_reference.md`, `### load_layout`).
+  `ZoneDocument` as it builds the zone (`game_system_reference.md`, `### load_layout`).
 - **Schemas come from C++ or from data.** The game registers its components in C++. A mod declares its components and
   their fields in a schema file, which becomes a flecs runtime component with reflection that is stored, decoded,
   saved, and accessed from script.
@@ -93,7 +93,7 @@ to the installation, and the user is told.
 - **A generator is a script** or a recipe of registered passes, configured in data (`game_system_principles.md`,
   Phase 5).
 - **A surface's form comes from its style,** as above.
-- **A new type of layout is C++.** A hex grid or a different collision model is a `Layout` subclass, which is an engine
+- **A new type of layout is C++.** A hex grid or a different collision model is a `LayoutBase` subclass, which is an engine
   extension rather than a mod.
 
 ## Scripting
@@ -112,7 +112,7 @@ to the installation, and the user is told.
 
 ## JSON
 
-JSON is used only as the file format. `stratum_format::Document` has component objects as parsed JSON, since it is
+JSON is used only as the file format. `stratum_format::ZoneDocument` has component objects as parsed JSON, since it is
 the file as data structures, and nlohmann does not appear in any `stratum_sim` header. Nothing in the world is JSON.
 
 ## Current blockers

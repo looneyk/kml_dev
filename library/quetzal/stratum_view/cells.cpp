@@ -111,7 +111,7 @@ namespace
     bool leads_down(flecs::entity e)
     {
         const sim::AccessPoint& access_point = e.get<sim::AccessPoint>();
-        const auto* zone_position = sim::zone_of(e).try_get<sim::ZonePosition>();
+        const auto* zone_position = sim::zone_of(e).try_get<sim::Position>();
 
         if (!access_point.target.has_value())
         {
@@ -130,7 +130,7 @@ namespace
         }
 
         flecs::entity bound = std::get<sim::EntityReference>(*access_point.target).entity;
-        const auto* bound_position = bound && bound.is_alive() ? sim::zone_of(bound).try_get<sim::ZonePosition>() : nullptr;
+        const auto* bound_position = bound && bound.is_alive() ? sim::zone_of(bound).try_get<sim::Position>() : nullptr;
 
         return bound_position != nullptr && zone_position != nullptr && bound_position->z < zone_position->z;
     }
@@ -154,7 +154,7 @@ namespace
                 quetzal::stratum_view::PlaceType type = leads_down(e) ? quetzal::stratum_view::PlaceType::StairsDown
                     : quetzal::stratum_view::PlaceType::StairsUp;
 
-                if (const auto* flat_cell = std::get_if<sim::FlatCellAddress>(&*site.address))
+                if (const auto* flat_cell = std::get_if<sim::FlatCellPosition>(&*site.address))
                 {
                     if (flat_cell->flat_id == layout.floor_id())
                     {
@@ -164,7 +164,7 @@ namespace
                     return;
                 }
 
-                quetzal::id_type wall_id = std::get<sim::WallAddress>(*site.address).wall_id;
+                quetzal::id_type wall_id = std::get<sim::WallId>(*site.address).wall_id;
                 sim::discrete_point_type beyond = layout.wall_cell_position(wall_id) + layout.wall_direction(wall_id);
 
                 if (layout.grid().contains(beyond) && !layout.open(beyond))

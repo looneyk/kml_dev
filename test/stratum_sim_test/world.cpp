@@ -11,7 +11,7 @@
 #include "quetzal/stratum_sim/Intent.hpp"
 #include "quetzal/stratum_sim/ContinuousLayout.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
-#include "quetzal/stratum_sim/DiscretePlacementIndex.hpp"
+#include "quetzal/stratum_sim/DiscreteProximityIndex.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/make_document.hpp"
 #include "quetzal/stratum_sim/Name.hpp"
@@ -23,7 +23,7 @@
 #include "quetzal/stratum_sim/ai.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/World.hpp"
-#include "quetzal/stratum_format/Document.hpp"
+#include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
@@ -174,7 +174,7 @@ namespace
                 cardinal_direction(CardinalDirection::East)));
         };
 
-        flecs::entity generated = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed), stratum_sim::ZonePosition {});
+        flecs::entity generated = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed), stratum_sim::Position {});
         stratum_sim::World::entities_type generated_denizens = denizens_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
@@ -196,7 +196,7 @@ namespace
 
         CHECK_CASE("a zone loaded unpopulated is written populated", !stratum_sim::make_document(loaded).is_unpopulated);
 
-        stratum_format::Document prepopulated_document = stratum_format::read_zone("data/door.zone");
+        stratum_format::ZoneDocument prepopulated_document = stratum_format::read_zone("data/door.zone");
         prepopulated_document.is_unpopulated = false;
         filesystem::create_directories("out");
         {
@@ -408,7 +408,7 @@ namespace
             stratum_format::write(written, stratum_sim::make_document(zone));
 
             istringstream is(written.str());
-            stratum_format::Document read_back = stratum_format::read_zone(is, "a saved zone");
+            stratum_format::ZoneDocument read_back = stratum_format::read_zone(is, "a saved zone");
 
             stratum_sim::CountingIdAllocator other_ids(stratum_sim::PersistentId {100000});
             TestWorld other(other_ids);
@@ -472,7 +472,7 @@ namespace
         stratum_sim::Game game(g_test_config, g_test_manifest);
         enter_zone_file(game, "data/corridor.zone");
         stratum_sim::PersistentId character_id = game.character().entity().get<stratum_sim::PersistentId>();
-        stratum_format::Document with_character = stratum_sim::make_document(game.session().zone());
+        stratum_format::ZoneDocument with_character = stratum_sim::make_document(game.session().zone());
         character_left_out = std::ranges::none_of(with_character.entities, [&](const stratum_format::Entity& e) { return e.id == character_id.id; });
         CHECK_CASE("the character is not written with the zone it is in", character_left_out);
 
@@ -583,7 +583,7 @@ namespace
             game_created.generation() = test_generation();
             game_created.character().create(stratum_sim::CharacterSpec {});
             created.enter(game_created.world().load_zone_at(game_created.world().create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed),
-                stratum_sim::ZonePosition {}), test_entry_type(created), test_entry_offset);
+                stratum_sim::Position {}), test_entry_type(created), test_entry_offset);
 
             CHECK_CASE("a constructed zone is loaded", created.loaded());
             CHECK_CASE("with a character in it", created.character().entity().is_alive());

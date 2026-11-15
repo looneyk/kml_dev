@@ -11,16 +11,16 @@
 namespace quetzal::stratum_sim
 {
 
-    struct ZonePosition;
+    struct Position;
 
     //--------------------------------------------------------------------------
     struct ZoneSpec
     {
         // From the position keys
         // Throws std::runtime_error if a coordinate is not an integer
-        ZonePosition position() const;
+        Position position() const;
 
-        void set_position(const ZonePosition& position);
+        void set_position(const Position& position);
 
         KeyValueStore store;
     };

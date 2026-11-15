@@ -2,10 +2,10 @@
 
 Date: 2026-09-14, revised 2026-09-26
 
-This is the design behind the spec in `addressing.md`. It covers one list of entities in a zone file, with `site` and
+This is the design behind the spec in `archived/addressing.md`. It covers one list of entities in a zone file, with `site` and
 `parent` as file components that the format defines and children derived from `parent`; persistent ids; links in both
 directions between an entity and the wall or flat cell it is sited on; references between entities within a zone and
-across zones; and a placement index for each zone. `game_system_reference.md`, `### Sites and doors`, describes where
+across zones; and a proximity index for each zone. `game_system_reference.md`, `### Sites and doors`, describes where
 every entity is and what it belongs to.
 Open items are listed in `work_plan.md`, and `game_system_reference.md` describes the implementation.
 
@@ -35,9 +35,9 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
   locked, and its detection state for the actor crossing, each resolved from the entity and then its ancestors. An
   entity with no access state anywhere in that chain is not crossable. One rule reads the properties, with no case for
   a door, a staircase or concealment, and nothing on the wall or the cell marks it crossable (`## Crossing a wall`).
-- **Each zone has a placement index,** derived from the placements of the actors and of anything else in a cell of the
-  zone, which finds the entities at a location without a search (`## Placement index`).
-- **The character is in a zone, and is owned by the game.** It is in its zone's placement index, but unloading
+- **Each zone has a proximity index,** derived from the placements of the actors and of anything else in a cell of the
+  zone, which finds the entities at a location without a search (`## Proximity index`).
+- **The character is in a zone, and is owned by the game.** It is in its zone's proximity index, but unloading
   or saving the zone leaves it out (`## Migration`).
 - **A dropped object is indexed in its zone,** and is accessible while the actor is in that
   zone, not from another zone the actor moves to.
@@ -55,13 +55,13 @@ Open items are listed in `work_plan.md`, and `game_system_reference.md` describe
 
 ## The format and the generators
 
-`discrete_layout.md` specifies format 0.4, `addressing.md` specifies its ids and addresses,
+`discrete_layout.md` specifies format 0.4, `archived/addressing.md` specifies its ids and addresses,
 and `game_system_reference.md` describes `stratum_format` and the generators that write it.
 
 ## Loading a zone against 0.4
 
 `game_system_reference.md` (`### load_layout`) describes loading. `load_layout` fills an empty zone from the
-`Document`, and as it builds each entity it turns wall addresses into wall ids, flat roles into flat ids, and the flat
+`ZoneDocument`, and as it builds each entity it turns wall placements into wall ids, flat roles into flat ids, and the flat
 cell where an entity was authored into a placement. Every door and staircase is written in the file, so no glyph
 becomes an entity.
 
@@ -123,10 +123,10 @@ namespace quetzal::stratum_sim
 ### Layout entities
 
 A wall's or flat cell's entity exists while it has components or something sited on it, and is deleted when it has
-neither; every room and each flat has one. Each has its address as a component and is found by it, through the zone's
-`AddressIndex` for its address type, beside its layout and placement index. Built (`layout_entities.hpp`).
+neither; every room and each flat has one. Each has its key as a component and is found by it, through the zone's
+`EntityIndex` for its key type, beside its layout and proximity index. Built (`layout_entities.hpp`).
 
-A layout entity, its list and a parent's children are derived, and are rebuilt when the zone loads (`addressing.md`,
+A layout entity, its list and a parent's children are derived, and are rebuilt when the zone loads (`archived/addressing.md`,
 `### A saved zone`). A layout entity has no `PersistentId`; it is referred to by its address.
 
 ### Wall ids from the normal
@@ -203,29 +203,35 @@ that has access. A staircase has no `Access`; entering one is `session_plan.md`,
 - **The entities on a wall or flat cell** are found through the wall's or cell's entity, then its `AttachedEntities`.
 - **An entity's location** is read from its `Site`, and from its parent if the site has no address.
 - **The other side of a door** is the door facing's parent, then that parent's other child.
-- **The actors at a location** are found through the zone's placement index (`## Placement index`).
+- **The actors at a location** are found through the zone's proximity index (`## Proximity index`).
 
 `Door`, `DoorFacing`, `Openable`, `Crossable`, `Concealed`, `facing_on`, `door_of`, `other_facing`, `create_door`,
 `create_doors`, `door_walls_type`, and `load_layout`'s `door_type` are gone.
 
-## Placement index
+### Links to entities that do not exist yet
+
+A link to an entity that does not exist yet uses a shared value, not a reference. A key in one zone for a door in a
+zone not yet generated has no id to refer to, so the key and the lock have the same lock value, and they match
+whenever both exist.
+
+## Proximity index
 
 An actor is located by its site's placement, as is anything else in a cell of the zone with no address. Each zone has a
-placement index of those entities, of the type its layout supplies, so finding the entities at a location is a lookup
+proximity index of those entities, of the type its layout supplies, so finding the entities at a location is a lookup
 instead of a scan of the zone. The index follows the placements through observers on `Site`, is never saved, and cannot
 disagree with the placements, which remain the one source of where an entity is. Built (`game_system_reference.md`,
-`### PlacementIndex` and `### World`).
+`### ProximityIndexBase` and `### World`).
 
 ## Migration
 
-`reparent` moves an entity from one zone to another. It removes the entity from the old zone's lists and placement index,
+`reparent` moves an entity from one zone to another. It removes the entity from the old zone's lists and proximity index,
 sets its parent to the destination zone (or, for the character, the zone it is in) and its site at the destination, and
 moves its entry in the world index with it if it has one. Its children move with it.
 
 **The character is owned by the game.** `Game` owns the `Character`, which exists before any zone. The character has no
 parent: an exclusive `(InZone, zone)` relationship refers to the zone it is in, which relocating changes, `zone_of`
 reads, and flecs removes when that zone is deleted. An entity with no parent is owned by the game, and relocating it
-keeps it that way. The character is in its zone's placement index, and every query for the entities in a zone
+keeps it that way. The character is in its zone's proximity index, and every query for the entities in a zone
 matches it, but it is not in the zone's subtree, so unloading or saving the zone leaves it out. The objects the character
 carries are its children, sited `on` it, and are owned by the game too; both are saved with the game.
 
@@ -268,10 +274,10 @@ a wall or a flat cell, since those addresses belong to the old zone.
     access, and concealed for one actor and not another; an entity with no `Access` in its chain never crossable; and
     a staircase crossed from its open side and from no other;
   - one wall is crossed by one actor and not by another, in the same layout;
-  - the placement index follows every move, migration, creation and deletion, and `entities_at` and `entities_within`
+  - the proximity index follows every move, migration, creation and deletion, and `entities_at` and `entities_within`
     return what a scan of the zone returns;
   - migration keeps the persistent id and the runtime entity, and updates the index;
-  - the character is in its zone's placement index, and is left out when that zone is unloaded;
+  - the character is in its zone's proximity index, and is left out when that zone is unloaded;
   - a reference resolves again after its zone is unloaded and loaded again;
   - `CountingIdAllocator` never repeats an id across a save and restore.
 - **`stratum_view_test`:** its frames, which print wall ids, are unchanged apart from the wall ids.

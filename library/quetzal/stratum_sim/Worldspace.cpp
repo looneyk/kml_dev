@@ -49,7 +49,7 @@ quetzal::stratum_sim::Worldspace quetzal::stratum_sim::Worldspace::create(Persis
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::Worldspace::contains(const ZonePosition& position) const
+bool quetzal::stratum_sim::Worldspace::contains(const Position& position) const
 {
     return extent.contains(extent_type::point_type(position.x, position.y, position.z));
 }
