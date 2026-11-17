@@ -15,7 +15,7 @@ namespace
 
     using document_type = RegionSpecsDocument;
 
-    constexpr std::array<std::string_view, 3> file_keys {"format", "version", "region_specs"};
+    constexpr std::array<std::string_view, 3> file_keys{"format", "version", "region_specs"};
 
     //--------------------------------------------------------------------------
     document_type read_region_specs_document(const raw_values_type& v)

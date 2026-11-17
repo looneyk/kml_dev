@@ -11,21 +11,21 @@ using namespace std;
 
 //------------------------------------------------------------------------------
 quetzal::dungen::Cells::Cells(vector_type size) :
-    m_bounds(point_type {0, 0}, size),
+    m_bounds(point_type{0, 0}, size),
     m_cells(size.x() * size.y())
 {
 }
 
 //------------------------------------------------------------------------------
 quetzal::dungen::Cells::Cells(vector_type size, Cell cell, int) :
-    m_bounds(point_type {0, 0}, size),
+    m_bounds(point_type{0, 0}, size),
     m_cells(size.x() * size.y(), cell)
 {
 }
 
 //------------------------------------------------------------------------------
 quetzal::dungen::Cells::Cells(vector_type size, initializer_list<Cell> cells) :
-    m_bounds(point_type {0, 0}, size),
+    m_bounds(point_type{0, 0}, size),
     m_cells(cells)
 {
     assert(cells.size() == size.x() * size.y());

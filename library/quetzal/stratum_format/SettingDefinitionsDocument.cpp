@@ -19,13 +19,13 @@ namespace
 
     using document_type = SettingDefinitionsDocument;
 
-    constexpr std::array<std::string_view, 5> file_keys {"format", "version", "enumerations", "settings", "groups"};
-    constexpr std::array<std::string_view, 2> enumeration_keys {"name", "values"};
-    constexpr std::array<std::string_view, 11> setting_keys {"key", "type", "default", "scope", "restart_required", "modifiable",
+    constexpr std::array<std::string_view, 5> file_keys{"format", "version", "enumerations", "settings", "groups"};
+    constexpr std::array<std::string_view, 2> enumeration_keys{"name", "values"};
+    constexpr std::array<std::string_view, 11> setting_keys{"key", "type", "default", "scope", "restart_required", "modifiable",
         "display_name", "description", "category", "minimum", "maximum"};
-    constexpr std::array<std::string_view, 8> group_keys {"key", "scope", "modifiable", "default_preset", "display_name", "category", "members",
+    constexpr std::array<std::string_view, 8> group_keys{"key", "scope", "modifiable", "default_preset", "display_name", "category", "members",
         "presets"};
-    constexpr std::array<std::string_view, 4> preset_keys {"name", "display_name", "modifiable", "values"};
+    constexpr std::array<std::string_view, 4> preset_keys{"name", "display_name", "modifiable", "values"};
 
     //--------------------------------------------------------------------------
     void check_definition_keys(const raw_values_type& v, const std::string& path, std::span<const std::string_view> keys)

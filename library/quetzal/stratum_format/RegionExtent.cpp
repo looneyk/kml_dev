@@ -24,8 +24,8 @@ namespace
     constexpr std::string_view ranges_arrangement = "ranges";
     constexpr std::string_view positions_arrangement = "positions";
 
-    constexpr std::array<std::string_view, 3> extent_keys {arrangement_key, boxes_key, positions_key};
-    constexpr std::array<std::string_view, 3> box_keys {"x", "y", "z"};
+    constexpr std::array<std::string_view, 3> extent_keys{arrangement_key, boxes_key, positions_key};
+    constexpr std::array<std::string_view, 3> box_keys{"x", "y", "z"};
 
     //--------------------------------------------------------------------------
     // An integer for one position, or [lower, upper]
@@ -55,7 +55,7 @@ namespace
         check_keys(v, path, box_keys, "box");
 
         RegionExtent::Box box;
-        std::array<std::optional<range_type>*, 3> axes {&box.x_extent, &box.y_extent, &box.z_extent};
+        std::array<std::optional<range_type>*, 3> axes{&box.x_extent, &box.y_extent, &box.z_extent};
         for (size_t i = 0; i < box_keys.size(); ++i)
         {
             if (const raw_values_type* axis = member(v, box_keys[i]); axis != nullptr)
@@ -88,7 +88,7 @@ namespace
     std::string box_text(const RegionExtent::Box& box)
     {
         std::vector<std::string> members;
-        const std::array<const std::optional<range_type>*, 3> axes {&box.x_extent, &box.y_extent, &box.z_extent};
+        const std::array<const std::optional<range_type>*, 3> axes{&box.x_extent, &box.y_extent, &box.z_extent};
         for (size_t i = 0; i < box_keys.size(); ++i)
         {
             if (axes[i]->has_value())
@@ -134,7 +134,7 @@ quetzal::stratum_format::RegionExtent quetzal::stratum_format::detail::read_regi
         {
             const std::string position_path = element_path(positions_path, i);
             const raw_values_type& position = fixed_array(positions[i], position_path, 3);
-            extent.positions.push_back(zone_position_type {coord_value(position[0], element_path(position_path, 0)),
+            extent.positions.push_back(zone_position_type{coord_value(position[0], element_path(position_path, 0)),
                 coord_value(position[1], element_path(position_path, 1)), coord_value(position[2], element_path(position_path, 2))});
         }
     }

@@ -53,7 +53,7 @@ namespace
             bool across = any(mask & (DirectionMask::East | DirectionMask::West));
             bool along = any(mask & (DirectionMask::North | DirectionMask::South));
 
-            glyphs.push_back(Glyph {PlaceType::Wall, State::None, mask, false,
+            glyphs.push_back(Glyph{PlaceType::Wall, State::None, mask, false,
                 across && along ? corner : across ? horizontal : along ? vertical : opening});
         }
 

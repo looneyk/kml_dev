@@ -35,14 +35,14 @@ void quetzal::stratum_sim::load_character(flecs::entity character, const stratum
     assert(character);
 
     flecs::world world = character.world();
-    character.set<PersistentId>(PersistentId {document.id});
+    character.set<PersistentId>(PersistentId{document.id});
 
-    std::unordered_map<stratum_format::stored_entity_id_type, flecs::entity> entities {{document.id, character}}; // <file_id, entity>
+    std::unordered_map<stratum_format::stored_entity_id_type, flecs::entity> entities{{document.id, character}}; // <file_id, entity>
 
     // Every entity is created first, so each has its persistent id before a parent refers to it
     for (const stratum_format::Entity& entity : document.inventory)
     {
-        flecs::entity e = world.entity().set<PersistentId>(PersistentId {entity.id});
+        flecs::entity e = world.entity().set<PersistentId>(PersistentId{entity.id});
 
         // A type that is not loaded is made with no components, so the entity keeps its type
         if (!entity.type.empty())
@@ -61,7 +61,7 @@ void quetzal::stratum_sim::load_character(flecs::entity character, const stratum
 
         if (entity.site.has_value())
         {
-            Site site {entity.site->relation == stratum_format::Relation::On ? Relation::On : Relation::In, {}, {}};
+            Site site{entity.site->relation == stratum_format::Relation::On ? Relation::On : Relation::In, {}, {}};
 
             if (entity.site->position.has_value())
             {
@@ -79,7 +79,7 @@ void quetzal::stratum_sim::load_character(flecs::entity character, const stratum
     }
 
     // Every id is persistent, and a reference is resolved when it is first followed
-    auto resolve = [](stratum_format::stored_entity_id_type id) { return EntityReference {PersistentId {id}, flecs::entity()}; };
+    auto resolve = [](stratum_format::stored_entity_id_type id) { return EntityReference{PersistentId{id}, flecs::entity()}; };
 
     decode_components(character, document.components, "character", resolve);
 

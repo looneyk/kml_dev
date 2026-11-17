@@ -66,10 +66,10 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
 
 ## Form
 
-- **Constrained template parameters:** `template<std::integral T>` and `template<Concept T>`, not a `requires` clause on
-  a trait. A `requires` clause is kept for a conjunction, an expression, or a constraint on a nested type.
-- **Range-for variables are `const auto&`,** or `auto&`. An explicit type is kept only where it converts or slices on
-  purpose.
+- **No space before a braced initializer:** `Cell{position}`.
+- **Constrained template parameters:** Prefer `template<std::integral T>` and `template<Concept T>` instead of `requires`
+  when possible.
+- **Range-for variables should generally be auto.** For conciseness, and the type should be obvious from the container type.
 - **Every function ends with an explicit return,** `return;` in a void function, a doctest `TEST_CASE` body, and a void
   lambda included, and after a final loop or if/else. Constructors and destructors are the exception. A return that
   cannot be reached, as after a `while (true)` loop, is MSVC's C4702 at /W4; the loop has a condition instead.

@@ -85,7 +85,7 @@ std::vector<quetzal::log::UnremovedFile> quetzal::log::remove_oldest_timestamped
         std::error_code error;
         if (!std::filesystem::remove(filepaths[i], error))
         {
-            unremoved_files.push_back(UnremovedFile {filepaths[i], error});
+            unremoved_files.push_back(UnremovedFile{filepaths[i], error});
         }
     }
 

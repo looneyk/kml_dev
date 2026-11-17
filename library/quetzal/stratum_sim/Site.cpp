@@ -33,6 +33,6 @@ void quetzal::stratum_sim::set_placement(flecs::entity e, const placement_type& 
         return;
     }
 
-    e.set<Site>(Site {Relation::In, {}, placement});
+    e.set<Site>(Site{Relation::In, {}, placement});
     return;
 }

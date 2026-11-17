@@ -140,7 +140,7 @@ template<typename Traits>
 std::istream& quetzal::geometry::operator>>(std::istream& is, Sphere<Traits>& sphere)
 {
     typename Sphere<Traits>::point_type center;
-    typename Sphere<Traits>::value_type radius {};
+    typename Sphere<Traits>::value_type radius{};
     if (quetzal::read_components(is,center, radius))
     {
         sphere = Sphere<Traits>(center, radius);
@@ -154,9 +154,9 @@ template<typename Traits>
 std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Sphere<Traits>& sphere, const FormatSpec& spec)
 {
     typename Sphere<Traits>::point_type center;
-    typename Sphere<Traits>::value_type radius {};
+    typename Sphere<Traits>::value_type radius{};
     auto result = quetzal::components_from_chars(first, last, spec,center, radius);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         sphere = Sphere<Traits>(center, radius);
     }

@@ -73,7 +73,7 @@ namespace quetzal::stratum_sim
 template<typename C>
 void quetzal::stratum_sim::Character::submit(C action)
 {
-    m_entity.set<PendingCommand>(PendingCommand {Command(static_cast<id_type>(m_entity.id()), std::move(action))});
+    m_entity.set<PendingCommand>(PendingCommand{Command(static_cast<id_type>(m_entity.id()), std::move(action))});
     return;
 }
 

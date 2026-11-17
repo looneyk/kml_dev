@@ -152,7 +152,7 @@ template<typename Traits>
 std::istream& quetzal::geometry::operator>>(std::istream& is, Circle<Traits>& circle)
 {
     typename Circle<Traits>::point_type center;
-    typename Circle<Traits>::value_type radius {};
+    typename Circle<Traits>::value_type radius{};
     if (quetzal::read_components(is,center, radius))
     {
         circle = Circle<Traits>(center, radius);
@@ -166,9 +166,9 @@ template<typename Traits>
 std::from_chars_result quetzal::geometry::from_chars(const char* first, const char* last, Circle<Traits>& circle, const FormatSpec& spec)
 {
     typename Circle<Traits>::point_type center;
-    typename Circle<Traits>::value_type radius {};
+    typename Circle<Traits>::value_type radius{};
     auto result = quetzal::components_from_chars(first, last, spec,center, radius);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         circle = Circle<Traits>(center, radius);
     }

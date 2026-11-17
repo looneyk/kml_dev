@@ -83,8 +83,8 @@ namespace
 
         assert(!barred_cell(locator.cell_position));
 
-        std::set<discrete_point_type> result {locator.cell_position};
-        std::vector<discrete_point_type> pending {locator.cell_position};
+        std::set<discrete_point_type> result{locator.cell_position};
+        std::vector<discrete_point_type> pending{locator.cell_position};
 
         while (!pending.empty())
         {
@@ -257,7 +257,7 @@ std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratu
 
                 std::vector<WallPlacement> walls;
                 discrete_vector_type across = x % 2 == 0 ? directions[0] : directions[1];
-                discrete_point_type after {x / 2, y / 2};
+                discrete_point_type after{x / 2, y / 2};
 
                 add(walls, after - across, -across);
                 add(walls, after, across);
@@ -276,7 +276,7 @@ std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratu
     {
         for (coord_type i = 0; i < cells.extent.x(); ++i)
         {
-            discrete_point_type cell_position {i, j};
+            discrete_point_type cell_position{i, j};
             if (cell_glyph(cells, cell_position) != '+')
             {
                 continue;

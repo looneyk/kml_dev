@@ -11,7 +11,7 @@ using namespace std;
 //------------------------------------------------------------------------------
 quetzal::catagen::Zone::Zone(const string& name, const vector_type& extent) :
     m_name(name),
-    m_bounds(point_type {0, 0}, extent),
+    m_bounds(point_type{0, 0}, extent),
     m_cells(static_cast<size_t>(extent.i()) * extent.j(), CellType::Solid),
     m_walls_vertical(static_cast<size_t>(extent.i() + 1) * extent.j(), WallType::Solid),
     m_walls_horizontal(static_cast<size_t>(extent.i()) * (extent.j() + 1), WallType::Solid)

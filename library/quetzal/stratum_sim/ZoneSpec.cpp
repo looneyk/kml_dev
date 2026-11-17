@@ -26,5 +26,5 @@ void quetzal::stratum_sim::ZoneSpec::set_position(const Position& position)
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::ZoneSpec quetzal::stratum_sim::resolve_zone_spec(const ZoneSpec& zone_spec, PatternResolver& resolver)
 {
-    return ZoneSpec {resolver(zone_spec.store)};
+    return ZoneSpec{resolver(zone_spec.store)};
 }

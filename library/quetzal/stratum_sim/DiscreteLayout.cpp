@@ -38,7 +38,7 @@ namespace
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::DiscreteLayout::DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector_type& extent) :
     LayoutBase(),
-    m_grid {origin, scale, extent},
+    m_grid{origin, scale, extent},
     m_cells(static_cast<size_t>(extent.x()) * extent.y())
 {
     assert(scale > value_type(0));
@@ -243,7 +243,7 @@ quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::DiscreteLayout::
     size_t cell_slot = wall_id / cardinal_directions.size();
     auto width = static_cast<size_t>(grid().extent.x());
 
-    return discrete_point_type {static_cast<coord_type>(cell_slot % width), static_cast<coord_type>(cell_slot / width)};
+    return discrete_point_type{static_cast<coord_type>(cell_slot % width), static_cast<coord_type>(cell_slot / width)};
 }
 
 //------------------------------------------------------------------------------
@@ -287,7 +287,7 @@ bool quetzal::stratum_sim::DiscreteLayout::crossable(const discrete_point_type& 
 quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(const placement_type& placement, const vector_type& direction, value_type distance,
     const crossable_function_type& is_wall_crossable, const blocker_function_type& blocker_at) const
 {
-    MoveResult result {placement, nullid};
+    MoveResult result{placement, nullid};
 
     discrete_vector_type step = grid_step(direction);
     if (step.zero())

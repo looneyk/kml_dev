@@ -17,7 +17,7 @@ namespace
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
 
-    constexpr std::array<std::string_view, 12> config_keys {"format", "version", "assets_directory", "user_directory", "saves_directory",
+    constexpr std::array<std::string_view, 12> config_keys{"format", "version", "assets_directory", "user_directory", "saves_directory",
         "working_directory", "logs_directory", "cache_directory", "mods_directory", "user_settings_file", "zone_count_max",
         "log_file_count_max"};
 

@@ -62,7 +62,7 @@ namespace
         {
             for (stratum_sim::coord_type i = 0; i < a.grid().extent.x(); ++i)
             {
-                stratum_sim::discrete_point_type cell_position {i, j};
+                stratum_sim::discrete_point_type cell_position{i, j};
                 if (a.open(cell_position) != b.open(cell_position) || a.walls(cell_position) != b.walls(cell_position))
                 {
                     return false;
@@ -76,7 +76,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE_FIXTURE(WorldFixture, "world")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
         TestWorld world(id_allocator);
 
         CHECK_CASE("a new world has only the empty zones of its worldspace", world.zone_count() == test_extent_zone_count
@@ -94,7 +94,7 @@ namespace
         CHECK_CASE("the other stays empty", zone_layout(world, moor).flat_store_count() == 0);
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
-        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point_type {2, 2}), east);
+        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point_type{2, 2}), east);
 
         flecs::entity monster = world.create_entity(crypt, where);
         CHECK_CASE("an entity is placed in its zone", stratum_sim::zone_of(monster) == crypt);
@@ -110,7 +110,7 @@ namespace
 
         // Reparenting moves an entity's children with it
         flecs::entity coin = world.entities().entity();
-        stratum_sim::reparent(coin, monster, stratum_sim::Site {stratum_sim::Relation::In, {}, {}});
+        stratum_sim::reparent(coin, monster, stratum_sim::Site{stratum_sim::Relation::In, {}, {}});
 
         CHECK_CASE("taking something makes it a child of what holds it", coin.parent() == monster);
         CHECK_CASE("through Parent, where a zone contains its entities through ChildOf", coin.has<flecs::Parent>() && !monster.has<flecs::Parent>());
@@ -121,7 +121,7 @@ namespace
         world.relocate(monster, crypt, where);
         CHECK_CASE("what it carries travels with it", stratum_sim::zone_of(coin) == crypt && coin.parent() == monster);
 
-        stratum_sim::reparent(coin, crypt, stratum_sim::Site {stratum_sim::Relation::In, {}, where});
+        stratum_sim::reparent(coin, crypt, stratum_sim::Site{stratum_sim::Relation::In, {}, where});
         CHECK_CASE("putting it down is the same operation at the zone", coin.parent() == crypt
             && stratum_sim::placement_of(coin).position() == where.position());
         CHECK_CASE("and it is in the zone through ChildOf again", !coin.has<flecs::Parent>());
@@ -132,14 +132,14 @@ namespace
 
         CHECK_CASE("relocating an entity with no parent keeps it the game's, in the zone without being its child",
             !wanderer.parent() && stratum_sim::zone_of(wanderer) == moor && wanderer.has<stratum_sim::PersistentId>());
-        CHECK_CASE("and among the zone's entities", world.entities_at(moor, where) == stratum_sim::World::entities_type {wanderer});
+        CHECK_CASE("and among the zone's entities", world.entities_at(moor, where) == stratum_sim::World::entities_type{wanderer});
 
         world.relocate(wanderer, crypt, where);
         CHECK_CASE("relocating it again moves it to the other zone, still the game's", !wanderer.parent()
             && stratum_sim::zone_of(wanderer) == crypt && world.entities_at(moor, where).empty());
 
         flecs::entity pouch = world.entities().entity();
-        stratum_sim::reparent(pouch, wanderer, stratum_sim::Site {stratum_sim::Relation::On, {}, {}});
+        stratum_sim::reparent(pouch, wanderer, stratum_sim::Site{stratum_sim::Relation::On, {}, {}});
         stratum_sim::EntityReference pouch_reference = world.make_reference(pouch);
 
         world.relocate(wanderer, moor, where);
@@ -170,11 +170,11 @@ namespace
 
         auto door_east_of_start = [&](flecs::entity zone)
         {
-            return stratum_sim::find_access_attachment(zone, zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {1, 1},
+            return stratum_sim::find_access_attachment(zone, zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type{1, 1},
                 cardinal_direction(CardinalDirection::East)));
         };
 
-        flecs::entity generated = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed), stratum_sim::Position {});
+        flecs::entity generated = world.load_zone_at(world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed), stratum_sim::Position{});
         stratum_sim::World::entities_type generated_denizens = denizens_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
@@ -247,7 +247,7 @@ namespace
         bool saved_unpopulated = true;
         world.entities().each([&](flecs::entity e, const stratum_sim::Speed&) { saved_unpopulated = saved_unpopulated && stratum_sim::zone_of(e) != saved_again; });
         CHECK_CASE("a saved zone read back is not listed again, however often it is loaded after unloading", saved_again.is_alive()
-            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId {900}
+            && saved_again.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId{900}
             && world.region(counted).zone_ids.size() == test_extent_zone_count + 1);
         CHECK_CASE("and is not populated", saved_unpopulated);
         world.unload_zone(saved_again);
@@ -259,8 +259,8 @@ namespace
     // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "persistent ids")
     {
-        stratum_sim::CountingIdAllocator counting(stratum_sim::PersistentId {});
-        set<stratum_sim::PersistentId> allocated {counting.next(), counting.next()};
+        stratum_sim::CountingIdAllocator counting(stratum_sim::PersistentId{});
+        set<stratum_sim::PersistentId> allocated{counting.next(), counting.next()};
         stratum_sim::CountingIdAllocator restored(counting.next());
         allocated.insert(restored.next());
         allocated.insert(restored.next());
@@ -272,13 +272,13 @@ namespace
         flecs::entity crypt = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity moor = load_zone_unpopulated(world, "data/corridor.zone");
 
-        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point_type {2, 2}),
+        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point_type{2, 2}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f));
         flecs::entity monster = world.create_entity(crypt, where);
         flecs::entity chest = world.create_entity(crypt, where);
 
         CHECK_CASE("zones and entities have persistent ids of their own",
-            set {persistent_id(crypt), persistent_id(moor), persistent_id(monster), persistent_id(chest)}.size() == 4);
+            set{persistent_id(crypt), persistent_id(moor), persistent_id(monster), persistent_id(chest)}.size() == 4);
         CHECK_CASE("an entity is found by its persistent id",
             world.entity(persistent_id(monster)) == monster && world.entity(persistent_id(chest)) == chest);
 
@@ -295,7 +295,7 @@ namespace
 
         flecs::entity coin = world.create_entity(moor, where);
         stratum_sim::EntityReference coin_reference = world.make_reference(coin);
-        stratum_sim::reparent(coin, monster, stratum_sim::Site {stratum_sim::Relation::In, {}, {}});
+        stratum_sim::reparent(coin, monster, stratum_sim::Site{stratum_sim::Relation::In, {}, {}});
         world.relocate(monster, crypt, where);
         CHECK_CASE("what it carries changes zone with it", world.zone_of(coin_reference.persistent_id) == persistent_id(crypt));
 
@@ -310,7 +310,7 @@ namespace
         flecs::entity crypt_again = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity monster_again = world.entities().entity()
             .child_of(crypt_again)
-            .set<stratum_sim::Site>(stratum_sim::Site {stratum_sim::Relation::In, {}, where})
+            .set<stratum_sim::Site>(stratum_sim::Site{stratum_sim::Relation::In, {}, where})
             .set<stratum_sim::PersistentId>(reference.persistent_id);
 
         CHECK_CASE("a reference re-resolves once its entity is loaded again", world.resolve(reference) == monster_again);
@@ -322,7 +322,7 @@ namespace
     // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "residency")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
         TestWorld world(id_allocator, 2);
 
         auto corridor = [&]() { return load_zone_unpopulated(world, "data/corridor.zone"); };
@@ -360,7 +360,7 @@ namespace
         flecs::entity g = corridor();
 
         flecs::entity kept = world.create_entity(e, stratum_sim::placement_type(
-            zone_layout(world, e).position(stratum_sim::discrete_point_type {1, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+            zone_layout(world, e).position(stratum_sim::discrete_point_type{1, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
         stratum_sim::EntityReference kept_reference = world.make_reference(kept);
         stratum_sim::PersistentId e_id = e.get<stratum_sim::PersistentId>();
 
@@ -410,21 +410,21 @@ namespace
             istringstream is(written.str());
             stratum_format::ZoneDocument read_back = stratum_format::read_zone(is, "a saved zone");
 
-            stratum_sim::CountingIdAllocator other_ids(stratum_sim::PersistentId {100000});
+            stratum_sim::CountingIdAllocator other_ids(stratum_sim::PersistentId{100000});
             TestWorld other(other_ids);
-            flecs::entity copy = other.create_zone(other.region_id, stratum_sim::PersistentId {*read_back.zone_id});
+            flecs::entity copy = other.create_zone(other.region_id, stratum_sim::PersistentId{*read_back.zone_id});
             stratum_sim::load_layout(copy, read_back);
             inspect(other, copy);
 
             ostringstream rewritten;
             stratum_format::write(rewritten, stratum_sim::make_document(copy));
-            return RoundTrip {written.str(), rewritten.str(), same_geometry(zone_layout(other, copy), zone_layout(other, zone))};
+            return RoundTrip{written.str(), rewritten.str(), same_geometry(zone_layout(other, copy), zone_layout(other, zone))};
         };
 
         for (const string& filepath : {"data/catagen.zone", "data/corridor.zone", "data/door.zone", "data/loop.zone", "data/room.zone",
             "data/saved.zone", "data/walls.zone"})
         {
-            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
             TestWorld world(id_allocator);
             RoundTrip trip = round_trip(world.load_zone(world.region_id, filepath), [](TestWorld&, flecs::entity) {});
 
@@ -433,20 +433,20 @@ namespace
         }
 
         // data/door.zone: a door on the doorway east of cell (1, 1), and a denizen that populating places, given a behavior
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = world.load_zone(world.region_id, "data/door.zone");
 
         flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(zone,
-            zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))));
-        door.set<stratum_sim::Access>(stratum_sim::Access {stratum_sim::AccessState::Open});
+            zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type{1, 1}, cardinal_direction(CardinalDirection::East))));
+        door.set<stratum_sim::Access>(stratum_sim::Access{stratum_sim::AccessState::Open});
         stratum_sim::PersistentId door_id = door.get<stratum_sim::PersistentId>();
 
         flecs::entity pursuer;
         world.entities().each([&](flecs::entity e, const stratum_sim::Speed&) { pursuer = e; });
         stratum_sim::PersistentId pursuer_id = pursuer.get<stratum_sim::PersistentId>();
         stratum_sim::discrete_point_type pursuer_cell = zone_layout(world, zone).cell_position_at(stratum_sim::placement_of(pursuer).position());
-        pursuer.set<stratum_sim::Pursue>(stratum_sim::Pursue {world.make_reference(door), zone_layout(world, zone).position(stratum_sim::discrete_point_type {1, 1}), true});
+        pursuer.set<stratum_sim::Pursue>(stratum_sim::Pursue{world.make_reference(door), zone_layout(world, zone).position(stratum_sim::discrete_point_type{1, 1}), true});
 
         bool door_open = false;
         bool pursuer_kept = false;
@@ -483,22 +483,22 @@ namespace
     // Every actor but the controlled one decides for itself
     TEST_CASE_FIXTURE(WorldFixture, "deciding for itself")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId {});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/corridor.zone");
 
         const stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         stratum_sim::vector_type west(-1.0f, 0.0f, 0.0f);
-        auto at = [&](int i) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {i, 1}), east); };
+        auto at = [&](int i) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{i, 1}), east); };
         auto cell_of = [&](flecs::entity e) { return layout.cell_position_at(stratum_sim::placement_of(e).position()); };
 
         flecs::entity character = world.create_entity(zone, at(1));
         character.add<stratum_sim::Blocking>();
 
-        flecs::entity monster = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type {5, 1}), west));
+        flecs::entity monster = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{5, 1}), west));
         monster.add<stratum_sim::Blocking>();
-        monster.set<stratum_sim::Pursue>(stratum_sim::Pursue {world.make_reference(character), stratum_sim::point_type(), false});
+        monster.set<stratum_sim::Pursue>(stratum_sim::Pursue{world.make_reference(character), stratum_sim::point_type(), false});
 
         id_type controlled = static_cast<id_type>(character.id());
 
@@ -549,7 +549,7 @@ namespace
         gone.destruct();
 
         flecs::entity blind = world.create_entity(zone, at(5));
-        blind.set<stratum_sim::Pursue>(stratum_sim::Pursue {gone_reference, layout.position(stratum_sim::discrete_point_type {3, 1}), true});
+        blind.set<stratum_sim::Pursue>(stratum_sim::Pursue{gone_reference, layout.position(stratum_sim::discrete_point_type{3, 1}), true});
 
         stratum_sim::think(world, controlled);
         CHECK_CASE("a pursuer whose target is gone still goes where it last looked",
@@ -564,7 +564,7 @@ namespace
 
         // With no target, it pursues the controlled actor
         flecs::entity seeker = world.create_entity(zone, at(4));
-        seeker.set<stratum_sim::Pursue>(stratum_sim::Pursue {});
+        seeker.set<stratum_sim::Pursue>(stratum_sim::Pursue{});
         stratum_sim::think(world, controlled);
 
         const stratum_sim::Pursue& seeking = seeker.get<stratum_sim::Pursue>();
@@ -581,9 +581,9 @@ namespace
             stratum_sim::Game game_created(g_test_config, g_test_manifest);
             stratum_sim::Session& created = game_created.session();
             game_created.generation() = test_generation();
-            game_created.character().create(stratum_sim::CharacterSpec {});
+            game_created.character().create(stratum_sim::CharacterSpec{});
             created.enter(game_created.world().load_zone_at(game_created.world().create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed),
-                stratum_sim::Position {}), test_entry_type(created), test_entry_offset);
+                stratum_sim::Position{}), test_entry_type(created), test_entry_offset);
 
             CHECK_CASE("a constructed zone is loaded", created.loaded());
             CHECK_CASE("with a character in it", created.character().entity().is_alive());
@@ -591,7 +591,7 @@ namespace
             // A door on the doorway shows the reported walls were built
             CHECK_CASE("its doors are attached to the walls the generator reported",
                 stratum_sim::find_access_attachment(created.zone(), stratum_sim::layout_as<stratum_sim::DiscreteLayout>(
-                    created.layout()).wall_toward(stratum_sim::discrete_point_type {1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
+                    created.layout()).wall_toward(stratum_sim::discrete_point_type{1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
             // Reading the same geometry from a file produces the same zone
             stratum_sim::Game game_loaded(g_test_config, g_test_manifest);
@@ -614,11 +614,11 @@ namespace
             .each([&](flecs::entity e, const stratum_sim::Speed&) { hunter = e; });
 
         CHECK_CASE("a session places a denizen", hunter.is_alive());
-        hunter.set<stratum_sim::Pursue>(stratum_sim::Pursue {});
+        hunter.set<stratum_sim::Pursue>(stratum_sim::Pursue{});
 
         // Off the staircase, into the denizen's sight along the corridor
         game.world().relocate(session.character().entity(), session.zone(), stratum_sim::placement_type(
-            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).position(stratum_sim::discrete_point_type {1, 1}),
+            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).position(stratum_sim::discrete_point_type{1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::EventQueue session_events;

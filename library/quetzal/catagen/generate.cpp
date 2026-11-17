@@ -131,14 +131,14 @@ namespace
         if (vertical)
         {
             coord_type cut = parameters.scale.lower() + random.random(nx - spacing - 2 * parameters.scale.lower() + 1);
-            partition({rectangle.position(), vector_type {cut, ny}}, parameters, random, rectangles);
-            partition({point_type {rectangle.position().i() + cut + spacing, rectangle.position().j()}, vector_type {nx - cut - spacing, ny}}, parameters, random, rectangles);
+            partition({rectangle.position(), vector_type{cut, ny}}, parameters, random, rectangles);
+            partition({point_type{rectangle.position().i() + cut + spacing, rectangle.position().j()}, vector_type{nx - cut - spacing, ny}}, parameters, random, rectangles);
         }
         else
         {
             coord_type cut = parameters.scale.lower() + random.random(ny - spacing - 2 * parameters.scale.lower() + 1);
-            partition({rectangle.position(), vector_type {nx, cut}}, parameters, random, rectangles);
-            partition({point_type {rectangle.position().i(), rectangle.position().j() + cut + spacing}, vector_type {nx, ny - cut - spacing}}, parameters, random, rectangles);
+            partition({rectangle.position(), vector_type{nx, cut}}, parameters, random, rectangles);
+            partition({point_type{rectangle.position().i(), rectangle.position().j() + cut + spacing}, vector_type{nx, ny - cut - spacing}}, parameters, random, rectangles);
         }
 
         return;
@@ -209,7 +209,7 @@ namespace
     vector<point_type> path_cells(const point_type& from, const point_type& to, bool horizontal_first)
     {
         vector<point_type> positions;
-        point_type corner = horizontal_first ? point_type {to.i(), from.j()} : point_type {from.i(), to.j()};
+        point_type corner = horizontal_first ? point_type{to.i(), from.j()} : point_type{from.i(), to.j()};
 
         auto run = [&positions](const point_type& a, const point_type& b)
         {
@@ -287,7 +287,7 @@ namespace
                         continue;
                     }
 
-                    area_pair_type key = area < area_other ? area_pair_type {area, area_other} : area_pair_type {area_other, area};
+                    area_pair_type key = area < area_other ? area_pair_type{area, area_other} : area_pair_type{area_other, area};
                     sites[key].push_back({{i, j}, direction});
                 }
             }
@@ -490,7 +490,7 @@ namespace
         vector<bool> reached(static_cast<size_t>(extent.i()) * extent.j(), false);
         reached[cell_slot(extent, sides.front())] = true;
 
-        vector<point_type> pending {sides.front()};
+        vector<point_type> pending{sides.front()};
         size_t sides_unreached = sides.size() - 1;
 
         while (!pending.empty() && sides_unreached > 0)
@@ -688,7 +688,7 @@ namespace
     Zone generate_partition1(const string& name, const Parameters& parameters, random_type& random)
     {
         rectangles_type rectangles;
-        partition({point_type {0, 0}, parameters.extent}, parameters, random, rectangles);
+        partition({point_type{0, 0}, parameters.extent}, parameters, random, rectangles);
 
         rectangles_type rooms = select(rectangles, parameters.density, random);
         cell_areas_type areas = cell_areas(parameters.extent, rooms);

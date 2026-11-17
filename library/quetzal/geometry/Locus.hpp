@@ -54,7 +54,7 @@ namespace quetzal::geometry
     namespace detail
     {
 
-        inline constexpr std::array<std::string_view, 12> locus_names {"Empty", "Point", "Line", "Ray", "Segment", "Polyline", "Plane",
+        inline constexpr std::array<std::string_view, 12> locus_names{"Empty", "Point", "Line", "Ray", "Segment", "Polyline", "Plane",
             "Circle", "Polygon", "Surface", "Sphere", "Polyhedron"};
 
         static_assert(locus_names.size() == static_cast<size_t>(Locus::Polyhedron) + 1);
@@ -134,7 +134,7 @@ inline std::from_chars_result quetzal::geometry::from_chars(const char* first, c
     }
 
     locus = *named;
-    return {name_last, std::errc {}};
+    return {name_last, std::errc{}};
 }
 
 //------------------------------------------------------------------------------
@@ -146,7 +146,7 @@ inline std::to_chars_result quetzal::geometry::to_chars(char* first, char* last,
         return {last, std::errc::value_too_large};
     }
 
-    return {std::ranges::copy(name, first).out, std::errc {}};
+    return {std::ranges::copy(name, first).out, std::errc{}};
 }
 
 //------------------------------------------------------------------------------

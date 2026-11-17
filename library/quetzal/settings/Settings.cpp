@@ -49,7 +49,7 @@ void quetzal::settings::Settings::register_enumeration(std::string_view type_nam
     }
 
     auto accepts = [values](std::string_view text) { return std::ranges::find(values, text) != values.end(); };
-    m_registered_types.emplace(std::string(type_name), SettingType {std::type_index(typeid(std::string)), SettingBaseType::Text, std::move(values),
+    m_registered_types.emplace(std::string(type_name), SettingType{std::type_index(typeid(std::string)), SettingBaseType::Text, std::move(values),
         accepts});
     return;
 }
@@ -253,8 +253,8 @@ void quetzal::settings::Settings::insert_group(std::string_view key, std::string
 
     const std::string group_key(key);
     auto accepts = [preset_names](std::string_view text) { return std::ranges::find(preset_names, text) != preset_names.end(); };
-    m_registered_types.emplace(group_key, SettingType {std::type_index(typeid(std::string)), SettingBaseType::Text, preset_names, accepts, true});
-    m_settings.emplace(group_key, Setting {.type_name = group_key, .default_value = std::string(default_preset_name), .scope = std::string(scope),
+    m_registered_types.emplace(group_key, SettingType{std::type_index(typeid(std::string)), SettingBaseType::Text, preset_names, accepts, true});
+    m_settings.emplace(group_key, Setting{.type_name = group_key, .default_value = std::string(default_preset_name), .scope = std::string(scope),
         .modifiable = modifiable, .display_name = std::string(display_name), .category = std::string(category)});
 
     for (const auto& member_key : member_keys)
@@ -262,7 +262,7 @@ void quetzal::settings::Settings::insert_group(std::string_view key, std::string
         m_member_groups.emplace(member_key, group_key);
     }
 
-    m_groups.emplace(group_key, SettingGroup {group_key, std::move(member_keys)});
+    m_groups.emplace(group_key, SettingGroup{group_key, std::move(member_keys)});
     for (auto& [preset_name, key_preset] : presets)
     {
         m_presets.emplace(preset_key(group_key, preset_name), std::move(key_preset));

@@ -45,7 +45,7 @@ quetzal::stratum_sim::Worldspace quetzal::stratum_sim::Worldspace::create(Persis
     const extent_type extent(extent_type::point_type(x.lower(), y.lower(), z.lower()), extent_type::point_type(x.upper() + 1, y.upper() + 1,
         z.upper() + 1));
 
-    return Worldspace {worldspace_id, std::string(name), seed, extent, region_spec.zone_size, {}, RegionTree(std::move(root_region))};
+    return Worldspace{worldspace_id, std::string(name), seed, extent, region_spec.zone_size, {}, RegionTree(std::move(root_region))};
 }
 
 //------------------------------------------------------------------------------

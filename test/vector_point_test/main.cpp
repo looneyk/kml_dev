@@ -105,20 +105,20 @@ namespace
         }
 
         {
-            array<float, 3> a {1.0f, 2.0f, 3.0f};
+            array<float, 3> a{1.0f, 2.0f, 3.0f};
             vector3_type v(a);
             CHECK_CASE("a vector reads its rep", v == vector3_type(1.0f, 2.0f, 3.0f));
         }
 
         {
-            array<float, 3> a {4.0f, 5.0f, 6.0f};
+            array<float, 3> a{4.0f, 5.0f, 6.0f};
             span<float, 3> s(a);
             vector3_type v(s);
             CHECK_CASE("a vector reads a span", v == vector3_type(4.0f, 5.0f, 6.0f));
         }
 
         {
-            vector<vector3_type> vs {{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}};
+            vector<vector3_type> vs{{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}};
             CHECK_CASE("a container of vectors takes braced components", vs.size() == 2 && vs[1] == vector3_type(4.0f, 5.0f, 6.0f));
         }
 
@@ -435,7 +435,7 @@ namespace
             (discrete_vector_type(1L, 2L, 3L) <=> discrete_vector_type(1L, 2L, 3L)) == strong_ordering::equal);
 
         {
-            vector<discrete_vector_type> vs {
+            vector<discrete_vector_type> vs{
                 discrete_vector_type(2L, 0L, 1L),
                 discrete_vector_type(0L, 1L, 0L),
                 discrete_vector_type(1L, 0L, 0L),

@@ -76,7 +76,7 @@ namespace
             return "<too large>";
         }
 
-        return result.ec == errc {} ? string(buffer, result.ptr) : "<error>";
+        return result.ec == errc{} ? string(buffer, result.ptr) : "<error>";
     }
 
     //--------------------------------------------------------------------------
@@ -189,7 +189,7 @@ namespace
             discrete_vector_type v;
             string s = "1 -2 30";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            CHECK_CASE("a discrete vector reads every component", result.ec == errc {} && result.ptr == s.data() + s.size());
+            CHECK_CASE("a discrete vector reads every component", result.ec == errc{} && result.ptr == s.data() + s.size());
             CHECK_CASE("with the values the string names", v == discrete_vector_type(1L, -2L, 30L));
         }
 
@@ -197,7 +197,7 @@ namespace
             discrete_vector_type v;
             string s = "  4\t 5   6";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            CHECK_CASE("leading and inner whitespace is skipped", result.ec == errc {} && v == discrete_vector_type(4L, 5L, 6L));
+            CHECK_CASE("leading and inner whitespace is skipped", result.ec == errc{} && v == discrete_vector_type(4L, 5L, 6L));
         }
 
         {
@@ -212,7 +212,7 @@ namespace
             discrete_vector_type v;
             string s = "1 2";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
-            CHECK_CASE("a string of too few components is an error", result.ec != errc {});
+            CHECK_CASE("a string of too few components is an error", result.ec != errc{});
         }
 
         {
@@ -220,7 +220,7 @@ namespace
             string s = " 11 -22\t33";
             auto result = from_chars(s.data(), s.data() + s.size(), p);
             CHECK_CASE("a discrete point reads every component",
-                result.ec == errc {} && p.x() == 11L && p.y() == -22L && p.z() == 33L);
+                result.ec == errc{} && p.x() == 11L && p.y() == -22L && p.z() == 33L);
         }
 
         {
@@ -228,7 +228,7 @@ namespace
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
             CHECK_CASE("a cartesian vector reads every component",
-                result.ec == errc {} && v.x() == 1.5 && v.y() == -2.5 && v.z() == 3.0);
+                result.ec == errc{} && v.x() == 1.5 && v.y() == -2.5 && v.z() == 3.0);
         }
 
         {
@@ -236,7 +236,7 @@ namespace
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), p);
             CHECK_CASE("a cartesian point reads every component",
-                result.ec == errc {} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
+                result.ec == errc{} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
         }
 
         // Homogeneous coordinates are written as dimension components; the caller supplies the weight, which
@@ -246,7 +246,7 @@ namespace
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), v);
             CHECK_CASE("a homogeneous vector reads three and concludes a weight of 0",
-                result.ec == errc {} && result.ptr == s.data() + s.size() && v.weight() == 0.0);
+                result.ec == errc{} && result.ptr == s.data() + s.size() && v.weight() == 0.0);
         }
 
         {
@@ -254,7 +254,7 @@ namespace
             string s = "1.5 -2.5 3";
             auto result = from_chars(s.data(), s.data() + s.size(), p);
             CHECK_CASE("a homogeneous point reads three and concludes a weight of 1",
-                result.ec == errc {} && result.ptr == s.data() + s.size() && p.weight() == 1.0);
+                result.ec == errc{} && result.ptr == s.data() + s.size() && p.weight() == 1.0);
         }
 
         return;
@@ -269,7 +269,7 @@ namespace
             string s = "16,10,4";
             auto result = math::from_chars(s.data(), s.data() + s.size(), v, {.separator = ","});
             CHECK_CASE("a separator reads the components it separates",
-                result.ec == errc {} && result.ptr == s.data() + s.size() && v == discrete_vector_type(16L, 10L, 4L));
+                result.ec == errc{} && result.ptr == s.data() + s.size() && v == discrete_vector_type(16L, 10L, 4L));
         }
 
         {
@@ -294,7 +294,7 @@ namespace
             auto written = math::to_chars(buffer, buffer + sizeof buffer, v, {.separator = ", "});
             auto read = math::from_chars(buffer, written.ptr, w, {.separator = ", "});
             CHECK_CASE("a multi-character separator round trips",
-                read.ec == errc {} && read.ptr == written.ptr && w == v);
+                read.ec == errc{} && read.ptr == written.ptr && w == v);
         }
 
         {
@@ -302,7 +302,7 @@ namespace
             string s = "1.5,-2.5,3";
             auto result = geometry::from_chars(s.data(), s.data() + s.size(), p, {.separator = ","});
             CHECK_CASE("a cartesian point takes one too",
-                result.ec == errc {} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
+                result.ec == errc{} && p.x() == 1.5 && p.y() == -2.5 && p.z() == 3.0);
         }
 
         {
@@ -370,7 +370,7 @@ namespace
 
         CHECK_CASE_EQUAL("a delimiter other than a space is written",
             [] { char buffer[32] {}; auto r = array_to_chars(buffer, buffer + sizeof buffer, discrete_vector_type(1L, 2L, 3L), {.separator = ", "});
-                return r.ec == errc {} ? string(buffer, r.ptr) : string("<error>"); }(), "1, 2, 3");
+                return r.ec == errc{} ? string(buffer, r.ptr) : string("<error>"); }(), "1, 2, 3");
 
         return;
     }
@@ -384,7 +384,7 @@ namespace
             discrete_vector_type v;
             auto read_result = from_chars(buffer, written_result.ptr, v);
             CHECK_CASE("a discrete vector survives a round trip",
-                read_result.ec == errc {} && v == discrete_vector_type(-7L, 0L, 123L));
+                read_result.ec == errc{} && v == discrete_vector_type(-7L, 0L, 123L));
         }
 
         {
@@ -393,7 +393,7 @@ namespace
             discrete_point_type p;
             auto read_result = from_chars(buffer, written_result.ptr, p);
             CHECK_CASE("a discrete point survives a round trip",
-                read_result.ec == errc {} && p.x() == -7L && p.y() == 0L && p.z() == 123L);
+                read_result.ec == errc{} && p.x() == -7L && p.y() == 0L && p.z() == 123L);
         }
 
         {
@@ -402,7 +402,7 @@ namespace
             vector_type v;
             auto read_result = from_chars(buffer, written_result.ptr, v);
             CHECK_CASE("a cartesian vector survives a round trip",
-                read_result.ec == errc {} && v.x() == -7.25 && v.y() == 0.0 && v.z() == 123.5);
+                read_result.ec == errc{} && v.x() == -7.25 && v.y() == 0.0 && v.z() == 123.5);
         }
 
         {
@@ -411,7 +411,7 @@ namespace
             homogeneous_point_type p;
             auto read_result = from_chars(buffer, written_result.ptr, p);
             CHECK_CASE("a homogeneous point survives a round trip with its weight restored",
-                read_result.ec == errc {} && p.x() == -7.25 && p.z() == 123.5 && p.weight() == 1.0);
+                read_result.ec == errc{} && p.x() == -7.25 && p.z() == 123.5 && p.weight() == 1.0);
         }
 
         return;
@@ -671,21 +671,21 @@ namespace
             const string s = "2..5";
             auto result = from_chars(s.data(), s.data() + s.size(), interval);
             CHECK_CASE("an interval reads its bounds with no space around the delimiter",
-                result.ec == errc {} && result.ptr == s.data() + s.size() && bounds_are(interval, size_t(2), size_t(5)));
+                result.ec == errc{} && result.ptr == s.data() + s.size() && bounds_are(interval, size_t(2), size_t(5)));
         }
 
         {
             integer_interval_type interval;
             const string s = " -3 .. 7";
             auto result = from_chars(s.data(), s.data() + s.size(), interval);
-            CHECK_CASE("or with spaces, and negative bounds", result.ec == errc {} && bounds_are(interval, -3, 7));
+            CHECK_CASE("or with spaces, and negative bounds", result.ec == errc{} && bounds_are(interval, -3, 7));
         }
 
         {
             real_interval_type interval;
             const string s = "1.5 .. 2.25";
             auto result = from_chars(s.data(), s.data() + s.size(), interval);
-            CHECK_CASE("and real bounds", result.ec == errc {} && bounds_are(interval, 1.5, 2.25));
+            CHECK_CASE("and real bounds", result.ec == errc{} && bounds_are(interval, 1.5, 2.25));
         }
 
         {
@@ -693,7 +693,7 @@ namespace
             const string s = "2..5";
             auto result = from_chars(s.data(), s.data() + s.size(), interval);
             CHECK_CASE("a real lower bound stops at the delimiter rather than reading its '.' as a decimal point",
-                result.ec == errc {} && bounds_are(interval, 2.0, 5.0));
+                result.ec == errc{} && bounds_are(interval, 2.0, 5.0));
         }
 
         {
@@ -708,11 +708,11 @@ namespace
             count_interval_type interval;
             const string s = "-3 .. 5";
             auto result = from_chars(s.data(), s.data() + s.size(), interval);
-            CHECK_CASE("a negative bound fails for an unsigned interval", result.ec != errc {});
+            CHECK_CASE("a negative bound fails for an unsigned interval", result.ec != errc{});
         }
 
         {
-            const KeyValueStore tokens {{"stairs_down", "1..2"}, {"stairs_up", "0 .. 3"}};
+            const KeyValueStore tokens{{"stairs_down", "1..2"}, {"stairs_up", "0 .. 3"}};
             CHECK_CASE("a key-value store reads an interval in either form",
                 bounds_are(*tokens.value<count_interval_type>("stairs_down"), size_t(1), size_t(2))
                 && bounds_are(*tokens.value<count_interval_type>("stairs_up"), size_t(0), size_t(3)));
@@ -724,18 +724,18 @@ namespace
             integer_interval_type interval;
             auto read_result = from_chars(buffer, written_result.ptr, interval, {.series_delimiter = ".."});
             CHECK_CASE_EQUAL("an interval's to_chars writes the delimiter it is passed", string(buffer, written_result.ptr), "-3..7");
-            CHECK_CASE("and from_chars reads it back", read_result.ec == errc {} && bounds_are(interval, -3, 7));
+            CHECK_CASE("and from_chars reads it back", read_result.ec == errc{} && bounds_are(interval, -3, 7));
         }
 
         {
             char buffer[64] {};
-            const FormatSpec spec {.separator = ",", .series_delimiter = ".."};
+            const FormatSpec spec{.separator = ",", .series_delimiter = ".."};
             auto written_result = to_chars(buffer, buffer + sizeof buffer, box, spec);
             bounds_type read;
             auto read_result = from_chars(buffer, written_result.ptr, read, spec);
             CHECK_CASE_EQUAL("a bounding box's to_chars writes the separator and the series delimiter", string(buffer, written_result.ptr),
                 "1,2,3..4,5,6");
-            CHECK_CASE("and from_chars reads it back", read_result.ec == errc {} && read == box);
+            CHECK_CASE("and from_chars reads it back", read_result.ec == errc{} && read == box);
         }
 
         {
@@ -757,7 +757,7 @@ namespace
             auto read = t;
             read = {};
             auto read_result = from_chars(buffer, written_result.ptr, read, spec);
-            return written_result.ec == errc {} && string_view(buffer, written_result.ptr) == expected && read_result.ec == errc {}
+            return written_result.ec == errc{} && string_view(buffer, written_result.ptr) == expected && read_result.ec == errc{}
                 && read_result.ptr == written_result.ptr && read == t;
         };
 
@@ -778,13 +778,13 @@ namespace
 
         {
             const bounds_type box(point_type(1.0, 2.0, 3.0), point_type(4.0, 5.0, 6.0));
-            const FormatSpec spec {.separator = ", ", .brackets = {"[", "]"}, .series_delimiter = ".."};
+            const FormatSpec spec{.separator = ", ", .brackets = {"[", "]"}, .series_delimiter = ".."};
             char buffer[128] {};
             auto written_result = to_chars(buffer, buffer + sizeof buffer, box, spec);
             bounds_type read;
             auto read_result = from_chars(buffer, written_result.ptr, read, spec);
             CHECK_CASE_EQUAL("a bounding box brackets each of its points", string(buffer, written_result.ptr), "[1, 2, 3]..[4, 5, 6]");
-            CHECK_CASE("and reads them back", read_result.ec == errc {} && read == box);
+            CHECK_CASE("and reads them back", read_result.ec == errc{} && read == box);
         }
 
         {
@@ -792,14 +792,14 @@ namespace
             const string s = " [1, 2, 3 ]";
             auto result = from_chars(s.data(), s.data() + s.size(), v, {.separator = ", ", .brackets = {"[", "]"}});
             CHECK_CASE("whitespace before the opening and closing brackets is skipped",
-                result.ec == errc {} && result.ptr == s.data() + s.size() && v == vector_type(1.0, 2.0, 3.0));
+                result.ec == errc{} && result.ptr == s.data() + s.size() && v == vector_type(1.0, 2.0, 3.0));
         }
 
         {
             vector_type v;
             const string unopened = "1, 2, 3]";
             const string unclosed = "[1, 2, 3";
-            const FormatSpec spec {.separator = ", ", .brackets = {"[", "]"}};
+            const FormatSpec spec{.separator = ", ", .brackets = {"[", "]"}};
             CHECK_CASE("a missing opening or closing bracket fails",
                 from_chars(unopened.data(), unopened.data() + unopened.size(), v, spec).ec == errc::invalid_argument
                 && from_chars(unclosed.data(), unclosed.data() + unclosed.size(), v, spec).ec == errc::invalid_argument);
@@ -848,7 +848,7 @@ namespace
             homogeneous_point_type read;
             auto read_result = from_chars(buffer, written_result.ptr, read, {.homogeneous = true});
             CHECK_CASE_EQUAL("to_chars writes every stored value", string(buffer, written_result.ptr), "6 -10 14 2");
-            CHECK_CASE("and from_chars reads them back", read_result.ec == errc {} && read.rep() == p.rep());
+            CHECK_CASE("and from_chars reads them back", read_result.ec == errc{} && read.rep() == p.rep());
         }
 
         CHECK_THROWS_AS((void)std::vformat("{:/hx}", std::make_format_args(p)), std::format_error);
@@ -947,13 +947,13 @@ namespace
 
         {
             char buffer[128] {};
-            const FormatSpec spec {.separator = ", ", .brackets = {"(", ")"}, .series_delimiter = ".."};
+            const FormatSpec spec{.separator = ", ", .brackets = {"(", ")"}, .series_delimiter = ".."};
             auto written_result = to_chars(buffer, buffer + sizeof buffer, cell, spec);
             geometry::Box<cartesian_traits_type> read;
             auto read_result = from_chars(buffer, written_result.ptr, read, spec);
             CHECK_CASE_EQUAL("a box's to_chars writes the separator, brackets, and series delimiter", string(buffer, written_result.ptr),
                 "(1, 2, 3)..(4, 5, 6)");
-            CHECK_CASE("and from_chars reads them back", read_result.ec == errc {} && read.lower() == cell.lower()
+            CHECK_CASE("and from_chars reads them back", read_result.ec == errc{} && read.lower() == cell.lower()
                 && read.upper() == cell.upper());
         }
 
@@ -979,7 +979,7 @@ namespace
             Locus read = Locus::Empty;
             auto read_result = geometry::from_chars(buffer, written_result.ptr, read);
             CHECK_CASE_EQUAL("to_chars writes the name", string(buffer, written_result.ptr), "Circle");
-            CHECK_CASE("and from_chars reads it back", read_result.ec == errc {} && read_result.ptr == written_result.ptr && read == Locus::Circle);
+            CHECK_CASE("and from_chars reads it back", read_result.ec == errc{} && read_result.ptr == written_result.ptr && read == Locus::Circle);
         }
 
         {
@@ -987,7 +987,7 @@ namespace
             const string s = " Plane, 2";
             auto result = geometry::from_chars(s.data(), s.data() + s.size(), read);
             CHECK_CASE("from_chars reads the letters after any whitespace and stops at the first other character",
-                result.ec == errc {} && result.ptr == s.data() + 6 && read == Locus::Plane);
+                result.ec == errc{} && result.ptr == s.data() + 6 && read == Locus::Plane);
         }
 
         {
@@ -1041,7 +1041,7 @@ namespace
         T read;
         auto read_result = from_chars(buffer, written_result.ptr, read);
 
-        return streamed && std::format("{}", *streamed) == std::format("{}", t) && written_result.ec == errc {} && read_result.ec == errc {}
+        return streamed && std::format("{}", *streamed) == std::format("{}", t) && written_result.ec == errc{} && read_result.ec == errc{}
             && read_result.ptr == written_result.ptr && std::format("{}", read) == std::format("{}", t);
     }
 
@@ -1056,7 +1056,7 @@ namespace
         const vector_type z(0.0, 0.0, 1.0);
 
         const geometry::Segment<traits_type> segment(p, point_type(4.0, 5.0, 6.0));
-        const geometry::Polygon<traits_type> polygon {point_type(0.0, 0.0, 0.0), point_type(1.0, 0.0, 0.0), point_type(1.0, 1.0, 0.0)};
+        const geometry::Polygon<traits_type> polygon{point_type(0.0, 0.0, 0.0), point_type(1.0, 0.0, 0.0), point_type(1.0, 1.0, 0.0)};
         const geometry::Line<traits_type> line(p, z);
         const geometry::Plane<traits_type> plane(p, z);
         const geometry::Ray<traits_type> ray(p, x);
@@ -1098,14 +1098,14 @@ namespace
             const string s = "1 2 2..5";
             auto result = from_chars(s.data(), s.data() + s.size(), read, {.series_delimiter = ".."});
             CHECK_CASE("a component before the series delimiter does not read its '.' as a decimal point",
-                result.ec == errc {} && read.center() == point_type(1.0, 2.0, 2.0) && read.radius() == 5.0);
+                result.ec == errc{} && read.center() == point_type(1.0, 2.0, 2.0) && read.radius() == 5.0);
         }
 
         {
             geometry::Polygon<traits_type> read;
             const string s = "0 0 0, 1 0 0; rest";
             auto result = from_chars(s.data(), s.data() + s.size(), read);
-            CHECK_CASE("a polygon reads vertices while a series delimiter follows", result.ec == errc {} && read.vertex_count() == 2
+            CHECK_CASE("a polygon reads vertices while a series delimiter follows", result.ec == errc{} && read.vertex_count() == 2
                 && result.ptr == s.data() + s.find(';'));
         }
 
@@ -1143,7 +1143,7 @@ namespace
         const intersection_type on_ray(geometry::Ray<traits_type>(p, x));
         const intersection_type on_segment(geometry::Segment<traits_type>(p, point_type(4.0, 5.0, 6.0)));
         const intersection_type on_plane(geometry::Plane<traits_type>(p, z));
-        const intersection_type on_polygon(geometry::Polygon<traits_type> {point_type(0.0, 0.0, 0.0), point_type(1.0, 0.0, 0.0),
+        const intersection_type on_polygon(geometry::Polygon<traits_type>{point_type(0.0, 0.0, 0.0), point_type(1.0, 0.0, 0.0),
             point_type(1.0, 1.0, 0.0)});
 
         CHECK_CASE_EQUAL("an intersection writes its locus", std::format("{}", empty), "Empty");

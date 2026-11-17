@@ -251,7 +251,7 @@ namespace
     {
         Parser parser;
 
-        const SymbolTable symbols {{"count", 3}, {"name", "zone"}};
+        const SymbolTable symbols{{"count", 3}, {"name", "zone"}};
         auto type_of = [&](const string& text) { return parser.parse(text, symbols).value().node().type; };
 
         CHECK_CASE("a number literal is a number", type_of("12") == DataType::Number);
@@ -282,7 +282,7 @@ namespace
     TEST_CASE("symbol types")
     {
         Parser parser;
-        const SymbolTable symbols {{"count", 3}, {"ratio", 0.5}, {"name", "zone"}, {"digits", "12"}};
+        const SymbolTable symbols{{"count", 3}, {"ratio", 0.5}, {"name", "zone"}, {"digits", "12"}};
 
         check_value<int>(parser, symbols, "count + 1", 4);
         check_value<double>(parser, symbols, "ratio * 4", 2.0);
@@ -291,7 +291,7 @@ namespace
         check_evaluation_fails<int>(parser, symbols, "digits");
         check_evaluation_fails<int>(parser, symbols, "name");
 
-        const SymbolTable qualified {{"region.difficulty", 4}, {"region.name", "crypt"}};
+        const SymbolTable qualified{{"region.difficulty", 4}, {"region.name", "crypt"}};
         check_value<int>(parser, qualified, "region.difficulty - 1", 3);
         check_value<string>(parser, qualified, "region.name + '_'", string("crypt_"));
         check_parse_fails(parser, "region.size", qualified);
@@ -303,7 +303,7 @@ namespace
     TEST_CASE("explicit conversion")
     {
         Parser parser;
-        const SymbolTable symbols {{"count", 3}, {"ratio", 0.5}, {"name", "zone"}};
+        const SymbolTable symbols{{"count", 3}, {"ratio", 0.5}, {"name", "zone"}};
 
         CHECK_CASE("str is a string", parser.parse("str(count)", symbols).value().node().type == DataType::String);
         check_value<string>(parser, symbols, "str(count)", string("3"));
@@ -321,7 +321,7 @@ namespace
     TEST_CASE("evaluation by type")
     {
         Parser parser;
-        const SymbolTable symbols {{"count", 3}, {"name", "zone"}};
+        const SymbolTable symbols{{"count", 3}, {"name", "zone"}};
 
         check_evaluation_fails<string>(parser, symbols, "1 + 2");
         check_evaluation_fails<string>(parser, symbols, "count");
@@ -337,7 +337,7 @@ namespace
     TEST_CASE("null")
     {
         Parser parser;
-        const SymbolTable symbols {{"count", 3}};
+        const SymbolTable symbols{{"count", 3}};
 
         const Parser::result_type null_expression = parser.parse("null", symbols);
         CHECK_CASE("null parses to an expression of type null", null_expression.has_value()
@@ -356,7 +356,7 @@ namespace
     TEST_CASE("parse errors")
     {
         Parser parser;
-        const SymbolTable symbols {{"count", 3}, {"name", "zone"}};
+        const SymbolTable symbols{{"count", 3}, {"name", "zone"}};
 
         auto code_of = [&](const string& text)
         {

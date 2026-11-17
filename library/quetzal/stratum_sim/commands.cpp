@@ -27,7 +27,7 @@ namespace
 
         flecs::entity arrival = world.relocate_through(actor, access_point);
 
-        events.push(Relocated {static_cast<quetzal::id_type>(actor.id()), static_cast<quetzal::id_type>(access_point.id()),
+        events.push(Relocated{static_cast<quetzal::id_type>(actor.id()), static_cast<quetzal::id_type>(access_point.id()),
             static_cast<quetzal::id_type>(arrival.id())});
 
         return Scheduler::action_cost;
@@ -67,7 +67,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             {
                 placement = faced;
                 set_placement(e, placement);
-                events.push(Turned {command.entity_id(), placement});
+                events.push(Turned{command.entity_id(), placement});
             }
         }
 
@@ -77,13 +77,13 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         if (moved)
         {
             set_placement(e, result.placement);
-            events.push(Moved {command.entity_id(), result.placement});
+            events.push(Moved{command.entity_id(), result.placement});
         }
 
         if constexpr (enter_access_point_by_moving)
         {
             flecs::entity access_point = result.blocking_wall_id != nullid && e.has<ControlledActor>()
-                ? find_access_point(zone, WallId {result.blocking_wall_id}) : flecs::entity();
+                ? find_access_point(zone, WallId{result.blocking_wall_id}) : flecs::entity();
 
             if (access_point && can_enter(access_point, e))
             {
@@ -117,7 +117,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         }
 
         set_placement(e, turned);
-        events.push(Turned {command.entity_id(), turned});
+        events.push(Turned{command.entity_id(), turned});
 
         return Scheduler::action_cost;
     }
@@ -131,7 +131,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        flecs::entity access_point = e.has<ControlledActor>() ? find_access_point(zone, WallId {wall_id}) : flecs::entity();
+        flecs::entity access_point = e.has<ControlledActor>() ? find_access_point(zone, WallId{wall_id}) : flecs::entity();
         if (access_point && can_enter(access_point, e))
         {
             return enter_access_point(world, e, access_point, events);
@@ -144,11 +144,11 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         if (flecs::entity holder = access_entity(way); holder && holder.get<Access>().state != AccessState::Locked)
         {
             bool open = holder.get<Access>().state == AccessState::Closed;
-            holder.set<Access>(Access {open ? AccessState::Open : AccessState::Closed});
+            holder.set<Access>(Access{open ? AccessState::Open : AccessState::Closed});
             interaction = open ? Interaction::Opened : Interaction::Closed;
         }
 
-        events.push(Interacted {command.entity_id(), wall_id, interaction, way ? static_cast<id_type>(way.id()) : nullid});
+        events.push(Interacted{command.entity_id(), wall_id, interaction, way ? static_cast<id_type>(way.id()) : nullid});
         return Scheduler::action_cost;
     }
 
@@ -156,7 +156,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
     {
         // Only a discrete layout has flat cells
         const auto* discrete_layout = dynamic_cast<const DiscreteLayout*>(&layout);
-        flecs::entity access_point = discrete_layout != nullptr && e.has<ControlledActor>() ? find_access_point(zone, FlatCellPosition {discrete_layout->floor_id(),
+        flecs::entity access_point = discrete_layout != nullptr && e.has<ControlledActor>() ? find_access_point(zone, FlatCellPosition{discrete_layout->floor_id(),
             discrete_layout->cell_position_at(placement.position())}) : flecs::entity();
 
         return access_point && can_enter(access_point, e) ? enter_access_point(world, e, access_point, events) : 0;

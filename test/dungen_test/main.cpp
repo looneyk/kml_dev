@@ -293,7 +293,7 @@ namespace
 
         // A position, when given, is written into the layout and the parameters both
         dungen::Parameters positioned = scenarios().front().parameters;
-        positioned.position = dungen::zone_position_type {3, -4, -2};
+        positioned.position = dungen::zone_position_type{3, -4, -2};
         stratum_format::ZoneDocument positioned_document = document_of(zone_text(positioned));
 
         CHECK_CASE("a zone given a position has it in its layout", positioned_document.position == positioned.position);
@@ -946,7 +946,7 @@ namespace
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position {i, j};
+                discrete_point_type cell_position{i, j};
                 if (glyph(cell_position) != '>' && glyph(cell_position) != '<')
                 {
                     continue;
@@ -983,7 +983,7 @@ namespace
                     // A staircase leading down to a worldspace of a region spec has the region <region spec>_<k>
                     const bool leads_down = glyph(cell_position) == '>';
                     const optional<string>& region_spec = leads_down ? parameters.staircase_down_region_spec : nullopt;
-                    stratum_format::AccessPointTarget target {nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, nullopt};
+                    stratum_format::AccessPointTarget target{nullopt, stratum_format::RelativeZone{leads_down ? -1 : 1}, nullopt};
                     const auto& access_point_target = entity.access_point->target;
                     const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::AccessPointTarget>(&*access_point_target) : nullptr;
                     const bool region_expected = unbound != nullptr && entity.access_point->region_spec == region_spec
@@ -1136,7 +1136,7 @@ namespace
 
             CHECK_CASE("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
                 && zone.staircases().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
-            CHECK_CASE("oriented toward the floor beside it", !zone.staircases().empty() && zone.staircases()[0].placement().direction() == dungen::vector_type {1, 0});
+            CHECK_CASE("oriented toward the floor beside it", !zone.staircases().empty() && zone.staircases()[0].placement().direction() == dungen::vector_type{1, 0});
             CHECK_CASE("a staircase's cell gets no second staircase", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
@@ -1181,7 +1181,7 @@ namespace
 
             bool placed = placing(zone, {{1, 1}, {5, 1}}, {3, 3}, {0, 0}, warnings).empty();
             CHECK_CASE("fewer placed than were drawn is a warning", placed && zone.staircases().size() == 2
-                && warnings == vector<string> {"2 of 3 staircases leading up and 0 of 0 leading down placed, the candidates running out"});
+                && warnings == vector<string>{"2 of 3 staircases leading up and 0 of 0 leading down placed, the candidates running out"});
         }
 
         dungen::Parameters reversed;

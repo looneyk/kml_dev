@@ -87,7 +87,7 @@ inline quetzal::math::Xoshiro256StarStar::Xoshiro256StarStar(result_type seed) :
 inline quetzal::math::Xoshiro256StarStar::Xoshiro256StarStar(const state_type& state) :
     m_state(state)
 {
-    assert(state != state_type {});
+    assert(state != state_type{});
 }
 
 //------------------------------------------------------------------------------

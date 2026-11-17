@@ -98,7 +98,7 @@ void quetzal::stratum_sim::think(World& world, id_type actor_controlled)
 
         if (found)
         {
-            e.set<Intent>(Intent {direction, layout.step_distance(), vector_type()});
+            e.set<Intent>(Intent{direction, layout.step_distance(), vector_type()});
         }
     }
 

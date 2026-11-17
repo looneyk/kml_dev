@@ -119,34 +119,34 @@ namespace
 
         log.debug("dungen", "dropped");
         log.info("dungen", "written");
-        CHECK_CASE("a category with no level has the log's level", messages(entries, "dungen") == vector<string> {"written"}
+        CHECK_CASE("a category with no level has the log's level", messages(entries, "dungen") == vector<string>{"written"}
             && !log.category_level("dungen"));
 
         entries.clear();
         log.set_category_level("dungen", LogLevel::Debug);
         log.debug("dungen", "written");
         log.debug("stratum_sim", "dropped");
-        CHECK_CASE("a category's level may be less severe than the log's", messages(entries, "dungen") == vector<string> {"written"}
+        CHECK_CASE("a category's level may be less severe than the log's", messages(entries, "dungen") == vector<string>{"written"}
             && messages(entries, "stratum_sim").empty() && log.category_level("dungen") == LogLevel::Debug);
 
         entries.clear();
         log.set_category_level("stratum_sim", LogLevel::Error);
         log.warning("stratum_sim", "dropped");
         log.error("stratum_sim", "written");
-        CHECK_CASE("or more severe", messages(entries, "stratum_sim") == vector<string> {"written"});
+        CHECK_CASE("or more severe", messages(entries, "stratum_sim") == vector<string>{"written"});
 
         entries.clear();
         log.set_category_level("dungen", nullopt);
         log.debug("dungen", "dropped");
         log.info("dungen", "written");
-        CHECK_CASE("and removing a category's level returns it to the log's", messages(entries, "dungen") == vector<string> {"written"}
+        CHECK_CASE("and removing a category's level returns it to the log's", messages(entries, "dungen") == vector<string>{"written"}
             && !log.category_level("dungen"));
 
         entries.clear();
         log.set_level(LogLevel::Warning);
         log.info("catagen", "dropped");
         log.warning("catagen", "written");
-        CHECK_CASE("the log's level is the default for every category with none", messages(entries, "catagen") == vector<string> {"written"});
+        CHECK_CASE("the log's level is the default for every category with none", messages(entries, "catagen") == vector<string>{"written"});
 
         entries.clear();
         log.set_category_level("catagen", LogLevel::Off);
@@ -175,8 +175,8 @@ namespace
             log.debug("dungen", "debug");
             log.warning("dungen", "warning");
             CHECK_CASE("a debug entry of a category at debug is written to a sink with no level, and not to one at warning",
-                messages(file_entries, "dungen") == vector<string> {"debug", "warning"}
-                && messages(console_entries, "dungen") == vector<string> {"warning"});
+                messages(file_entries, "dungen") == vector<string>{"debug", "warning"}
+                && messages(console_entries, "dungen") == vector<string>{"warning"});
 
             log.warning("stratum_sim", "warning");
             CHECK_CASE("a warning of a category at error is written to neither", messages(file_entries, "stratum_sim").empty()
@@ -211,15 +211,15 @@ namespace
             log.set_category_level("dungen", LogLevel::Trace);
 
             g_format_count = 0;
-            log.warning("dungen", "{}", CountedArgument {});
+            log.warning("dungen", "{}", CountedArgument{});
             CHECK_CASE("a message is not formatted when every sink's level is more severe than its entry",
                 g_format_count == 0 && entries.empty());
 
-            log.error("dungen", "{}", CountedArgument {});
-            CHECK_CASE("and is formatted once when a sink writes it", g_format_count == 1 && messages(entries, "dungen") == vector<string> {"counted"});
+            log.error("dungen", "{}", CountedArgument{});
+            CHECK_CASE("and is formatted once when a sink writes it", g_format_count == 1 && messages(entries, "dungen") == vector<string>{"counted"});
 
             log.set_category_level("dungen", LogLevel::Critical);
-            log.error("dungen", "{}", CountedArgument {});
+            log.error("dungen", "{}", CountedArgument{});
             CHECK_CASE("nor when its category's level is more severe than its entry", g_format_count == 1);
         }
         return;
@@ -241,8 +241,8 @@ namespace
             && entries[0].time >= before && entries[0].time <= after && entries[0].thread_id == this_thread::get_id());
 
         LogEntry entry;
-        entry.time = chrono::sys_days {chrono::year {2026} / 10 / 5} + chrono::hours {14} + chrono::minutes {3} + chrono::seconds {12}
-            + chrono::milliseconds {345} + chrono::microseconds {678};
+        entry.time = chrono::sys_days{chrono::year{2026} / 10 / 5} + chrono::hours{14} + chrono::minutes{3} + chrono::seconds{12}
+            + chrono::milliseconds{345} + chrono::microseconds{678};
         entry.level = LogLevel::Warning;
         entry.category = "dungen";
         entry.message = "text";
@@ -258,7 +258,7 @@ namespace
     TEST_CASE("stream and file sinks")
     {
         LogEntry entry;
-        entry.time = chrono::sys_days {chrono::year {2026} / 10 / 5};
+        entry.time = chrono::sys_days{chrono::year{2026} / 10 / 5};
         entry.level = LogLevel::Info;
         entry.category = "stratum_terminal";
         entry.message = "seed 20260928";
@@ -308,8 +308,8 @@ namespace
         const filesystem::path base_filepath = directory / "stratum_terminal.log";
         filesystem::remove_all(directory);
 
-        const chrono::system_clock::time_point time = chrono::sys_days {chrono::year {2026} / 10 / 22} + chrono::hours {22}
-            + chrono::minutes {30} + chrono::seconds {5} + chrono::milliseconds {123};
+        const chrono::system_clock::time_point time = chrono::sys_days{chrono::year{2026} / 10 / 22} + chrono::hours{22}
+            + chrono::minutes{30} + chrono::seconds{5} + chrono::milliseconds{123};
         CHECK_CASE_EQUAL("a timestamped file has the time inserted before its extension, in UTC to the millisecond",
             timestamped_filepath(base_filepath, time).generic_string(), (directory / "stratum_terminal_20261022T223005.123Z.log").generic_string());
 
@@ -317,11 +317,11 @@ namespace
         vector<filesystem::path> timestamped_filepaths;
         for (int i = 0; i < 5; ++i)
         {
-            timestamped_filepaths.push_back(timestamped_filepath(base_filepath, time + chrono::hours {i}));
+            timestamped_filepaths.push_back(timestamped_filepath(base_filepath, time + chrono::hours{i}));
             ofstream(timestamped_filepaths.back(), ios::binary) << "file " << i << "\n";
         }
 
-        const vector<filesystem::path> other_filepaths {timestamped_filepath(directory / "stratum_godot.log", time),
+        const vector<filesystem::path> other_filepaths{timestamped_filepath(directory / "stratum_godot.log", time),
             timestamped_filepath(directory / "stratum_terminal.txt", time), base_filepath, directory / "stratum_terminal_notes.log"};
         for (const auto& filepath : other_filepaths)
         {
@@ -348,7 +348,7 @@ namespace
 
         for (int i = 5; i < 8; ++i)
         {
-            timestamped_filepaths.push_back(timestamped_filepath(base_filepath, time + chrono::hours {i}));
+            timestamped_filepaths.push_back(timestamped_filepath(base_filepath, time + chrono::hours{i}));
             ofstream(timestamped_filepaths.back(), ios::binary) << "file " << i << "\n";
         }
 

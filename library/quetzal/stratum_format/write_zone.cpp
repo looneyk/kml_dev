@@ -21,7 +21,7 @@ namespace
     //--------------------------------------------------------------------------
     std::string barrier_text(const Barrier& barrier)
     {
-        std::vector<std::string> members {std::format("\"cell_position\": {}", cell_position_text(barrier.cell_position))};
+        std::vector<std::string> members{std::format("\"cell_position\": {}", cell_position_text(barrier.cell_position))};
 
         if (barrier.normal.has_value())
         {
@@ -170,7 +170,7 @@ namespace
     //--------------------------------------------------------------------------
     entry_type wall_entry(const Wall& wall)
     {
-        entry_type entry {{"wall", wall_placement_text(wall.placement)}};
+        entry_type entry{{"wall", wall_placement_text(wall.placement)}};
         add_components(entry, wall.components);
         return entry;
     }
@@ -190,7 +190,7 @@ namespace
     //--------------------------------------------------------------------------
     entry_type flat_entry(const Flat& flat)
     {
-        entry_type entry {{"role", string_text(name(flat.role))}};
+        entry_type entry{{"role", string_text(name(flat.role))}};
         add_flat_properties(entry, flat.properties);
 
         if (!flat.rooms.empty())
@@ -198,7 +198,7 @@ namespace
             std::vector<entry_type> rooms;
             for (const auto& [room_id, properties] : flat.rooms)
             {
-                entry_type room {{"room", std::format("{}", room_id)}};
+                entry_type room{{"room", std::format("{}", room_id)}};
                 add_flat_properties(room, properties);
                 rooms.push_back(std::move(room));
             }
@@ -211,7 +211,7 @@ namespace
             std::vector<entry_type> cells;
             for (const auto& [cell_position, properties] : flat.cells)
             {
-                entry_type cell {{"cell_position", cell_position_text(cell_position)}};
+                entry_type cell{{"cell_position", cell_position_text(cell_position)}};
                 add_flat_properties(cell, properties);
                 cells.push_back(std::move(cell));
             }

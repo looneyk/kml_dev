@@ -435,7 +435,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 {
     std::array<Point<Traits>, 2> points;
     auto result = quetzal::series_from_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         bounds.set_bounds(points[0], points[1]);
     }
@@ -447,7 +447,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 template<typename Traits>
 std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const AxisAlignedBoundingBox<Traits>& bounds, const FormatSpec& spec)
 {
-    const std::array<Point<Traits>, 2> points {bounds.lower(), bounds.upper()};
+    const std::array<Point<Traits>, 2> points{bounds.lower(), bounds.upper()};
     return quetzal::series_to_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
 }
 
@@ -463,7 +463,7 @@ struct std::formatter<quetzal::geometry::AxisAlignedBoundingBox<Traits>> : quetz
     template<typename FormatContext>
     auto format(const quetzal::geometry::AxisAlignedBoundingBox<Traits>& bounds, FormatContext& ctx) const
     {
-        const std::array<quetzal::geometry::Point<Traits>, 2> points {bounds.lower(), bounds.upper()};
+        const std::array<quetzal::geometry::Point<Traits>, 2> points{bounds.lower(), bounds.upper()};
         return this->format_series(points, ctx);
     }
 };

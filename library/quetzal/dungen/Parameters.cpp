@@ -19,7 +19,7 @@ namespace
     using quetzal::dungen::Parameters;
 
     // A vector or position separates its values with ',', and a range its bounds with '-'
-    const quetzal::FormatSpec token_format_spec {.separator = ",", .series_delimiter = "-"};
+    const quetzal::FormatSpec token_format_spec{.separator = ",", .series_delimiter = "-"};
 
     //--------------------------------------------------------------------------
     template<typename T>

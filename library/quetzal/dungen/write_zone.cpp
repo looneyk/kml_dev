@@ -206,8 +206,8 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
     // Room floor lies against corridor floor with nothing between, so an edge between two floor cells of different rooms,
     // or of a room and none, is a barrier
     vector<optional<point_type>> locations(zone.rooms().size());
-    const vector_type east {1, 0};
-    const vector_type north {0, 1};
+    const vector_type east{1, 0};
+    const vector_type north{0, 1};
 
     for (coord_type y = 0; y < ny; ++y)
     {
@@ -222,12 +222,12 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
             id_type room_id = room_of(cell);
             if (room_id != nullid && !locations[room_id].has_value())
             {
-                locations[room_id] = point_type {x, y};
+                locations[room_id] = point_type{x, y};
             }
 
             for (const vector_type& direction : {east, north})
             {
-                point_type neighbor = point_type {x, y} + direction;
+                point_type neighbor = point_type{x, y} + direction;
                 if (zone.cells().contains(neighbor) && floor(zone.cell(neighbor).type()) && room_of(zone.cell(neighbor)) != room_id)
                 {
                     document.barriers.push_back({{x, y}, -direction});
@@ -239,7 +239,7 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
     for (const optional<point_type>& location : locations)
     {
         assert(location.has_value());
-        document.rooms.push_back({stratum_format::RoomLocator {*location, {}}, {}});
+        document.rooms.push_back({stratum_format::RoomLocator{*location, {}}, {}});
     }
 
     // Local ids are assigned in the order written, so the same parameters give the same ids: each door, then its door
@@ -253,7 +253,7 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
 
         for (const auto& wall : walls)
         {
-            document.entities.push_back({++id, "door_facing", stratum_format::Site {stratum_format::Relation::On, wall, nullopt, nullopt}, door_id, {}});
+            document.entities.push_back({++id, "door_facing", stratum_format::Site{stratum_format::Relation::On, wall, nullopt, nullopt}, door_id, {}});
         }
     }
 
@@ -263,11 +263,11 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
     for (const auto& staircase : zone.staircases())
     {
         const directed_point_type placement = staircase.placement();
-        const stratum_format::FlatCell floor_cell {stratum_format::FlatRole::Floor, placement.position()};
+        const stratum_format::FlatCell floor_cell{stratum_format::FlatRole::Floor, placement.position()};
 
         const bool leads_down = staircase.rise() == Rise::Down;
-        stratum_format::AccessPointTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
-        stratum_format::AccessPoint access_point {"staircase", staircase_count++, target};
+        stratum_format::AccessPointTarget target{std::nullopt, stratum_format::RelativeZone{leads_down ? -1 : 1}, std::nullopt};
+        stratum_format::AccessPoint access_point{"staircase", staircase_count++, target};
 
         if (leads_down && parameters.staircase_down_region_spec.has_value())
         {
@@ -278,7 +278,7 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
         }
 
         document.access_points.push_back(++id);
-        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, floor_cell, nullopt, placement.direction()},
+        document.entities.push_back({id, "staircase", stratum_format::Site{stratum_format::Relation::On, floor_cell, nullopt, placement.direction()},
             nullopt, std::move(access_point), {}});
     }
 

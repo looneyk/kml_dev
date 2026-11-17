@@ -19,7 +19,7 @@ namespace
     //--------------------------------------------------------------------------
     std::string zone_text(const WorldDocument::Zone& zone)
     {
-        std::vector<std::string> members {std::format("\"id\": {}", zone.id)};
+        std::vector<std::string> members{std::format("\"id\": {}", zone.id)};
         if (zone.name.has_value())
         {
             members.push_back(std::format("\"name\": {}", string_text(*zone.name)));
@@ -38,7 +38,7 @@ namespace
     // The first line has no indentation, as it follows the member name
     std::string region_text(const WorldDocument::Region& region, size_t indent)
     {
-        std::vector<std::string> opening {std::format("\"id\": {}", region.id)};
+        std::vector<std::string> opening{std::format("\"id\": {}", region.id)};
         if (region.parent_id.has_value())
         {
             opening.push_back(std::format("\"parent\": {}", region.parent_id.value()));

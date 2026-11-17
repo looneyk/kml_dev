@@ -157,7 +157,7 @@ quetzal::stratum_view::spans_type quetzal::stratum_view::difference(const Buffer
     {
         for (coord_type j = 0; j < extent.y(); ++j)
         {
-            spans.push_back(Span {{0, j}, extent.x()});
+            spans.push_back(Span{{0, j}, extent.x()});
         }
 
         return spans;
@@ -181,7 +181,7 @@ quetzal::stratum_view::spans_type quetzal::stratum_view::difference(const Buffer
                 ++i;
             }
 
-            spans.push_back(Span {{i_first, j}, i - i_first});
+            spans.push_back(Span{{i_first, j}, i - i_first});
         }
     }
 

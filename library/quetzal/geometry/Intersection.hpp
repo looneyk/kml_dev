@@ -321,7 +321,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 
     Locus locus = Locus::Empty;
     auto result = from_chars(first, last, locus);
-    if (result.ec != std::errc {})
+    if (result.ec != std::errc{})
     {
         return result;
     }
@@ -335,7 +335,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
         }
 
         auto value_result = quetzal::component_from_chars(position, last, value, spec);
-        if (value_result.ec == std::errc {})
+        if (value_result.ec == std::errc{})
         {
             ix = Intersection<Traits>(value);
         }
@@ -386,7 +386,7 @@ std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const 
     const std::string_view series_delimiter = quetzal::resolved_series_delimiter(spec, quetzal::series_delimiter_default);
 
     auto result = to_chars(first, last, ix.locus());
-    if (result.ec != std::errc {})
+    if (result.ec != std::errc{})
     {
         return result;
     }
@@ -394,7 +394,7 @@ std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const 
     auto write_value = [&](const auto& value)
     {
         result = quetzal::write_pattern(result.ptr, last, series_delimiter);
-        if (result.ec != std::errc {})
+        if (result.ec != std::errc{})
         {
             return result;
         }

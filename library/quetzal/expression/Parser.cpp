@@ -36,7 +36,7 @@ quetzal::expression::Parser::Function::Function(const string& name, vector<DataT
 //------------------------------------------------------------------------------
 void quetzal::expression::Parser::fail(ParseError::Code code, size_t position, const string& message)
 {
-    throw ParseError {code, position, message};
+    throw ParseError{code, position, message};
 }
 
 //------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ quetzal::expression::Parser::result_type quetzal::expression::Parser::parse(std:
 {
     try
     {
-        ParseState state {.text = str, .symbol_table = symbol_table};
+        ParseState state{.text = str, .symbol_table = symbol_table};
         next(state);
         return Expression(expression(state));
     }

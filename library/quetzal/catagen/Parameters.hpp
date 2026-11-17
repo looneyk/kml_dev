@@ -39,23 +39,23 @@ namespace quetzal::catagen
         using seed_type = math::Random<math::portable_random_engine_type>::seed_type;
 
         Algorithm algorithm = Algorithm::Partition1;
-        vector_type extent {48, 32}; // The size of the zone, in cells
+        vector_type extent{48, 32}; // The size of the zone, in cells
 
         // Target room size in cells. The partition splits while a room exceeds the upper bound
         // and never below the lower, so a room falls within the range unless the range is too
         // narrow to split into -- an upper below twice the lower lets rooms exceed it
-        math::Interval<coord_type> scale {4, 8};
+        math::Interval<coord_type> scale{4, 8};
 
         // Solid cells between rooms. At zero, adjoining rooms share a wall
-        math::Interval<coord_type> spacing {0, 0};
+        math::Interval<coord_type> spacing{0, 0};
 
         // Fraction of the extent kept as rooms
         double density = 1.0;
         double loop = 0.1; // Probability of a door beyond the ones connectivity needs
 
         // How many staircases lead down and how many up, each a count drawn from its closed range
-        math::Interval<size_t> staircase_down_count {1, 1};
-        math::Interval<size_t> staircase_up_count {1, 1};
+        math::Interval<size_t> staircase_down_count{1, 1};
+        math::Interval<size_t> staircase_up_count{1, 1};
 
         // The region spec of the worldspace each staircase leading down leads to, the kth of them named <region spec>_<k>
         // from 1, and level -1 there. Each leads one level down in its own worldspace if unassigned

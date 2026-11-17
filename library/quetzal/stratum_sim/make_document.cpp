@@ -116,7 +116,7 @@ namespace
     // The wall as a zone file places it: its cell and the normal pointing out of the wall, away from the cell
     stratum_format::WallPlacement encoded_wall_placement(const DiscreteLayout& layout, id_type wall_id)
     {
-        return stratum_format::WallPlacement {layout.wall_cell_position(wall_id), -layout.wall_direction(wall_id)};
+        return stratum_format::WallPlacement{layout.wall_cell_position(wall_id), -layout.wall_direction(wall_id)};
     }
 
     //--------------------------------------------------------------------------
@@ -153,14 +153,14 @@ namespace
             else
             {
                 const auto& flat_cell = std::get<FlatCellPosition>(*site.address);
-                result.address = stratum_format::FlatCell {flat_role(layout, flat_cell.flat_id), flat_cell.cell_position};
+                result.address = stratum_format::FlatCell{flat_role(layout, flat_cell.flat_id), flat_cell.cell_position};
             }
 
             set_relative_placement(result, site.placement);
         }
         else if (in_zone)
         {
-            result.address = stratum_format::ZoneCell {layout.cell_position_at(site.placement.position())};
+            result.address = stratum_format::ZoneCell{layout.cell_position_at(site.placement.position())};
             result.orientation = grid_step(site.placement.direction());
         }
         else
@@ -175,7 +175,7 @@ namespace
     // The access point as a zone file writes it: a bound target is the persistent id of the access point it is bound to
     stratum_format::AccessPoint encoded_access_point(flecs::entity e, const AccessPoint& access_point)
     {
-        stratum_format::AccessPoint result {access_type_name(e), access_point.order, std::nullopt, access_point.region_spec};
+        stratum_format::AccessPoint result{access_type_name(e), access_point.order, std::nullopt, access_point.region_spec};
 
         if (!access_point.target.has_value())
         {
@@ -298,7 +298,7 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
     document.zone_id = zone.get<PersistentId>().id;
     if (const auto* position = zone.try_get<Position>())
     {
-        document.position = stratum_format::zone_position_type {position->x, position->y, position->z};
+        document.position = stratum_format::zone_position_type{position->x, position->y, position->z};
     }
     document.components = encoded_components(zone, file_components);
 
@@ -324,7 +324,7 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
 
         if (!components.empty())
         {
-            walls.push_back(stratum_format::Wall {wall.placement, std::move(components)});
+            walls.push_back(stratum_format::Wall{wall.placement, std::move(components)});
         }
     }
 
@@ -337,7 +337,7 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
 
             if (!components.empty() && std::ranges::find(walls, file_placement, &stratum_format::Wall::placement) == walls.end())
             {
-                walls.push_back(stratum_format::Wall {file_placement, std::move(components)});
+                walls.push_back(stratum_format::Wall{file_placement, std::move(components)});
             }
         }
     }

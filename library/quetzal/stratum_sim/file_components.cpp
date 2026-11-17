@@ -29,7 +29,7 @@ flecs::entity quetzal::stratum_sim::register_file_component(flecs::world& entiti
     assert(is_tag(entities, component) || ecs_has(entities.c_ptr(), component, EcsStruct) || ecs_has(entities.c_ptr(), component, EcsOpaque));
 
     register_inheritance(entities, component);
-    return entities.entity(file_component_path(name).c_str()).set<FileComponent>(FileComponent {component});
+    return entities.entity(file_component_path(name).c_str()).set<FileComponent>(FileComponent{component});
 }
 
 //------------------------------------------------------------------------------

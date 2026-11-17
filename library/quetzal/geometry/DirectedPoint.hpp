@@ -143,7 +143,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     typename DirectedPoint<Traits>::point_type position;
     typename DirectedPoint<Traits>::direction_type direction;
     auto result = quetzal::components_from_chars(first, last, spec,position, direction);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         directed_point = DirectedPoint<Traits>(position, direction);
     }

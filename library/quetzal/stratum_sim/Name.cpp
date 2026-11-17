@@ -51,7 +51,7 @@ void quetzal::stratum_sim::register_names(flecs::world& entities)
 
             std::string capitals = name.name;
             std::ranges::transform(capitals, capitals.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-            e.set<DisplayName>(DisplayName {std::move(capitals)});
+            e.set<DisplayName>(DisplayName{std::move(capitals)});
         });
 
     return;

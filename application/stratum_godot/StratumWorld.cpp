@@ -68,8 +68,8 @@ namespace
                 quetzal::settings::store().value<int64_t>("world.zone_size.y")));
         }
 
-        return quetzal::stratum_gen::ZoneRequest {zone_spec.store.value_or(sim::name_key, std::string()),
-            quetzal::stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed, parameters};
+        return quetzal::stratum_gen::ZoneRequest{zone_spec.store.value_or(sim::name_key, std::string()),
+            quetzal::stratum_gen::zone_position_type{position.x, position.y, position.z}, *seed, parameters};
     }
 
     //--------------------------------------------------------------------------
@@ -431,7 +431,7 @@ godot::Vector2i StratumWorld::step(int32_t di, int32_t dj)
 
     // This view does not show the facing direction, so a move also turns toward the way it goes, and interact acts ahead
     sim::vector_type direction(static_cast<sim::value_type>(di), static_cast<sim::value_type>(dj), sim::value_type(0));
-    m_session.character().set_intent(sim::Intent {direction, sim::value_type(1), direction});
+    m_session.character().set_intent(sim::Intent{direction, sim::value_type(1), direction});
     advance();
 
     return cell();
@@ -445,7 +445,7 @@ void StratumWorld::interact()
         return;
     }
 
-    m_session.character().submit(sim::Interact {});
+    m_session.character().submit(sim::Interact{});
     advance();
 
     return;
@@ -459,7 +459,7 @@ godot::Vector2i StratumWorld::enter()
         return {};
     }
 
-    m_session.character().submit(sim::Enter {});
+    m_session.character().submit(sim::Enter{});
     advance();
 
     return cell();
@@ -500,7 +500,7 @@ void StratumWorld::advance()
         if (const sim::Blocked* pblocked = event.try_get<sim::Blocked>())
         {
             flecs::entity access_point = pblocked->blocking_wall_id != quetzal::nullid
-                ? sim::find_access_point(m_session.zone(), sim::WallId {pblocked->blocking_wall_id}) : flecs::entity();
+                ? sim::find_access_point(m_session.zone(), sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
             std::string name = access_point ? sim::access_type_name(access_point) : std::string();
 
             m_message = access_point ? std::format("There is a {} before you.", name.empty() ? "way" : name) : std::string();

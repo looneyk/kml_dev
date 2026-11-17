@@ -101,7 +101,7 @@ void quetzal::stratum_sim::set_access_point(flecs::entity e, flecs::entity acces
     assert(access_type);
     assert(e.has<Site>() && e.get<Site>().relation == Relation::On && e.get<Site>().address.has_value());
 
-    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint {order, std::move(target)});
+    e.add<AccessType>(access_type).set<AccessPoint>(AccessPoint{order, std::move(target)});
     return;
 }
 

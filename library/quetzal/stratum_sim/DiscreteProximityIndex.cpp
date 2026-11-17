@@ -118,7 +118,7 @@ quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::
         {
             for (coord_type i = i_begin; i < i_end; ++i)
             {
-                auto it = m_entity_ids_by_slot.find(m_discrete_layout.slot(discrete_point_type {i, j}));
+                auto it = m_entity_ids_by_slot.find(m_discrete_layout.slot(discrete_point_type{i, j}));
                 if (it == m_entity_ids_by_slot.end())
                 {
                     continue;

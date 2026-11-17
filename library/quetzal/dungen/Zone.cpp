@@ -121,7 +121,7 @@ void quetzal::dungen::Zone::create_room(const std::vector<point_type>& cell_posi
     }
 
     id_type room_id = m_rooms.size();
-    m_rooms.emplace_back(room_id, std::to_string(room_id), box_type(lower, upper + vector_type {1, 1}));
+    m_rooms.emplace_back(room_id, std::to_string(room_id), box_type(lower, upper + vector_type{1, 1}));
 
     for (const auto& position : cell_positions)
     {

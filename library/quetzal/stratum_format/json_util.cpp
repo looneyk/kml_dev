@@ -38,7 +38,7 @@ namespace
     //--------------------------------------------------------------------------
     std::string site_text(const Site& site)
     {
-        std::vector<std::string> members {std::format("\"relation\": {}", string_text(name(site.relation)))};
+        std::vector<std::string> members{std::format("\"relation\": {}", string_text(name(site.relation)))};
 
         if (const WallPlacement* placement = site.address.has_value() ? std::get_if<WallPlacement>(&*site.address) : nullptr; placement != nullptr)
         {
@@ -70,7 +70,7 @@ namespace
     //--------------------------------------------------------------------------
     std::string access_point_text(const AccessPoint& access_point)
     {
-        std::vector<std::string> members {std::format("\"type\": {}", string_text(access_point.type))};
+        std::vector<std::string> members{std::format("\"type\": {}", string_text(access_point.type))};
 
         if (access_point.target.has_value())
         {
@@ -271,7 +271,7 @@ void quetzal::stratum_format::detail::write_entry(std::string& text, const entry
 //------------------------------------------------------------------------------
 quetzal::stratum_format::detail::entry_type quetzal::stratum_format::detail::entity_entry(const Entity& entity)
 {
-    entry_type entry {{"id", std::format("{}", entity.id)}, {"type", string_text(entity.type)}};
+    entry_type entry{{"id", std::format("{}", entity.id)}, {"type", string_text(entity.type)}};
 
     std::vector<std::string> components;
 

@@ -187,7 +187,7 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
 
     stratum_format::ZoneDocument document;
     document.version = stratum_format::format_version;
-    document.generator = stratum_format::Generator {"catagen", std::move(values)};
+    document.generator = stratum_format::Generator{"catagen", std::move(values)};
 
     if (!zone.name().empty())
     {
@@ -212,7 +212,7 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
 
         for (const auto& wall : walls)
         {
-            document.entities.push_back({++id, "door_facing", stratum_format::Site {stratum_format::Relation::On, wall, nullopt, nullopt},
+            document.entities.push_back({++id, "door_facing", stratum_format::Site{stratum_format::Relation::On, wall, nullopt, nullopt},
                 door_id, {}});
         }
     }
@@ -225,11 +225,11 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
         // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
         const directed_point_type placement = staircase.placement();
         const vector_type open_side = placement.direction();
-        stratum_format::WallPlacement wall {placement.position() + open_side, open_side};
+        stratum_format::WallPlacement wall{placement.position() + open_side, open_side};
 
         const bool leads_down = staircase.rise() == Rise::Down;
-        stratum_format::AccessPointTarget target {std::nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, std::nullopt};
-        stratum_format::AccessPoint access_point {"staircase", staircase_count++, target};
+        stratum_format::AccessPointTarget target{std::nullopt, stratum_format::RelativeZone{leads_down ? -1 : 1}, std::nullopt};
+        stratum_format::AccessPoint access_point{"staircase", staircase_count++, target};
 
         if (leads_down && parameters.staircase_down_region_spec.has_value())
         {
@@ -240,7 +240,7 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
         }
 
         document.access_points.push_back(++id);
-        document.entities.push_back({id, "staircase", stratum_format::Site {stratum_format::Relation::On, wall, nullopt, nullopt}, nullopt,
+        document.entities.push_back({id, "staircase", stratum_format::Site{stratum_format::Relation::On, wall, nullopt, nullopt}, nullopt,
             std::move(access_point), {}});
     }
 

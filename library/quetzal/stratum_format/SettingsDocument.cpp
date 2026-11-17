@@ -20,7 +20,7 @@ namespace
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
 
-    constexpr std::array<std::string_view, 4> file_keys {"format", "version", "settings", "presets"};
+    constexpr std::array<std::string_view, 4> file_keys{"format", "version", "settings", "presets"};
 
     //--------------------------------------------------------------------------
     SettingsDocument read_settings_document(const raw_values_type& v)
@@ -87,7 +87,7 @@ quetzal::settings::SettingsSnapshot quetzal::stratum_format::detail::read_snapsh
             const std::string group_path = member_path("presets", group_key);
             for (const auto& [preset_name, values] : object(group_presets, group_path).items())
             {
-                snapshot.presets.emplace(settings::Settings::preset_key_type {group_key, preset_name}, text_values(values,
+                snapshot.presets.emplace(settings::Settings::preset_key_type{group_key, preset_name}, text_values(values,
                     member_path(group_path, preset_name)));
             }
         }

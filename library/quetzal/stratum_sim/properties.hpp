@@ -61,7 +61,7 @@ void quetzal::stratum_sim::register_optional(flecs::world& world)
             return data->has_value() ? s->value(**data) : 0;
         });
 
-    world.component<std::optional<T>>().template set<OptionalField>(OptionalField {world.id<T>(),
+    world.component<std::optional<T>>().template set<OptionalField>(OptionalField{world.id<T>(),
         [](void* optional) -> void* { return &static_cast<std::optional<T>*>(optional)->emplace(); },
         [](const void* optional) -> const void*
         {

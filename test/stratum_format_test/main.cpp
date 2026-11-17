@@ -151,7 +151,7 @@ namespace
 
         for (const auto& barrier : barriers)
         {
-            map_type b {{"cell_position", cell_position_map(barrier.cell_position)}};
+            map_type b{{"cell_position", cell_position_map(barrier.cell_position)}};
             b["normal"] = barrier.normal.has_value() ? direction_map(*barrier.normal) : map_type();
             m.push_back(b);
         }
@@ -266,7 +266,7 @@ namespace
         {
             const auto* target = get_if<stratum_format::AccessPointTarget>(&*access_point.target);
             m["target"] = target != nullptr ? map_type(stratum_format::format_access_point_target(*target))
-                : map_type {{"entity", get<stratum_format::stored_entity_id_type>(*access_point.target)}};
+                : map_type{{"entity", get<stratum_format::stored_entity_id_type>(*access_point.target)}};
         }
 
         return m;
@@ -296,7 +296,7 @@ namespace
         m["generator"] = generator_map(document.generator);
         m["layout"] = components_map(document.components);
         m["access_points"] = document.access_points;
-        m["position"] = document.position.has_value() ? map_type {document.position->x(), document.position->y(), document.position->z()}
+        m["position"] = document.position.has_value() ? map_type{document.position->x(), document.position->y(), document.position->z()}
             : map_type();
         m["unpopulated"] = document.is_unpopulated;
 
@@ -402,7 +402,7 @@ namespace
         CHECK_CASE("the first row written is the highest", cells.rows[1] == "|. .| |>|");
 
         CHECK_CASE_EQUAL("one barrier", document.barriers.size(), 1);
-        CHECK_CASE("the barrier is an edge", document.barriers[0].normal == stratum_format::discrete_vector_type {1, 0});
+        CHECK_CASE("the barrier is an edge", document.barriers[0].normal == stratum_format::discrete_vector_type{1, 0});
 
         CHECK_CASE_EQUAL("two rooms", document.rooms.size(), 2);
         const auto* perimeter = get_if<stratum_format::Perimeter>(&document.rooms[0].identification);
@@ -413,7 +413,7 @@ namespace
         CHECK_CASE("a style is a component kept as written", document.rooms[0].components["style"]["terrain"] == "water");
 
         CHECK_CASE("the wall placement's normal points into its cell",
-            document.walls[0].placement == stratum_format::WallPlacement {{1, 1}, {-1, 0}});
+            document.walls[0].placement == stratum_format::WallPlacement{{1, 1}, {-1, 0}});
 
         CHECK_CASE_EQUAL("two flats", document.flats.size(), 2);
         CHECK_CASE("the first flat is the floor", document.flats[0].role == stratum_format::FlatRole::Floor);
@@ -428,7 +428,7 @@ namespace
 
         const auto* door_wall = wall_placement(document.entities[1]);
         CHECK_CASE("a door facing is sited on a wall of its doorway",
-            door_wall != nullptr && *door_wall == stratum_format::WallPlacement {{1, 1}, {-1, 0}});
+            door_wall != nullptr && *door_wall == stratum_format::WallPlacement{{1, 1}, {-1, 0}});
 
         CHECK_CASE("site and parent are decoded out of components",
             !document.entities[1].components.contains("site") && !document.entities[1].components.contains("parent"));
@@ -436,11 +436,11 @@ namespace
 
         const auto* stair_wall = wall_placement(document.entities[3]);
         CHECK_CASE("a staircase is sited on the wall on its open side",
-            stair_wall != nullptr && *stair_wall == stratum_format::WallPlacement {{3, 1}, {0, -1}});
+            stair_wall != nullptr && *stair_wall == stratum_format::WallPlacement{{3, 1}, {0, -1}});
         const auto& stair_access_point = document.entities[3].access_point;
         CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
             && stair_access_point->type == "staircase" && stair_access_point->order == 0 && stair_access_point->target.has_value()
-            && get<stratum_format::AccessPointTarget>(*stair_access_point->target) == stratum_format::AccessPointTarget {nullopt, stratum_format::RelativeZone {-1}, nullopt}
+            && get<stratum_format::AccessPointTarget>(*stair_access_point->target) == stratum_format::AccessPointTarget{nullopt, stratum_format::RelativeZone{-1}, nullopt}
             && !document.entities[3].components.contains("access_point"));
 
         const auto& chest_site = document.entities[5].site;
@@ -464,7 +464,7 @@ namespace
             && document.generator->parameters.value("extent") == "4,3" && document.generator->parameters.value("scale") == "3-7");
         CHECK_CASE("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
         CHECK_CASE("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
-        CHECK_CASE("and so is the position", document.position == stratum_format::zone_position_type {0, 0, -2}
+        CHECK_CASE("and so is the position", document.position == stratum_format::zone_position_type{0, 0, -2}
             && !document.components.contains("position"));
         CHECK_CASE("and so is the unpopulated flag", document.is_unpopulated && !document.components.contains("unpopulated"));
 
@@ -856,12 +856,12 @@ namespace
 
         vector<stratum_format::stored_entity_id_type> found = stratum_format::references(components);
         CHECK_CASE("every reference is found, in the order they are written",
-            found == vector<stratum_format::stored_entity_id_type> {1, 2, 3}, format("found {} of them", found.size()));
+            found == vector<stratum_format::stored_entity_id_type>{1, 2, 3}, format("found {} of them", found.size()));
 
         stratum_format::translate_references(components, [](stratum_format::stored_entity_id_type id) { return id + 100; });
         vector<stratum_format::stored_entity_id_type> translated = stratum_format::references(components);
         CHECK_CASE("each reference is replaced by what translate returns for it",
-            translated == vector<stratum_format::stored_entity_id_type> {101, 102, 103});
+            translated == vector<stratum_format::stored_entity_id_type>{101, 102, 103});
         CHECK_CASE("a value that is not a reference is left as it is",
             components["lock"] == "vault" && components["near"]["entity"] == 4);
 
@@ -991,15 +991,15 @@ namespace
         using stratum_format::RelativeZone;
         using stratum_format::AccessPointTarget;
 
-        const vector<pair<string, AccessPointTarget>> targets {
-            {"-1", {nullopt, RelativeZone {-1}, nullopt}},
-            {"+2", {nullopt, RelativeZone {2}, nullopt}},
-            {"+0", {nullopt, RelativeZone {0}, nullopt}},
-            {"=0", {nullopt, AbsoluteZone {0}, nullopt}},
-            {"=-3", {nullopt, AbsoluteZone {-3}, nullopt}},
-            {"sewers/=-1", {"sewers", AbsoluteZone {-1}, nullopt}},
+        const vector<pair<string, AccessPointTarget>> targets{
+            {"-1", {nullopt, RelativeZone{-1}, nullopt}},
+            {"+2", {nullopt, RelativeZone{2}, nullopt}},
+            {"+0", {nullopt, RelativeZone{0}, nullopt}},
+            {"=0", {nullopt, AbsoluteZone{0}, nullopt}},
+            {"=-3", {nullopt, AbsoluteZone{-3}, nullopt}},
+            {"sewers/=-1", {"sewers", AbsoluteZone{-1}, nullopt}},
             {"town/market@fountain", {"town", string("market"), "fountain"}},
-            {"-1@3,5", {nullopt, RelativeZone {-1}, "3,5"}}
+            {"-1@3,5", {nullopt, RelativeZone{-1}, "3,5"}}
         };
 
         for (const auto& [text, expected] : targets)
@@ -1068,15 +1068,15 @@ namespace
     {
         stratum_format::ZoneDocument document;
         document.zone_id = 7;
-        document.position = stratum_format::zone_position_type {0, 0, -2};
-        document.zone_spec = KeyValueStore {{"seed", "12"}, {"parameters.denizens", "few"}};
+        document.position = stratum_format::zone_position_type{0, 0, -2};
+        document.zone_spec = KeyValueStore{{"seed", "12"}, {"parameters.denizens", "few"}};
 
         ostringstream os;
         stratum_format::write(os, document);
         istringstream is(os.str());
         const stratum_format::ZoneDocument read = stratum_format::read_zone(is, "empty zone");
         CHECK_CASE("an empty zone written reads back with its id, its position and its zone spec, and no cells", !read.cells.has_value()
-            && read.zone_id == 7 && read.position == stratum_format::zone_position_type {0, 0, -2} && read.access_points.empty()
+            && read.zone_id == 7 && read.position == stratum_format::zone_position_type{0, 0, -2} && read.access_points.empty()
             && read.zone_spec.has_value() && read.zone_spec->value("seed") == "12" && read.zone_spec->value("parameters.denizens") == "few",
             os.str());
 
@@ -1127,9 +1127,9 @@ namespace
         game.next_id = 21;
         game.seed = "20260928";
         game.random_engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
-        const quetzal::settings::Settings::preset_key_type custom_key {"gameplay.difficulty", "custom"};
+        const quetzal::settings::Settings::preset_key_type custom_key{"gameplay.difficulty", "custom"};
         game.settings_snapshot.settings.insert("gameplay.difficulty", "custom");
-        game.settings_snapshot.presets.emplace(custom_key, quetzal::KeyValueStore {{"gameplay.difficulty.denizen_count_multiplier", "2"}});
+        game.settings_snapshot.presets.emplace(custom_key, quetzal::KeyValueStore{{"gameplay.difficulty.denizen_count_multiplier", "2"}});
 
         report_written("a game file has the game, the settings and the presets each on a line of its own", written(game),
             "{\n"
@@ -1176,7 +1176,7 @@ namespace
         torch.id = 20;
         torch.type = "torch";
         torch.parent_id = 1;
-        torch.site = stratum_format::Site {stratum_format::Relation::On, {}, {}, {}};
+        torch.site = stratum_format::Site{stratum_format::Relation::On, {}, {}, {}};
         character.inventory.push_back(torch);
 
         report_written("a character file has each entity of its inventory on a line of its own", written(character),
@@ -1202,14 +1202,14 @@ namespace
         surface.components["type"] = "surface";
         surface.spec.store.insert("type", "surface");
         surface.spec.zone_size = stratum_format::discrete_vector_type(40, 30);
-        surface.zones = {{5, "zones/5.zone", stratum_format::zone_position_type {0, 0, 0}, "surface_0_0"}};
+        surface.zones = {{5, "zones/5.zone", stratum_format::zone_position_type{0, 0, 0}, "surface_0_0"}};
 
         stratum_format::WorldDocument::Region dungeon;
         dungeon.id = 4;
         dungeon.name = "barrow";
         dungeon.name_counter = 1;
         dungeon.spec.store.insert("type", "dungeon");
-        dungeon.zones = {{3, "zones/3.zone", stratum_format::zone_position_type {0, 0, -1}, "Level -1"}, {6, "zones/6.zone", nullopt, "barrow"},
+        dungeon.zones = {{3, "zones/3.zone", stratum_format::zone_position_type{0, 0, -1}, "Level -1"}, {6, "zones/6.zone", nullopt, "barrow"},
             {8, "zones/8.zone", nullopt, "barrow_1"}};
 
         stratum_format::WorldDocument::Region crypt;
@@ -1218,7 +1218,7 @@ namespace
         crypt.name = "crypt";
         crypt.display_name = "The Crypt";
         crypt.spec.store.insert("type", "crypt");
-        crypt.zones = {{11, "zones/11.zone", stratum_format::zone_position_type {0, 0, -2}, "crypt_1"}};
+        crypt.zones = {{11, "zones/11.zone", stratum_format::zone_position_type{0, 0, -2}, "crypt_1"}};
 
         stratum_format::WorldDocument world;
         world.name_counter = 2;
@@ -1468,7 +1468,7 @@ namespace
         istringstream is(manifest_text);
         stratum_format::GameManifestDocument manifest = stratum_format::read_game_manifest(is, "manifest");
         CHECK_CASE("a game manifest file has the notation, the views in order, the view menu, the default view, and the settings",
-            manifest.notation == stratum_format::Notation::Wall && manifest.views == vector<string> {"cell", "lattice"} && manifest.view_menu
+            manifest.notation == stratum_format::Notation::Wall && manifest.views == vector<string>{"cell", "lattice"} && manifest.view_menu
             && manifest.default_view == "lattice" && manifest.settings.value("world.zone_size.x") == "32"
             && manifest.settings.value("world.zone_size.y") == "12");
 
@@ -1513,10 +1513,10 @@ namespace
     TEST_CASE("settings file")
     {
         stratum_format::SettingsDocument user_settings;
-        const quetzal::settings::Settings::preset_key_type custom_key {"video.quality", "custom"};
+        const quetzal::settings::Settings::preset_key_type custom_key{"video.quality", "custom"};
         user_settings.snapshot.settings.insert("video.fullscreen", "true");
         user_settings.snapshot.settings.insert("video.quality", "custom");
-        user_settings.snapshot.presets.emplace(custom_key, quetzal::KeyValueStore {{"video.shadows", "high"}, {"video.textures", "low"}});
+        user_settings.snapshot.presets.emplace(custom_key, quetzal::KeyValueStore{{"video.shadows", "high"}, {"video.textures", "low"}});
 
         ostringstream os;
         stratum_format::write(os, user_settings);
@@ -1599,7 +1599,7 @@ namespace
         istringstream is(definitions_text);
         document_type document = stratum_format::read_setting_definitions(is, "definitions");
         CHECK_CASE("a setting definition file reads its enumerations, settings and groups in order", document.enumerations.size() == 1
-            && document.enumerations[0].name == "mod.torches.style" && document.enumerations[0].values == vector<string> {"steady", "flicker"}
+            && document.enumerations[0].name == "mod.torches.style" && document.enumerations[0].values == vector<string>{"steady", "flicker"}
             && document.settings.size() == 2 && document.settings[0].key == "video.fullscreen" && document.settings[1].key == "gameplay.count"
             && document.groups.size() == 1 && document.groups[0].presets.size() == 2);
 
@@ -1613,7 +1613,7 @@ namespace
 
         const document_type::Group& difficulty = document.groups[0];
         CHECK_CASE("a group has its fields, members and presets", difficulty.key == "gameplay.difficulty"
-            && difficulty.scope == document_type::Scope::Game && difficulty.modifiable && difficulty.member_keys == vector<string> {"gameplay.count"}
+            && difficulty.scope == document_type::Scope::Game && difficulty.modifiable && difficulty.member_keys == vector<string>{"gameplay.count"}
             && difficulty.default_preset_name == "normal" && difficulty.display_name == "Difficulty" && difficulty.presets[0].name == "normal"
             && difficulty.presets[0].values.value("gameplay.count") == "1" && !difficulty.presets[0].modifiable && difficulty.presets[1].modifiable
             && difficulty.presets[1].values.empty());

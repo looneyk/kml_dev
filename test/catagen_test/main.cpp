@@ -372,7 +372,7 @@ namespace
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position {i, j};
+                discrete_point_type cell_position{i, j};
                 if (cell_glyph(cell_position) != '>' && cell_glyph(cell_position) != '<')
                 {
                     continue;
@@ -416,7 +416,7 @@ namespace
                     // A staircase leading down to a worldspace of a region spec has the region <region spec>_<k>
                     const bool leads_down = cell_glyph(cell_position) == '>';
                     const optional<string>& region_spec = leads_down ? parameters.staircase_down_region_spec : nullopt;
-                    stratum_format::AccessPointTarget target {nullopt, stratum_format::RelativeZone {leads_down ? -1 : 1}, nullopt};
+                    stratum_format::AccessPointTarget target{nullopt, stratum_format::RelativeZone{leads_down ? -1 : 1}, nullopt};
                     const auto& access_point_target = entity.access_point->target;
                     const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::AccessPointTarget>(&*access_point_target) : nullptr;
                     const bool region_expected = unbound != nullptr && entity.access_point->region_spec == region_spec
@@ -589,7 +589,7 @@ TEST_SUITE("parameters reproduce their zone")
     TEST_CASE("a zone given a position has it in its layout and its parameters, from which it regenerates")
     {
         catagen::Parameters positioned = scenarios().front().parameters;
-        positioned.position = catagen::zone_position_type {-1, 2, 1};
+        positioned.position = catagen::zone_position_type{-1, 2, 1};
         stratum_format::ZoneDocument positioned_document = document_of(zone_text(positioned));
 
         CHECK_MESSAGE((positioned_document.position == positioned.position), "a zone given a position has it in its layout");

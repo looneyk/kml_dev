@@ -154,7 +154,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     typename HalfPlane<Traits>::line_type line;
     typename HalfPlane<Traits>::vector_type exterior_direction;
     auto result = quetzal::components_from_chars(first, last, spec,line, exterior_direction);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         halfplane = HalfPlane<Traits>(line, exterior_direction);
     }

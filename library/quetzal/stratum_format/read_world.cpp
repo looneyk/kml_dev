@@ -70,7 +70,7 @@ namespace
             std::string zone_path = element_path(zones_path, i);
             object(zones[i], zone_path);
 
-            WorldDocument::Zone zone {id_value(required_member(zones[i], zone_path, "id"), member_path(zone_path, "id")),
+            WorldDocument::Zone zone{id_value(required_member(zones[i], zone_path, "id"), member_path(zone_path, "id")),
                 string_value(required_member(zones[i], zone_path, "file"), member_path(zone_path, "file"))};
 
             add_entity_id(entity_ids, zone.id, member_path(zone_path, "id"));
@@ -80,7 +80,7 @@ namespace
             {
                 std::string position_path = member_path(zone_path, "position");
                 const raw_values_type& a = fixed_array(*p, position_path, 3);
-                const std::array<coord_type, 3> position {coord_value(a[0], element_path(position_path, 0)),
+                const std::array<coord_type, 3> position{coord_value(a[0], element_path(position_path, 0)),
                     coord_value(a[1], element_path(position_path, 1)), coord_value(a[2], element_path(position_path, 2))};
 
                 if (!zone_positions.insert(position).second)
@@ -90,7 +90,7 @@ namespace
                     fail(position_path, what);
                 }
 
-                zone.position = zone_position_type {position[0], position[1], position[2]};
+                zone.position = zone_position_type{position[0], position[1], position[2]};
             }
 
             if (const raw_values_type* p = member(zones[i], "name"); p != nullptr)

@@ -30,14 +30,14 @@ namespace
         {
             if (std::optional<level_type> level = quetzal::try_type<level_type>(text.substr(1)); level.has_value())
             {
-                return AbsoluteZone {*level};
+                return AbsoluteZone{*level};
             }
         }
         else if (text.starts_with('-') || (text.starts_with('+') && !text.substr(1).starts_with('-')))
         {
             if (std::optional<level_type> offset = quetzal::try_type<level_type>(text.starts_with('+') ? text.substr(1) : text); offset.has_value())
             {
-                return RelativeZone {*offset};
+                return RelativeZone{*offset};
             }
         }
         else if (is_name(text))

@@ -223,7 +223,7 @@ string_view quetzal::trim_whitespace(string_view str)
 {
     const auto text_first = find_if_not(str.begin(), str.end(), whitespace);
     const auto text_last = find_if_not(str.rbegin(), str.rend(), whitespace).base();
-    return text_first < text_last ? string_view(text_first, text_last) : string_view {};
+    return text_first < text_last ? string_view(text_first, text_last) : string_view{};
 }
 
 //------------------------------------------------------------------------------
@@ -317,7 +317,7 @@ to_chars_result quetzal::write_pattern(char* first, char* last, string_view patt
         return {first, errc::value_too_large};
     }
 
-    return {copy(pattern.begin(), pattern.end(), first), errc {}};
+    return {copy(pattern.begin(), pattern.end(), first), errc{}};
 }
 
 //------------------------------------------------------------------------------
@@ -356,7 +356,7 @@ from_chars_result quetzal::from_chars(const char* first, const char* last, bool&
         if (text.starts_with(token))
         {
             value = token_value;
-            return {first + token.size(), errc {}};
+            return {first + token.size(), errc{}};
         }
     }
 

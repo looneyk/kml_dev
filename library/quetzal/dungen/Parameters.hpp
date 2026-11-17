@@ -43,7 +43,7 @@ namespace quetzal::dungen
     // solid cells between
     struct Grid1Parameters
     {
-        vector_type divisions {3, 3}; // Sectors across and up
+        vector_type divisions{3, 3}; // Sectors across and up
 
         // Fraction of sectors with a room. A sector without one joins its neighbors through a single cell
         double room_density = 1.0;
@@ -75,11 +75,11 @@ namespace quetzal::dungen
         using seed_type = random_type::seed_type;
 
         Algorithm algorithm = Algorithm::Maze1;
-        vector_type extent {32, 32};
+        vector_type extent{32, 32};
 
         // How many staircases lead down and how many up, each a count drawn from its closed range
-        math::Interval<size_t> staircase_down_count {1, 1};
-        math::Interval<size_t> staircase_up_count {1, 1};
+        math::Interval<size_t> staircase_down_count{1, 1};
+        math::Interval<size_t> staircase_up_count{1, 1};
 
         // The region spec of the worldspace each staircase leading down leads to, the kth of them named <region spec>_<k>
         // from 1, and level -1 there. Each leads one level down in its own worldspace if unassigned

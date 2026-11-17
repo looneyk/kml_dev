@@ -50,12 +50,12 @@ void quetzal::stratum_sim::Character::create(const CharacterSpec& character_spec
 {
     assert(!m_entity);
 
-    m_entity = m_world.entities().entity().add<Blocking>().add<ControlledActor>().set<Speed>(Speed {character_speed})
+    m_entity = m_world.entities().entity().add<Blocking>().add<ControlledActor>().set<Speed>(Speed{character_speed})
         .set<PersistentId>(m_world.next_id());
 
     if (!character_spec.name.empty())
     {
-        m_entity.set<Name>(Name {character_spec.name});
+        m_entity.set<Name>(Name{character_spec.name});
     }
 
     return;
@@ -77,7 +77,7 @@ quetzal::stratum_sim::CharacterPlacement quetzal::stratum_sim::Character::open(c
     m_entity = m_world.entities().entity().add<ControlledActor>();
     load_character(m_entity, document);
 
-    return CharacterPlacement {PersistentId {document.zone_id}, document.placement.position(), document.placement.direction()};
+    return CharacterPlacement{PersistentId{document.zone_id}, document.placement.position(), document.placement.direction()};
 }
 
 //------------------------------------------------------------------------------

@@ -1037,7 +1037,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     {
         typename Polygon<Traits>::point_type vertex;
         auto result = from_chars(position, quetzal::find_pattern(position, last, series_delimiter), vertex, spec);
-        if (result.ec != std::errc {})
+        if (result.ec != std::errc{})
         {
             return result;
         }

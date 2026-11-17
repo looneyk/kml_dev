@@ -23,7 +23,7 @@ namespace
 
     constexpr std::string_view starting_region_key = "starting_region";
     constexpr std::string_view region_specs_key = "region_specs";
-    constexpr std::array<std::string_view, 4> file_keys {"format", "version", starting_region_key, region_specs_key};
+    constexpr std::array<std::string_view, 4> file_keys{"format", "version", starting_region_key, region_specs_key};
 
     //--------------------------------------------------------------------------
     document_type read_world_definition_document(const raw_values_type& v)

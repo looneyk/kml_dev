@@ -109,16 +109,16 @@ quetzal::id_type quetzal::stratum_sim::Clock::run(EventQueue& events, id_type ac
         if (pintent != nullptr && asked(pintent->facing) && asked(pintent->direction)
             && grid_step(pintent->facing) == grid_step(pintent->direction))
         {
-            command = Command(actor_id, Step {pintent->direction, pintent->distance, true});
+            command = Command(actor_id, Step{pintent->direction, pintent->distance, true});
         }
         else if (pintent != nullptr && asked(pintent->facing))
         {
-            command = Command(actor_id, TurnTo {pintent->facing});
+            command = Command(actor_id, TurnTo{pintent->facing});
             turning = true;
         }
         else if (pintent != nullptr && asked(pintent->direction))
         {
-            command = Command(actor_id, Step {pintent->direction, pintent->distance});
+            command = Command(actor_id, Step{pintent->direction, pintent->distance});
         }
 
         if (command.empty())

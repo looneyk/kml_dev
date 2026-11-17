@@ -48,7 +48,7 @@ namespace
         using namespace quetzal;
         using namespace quetzal::stratum_sim;
 
-        Site result {site.relation == stratum_format::Relation::On ? Relation::On : Relation::In, {}, {}};
+        Site result{site.relation == stratum_format::Relation::On ? Relation::On : Relation::In, {}, {}};
 
         // An entity in a cell of the zone has no address: its placement is the cell and its orientation
         if (const auto* zone_cell = site.address.has_value() ? std::get_if<stratum_format::ZoneCell>(&*site.address) : nullptr)
@@ -62,12 +62,12 @@ namespace
         {
             if (const auto* wall = std::get_if<stratum_format::WallPlacement>(&*site.address))
             {
-                result.address = WallId {layout.wall_toward(wall->cell_position, -wall->normal)};
+                result.address = WallId{layout.wall_toward(wall->cell_position, -wall->normal)};
             }
             else
             {
                 const auto& flat_cell = std::get<stratum_format::FlatCell>(*site.address);
-                result.address = FlatCellPosition {flat_cell.role == stratum_format::FlatRole::Floor ? layout.floor_id() : layout.ceiling_id(),
+                result.address = FlatCellPosition{flat_cell.role == stratum_format::FlatRole::Floor ? layout.floor_id() : layout.ceiling_id(),
                     flat_cell.cell_position};
             }
         }
@@ -107,7 +107,7 @@ namespace
         quetzal::stratum_format::stored_entity_id_type id = std::get<quetzal::stratum_format::stored_entity_id_type>(*target);
 
         auto i = entities.find(id);
-        return EntityReference {PersistentId {id}, i != entities.end() ? i->second : flecs::entity()};
+        return EntityReference{PersistentId{id}, i != entities.end() ? i->second : flecs::entity()};
     }
 
     //--------------------------------------------------------------------------
@@ -128,7 +128,7 @@ namespace
     std::vector<std::pair<const quetzal::stratum_format::raw_values_type*, std::string>> layout_component_objects(
         const quetzal::stratum_format::ZoneDocument& document)
     {
-        std::vector<std::pair<const quetzal::stratum_format::raw_values_type*, std::string>> objects {{&document.components, "layout"}};
+        std::vector<std::pair<const quetzal::stratum_format::raw_values_type*, std::string>> objects{{&document.components, "layout"}};
 
         for (size_t i = 0; i < document.rooms.size(); ++i)
         {
@@ -202,11 +202,11 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     auto zone_document = std::make_shared<stratum_format::ZoneDocument>(document);
     zone_document->entities.clear();
     zone_document->is_unpopulated = false;
-    zone.set<Document>(Document {std::move(zone_document)});
+    zone.set<Document>(Document{std::move(zone_document)});
 
     if (document.position.has_value())
     {
-        zone.set<Position>(Position {document.position->x(), document.position->y(), document.position->z()});
+        zone.set<Position>(Position{document.position->x(), document.position->y(), document.position->z()});
     }
 
     flecs::world world = zone.world();
@@ -219,12 +219,12 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
         if (document.zone_id.has_value())
         {
             auto i = entities.find(id);
-            return EntityReference {PersistentId {id}, i != entities.end() ? i->second : flecs::entity()};
+            return EntityReference{PersistentId{id}, i != entities.end() ? i->second : flecs::entity()};
         }
 
         flecs::entity e = entities.at(id);
         referred_to.push_back(e);
-        return EntityReference {e.get<PersistentId>(), e};
+        return EntityReference{e.get<PersistentId>(), e};
     };
 
     if (!document.cells.has_value())
@@ -241,7 +241,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     {
         for (coord_type i = 0; i < cells.extent.x(); ++i)
         {
-            discrete_point_type cell_position {i, j};
+            discrete_point_type cell_position{i, j};
             if (!stratum_format::floor_door_cell(cells, cell_position))
             {
                 continue;
@@ -285,7 +285,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     layout->set_flats(floor != nullptr ? floor->properties.height.value_or(value_type(0)) : value_type(0),
         ceiling != nullptr ? ceiling->properties.height.value_or(value_type(1)) : value_type(1));
 
-    for (const auto& [flat, flat_id] : {std::pair {floor, layout->floor_id()}, std::pair {ceiling, layout->ceiling_id()}})
+    for (const auto& [flat, flat_id] : {std::pair{floor, layout->floor_id()}, std::pair{ceiling, layout->ceiling_id()}})
     {
         if (flat == nullptr)
         {
@@ -320,7 +320,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
         if (document.zone_id.has_value())
         {
-            e.set<PersistentId>(PersistentId {entity.id});
+            e.set<PersistentId>(PersistentId{entity.id});
         }
 
         // A type that is not loaded is made with no components, so the entity keeps its type
@@ -380,13 +380,13 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
     for (size_t i = 0; i < document.rooms.size(); ++i)
     {
-        decode_layout_components(RoomId {i}, document.rooms[i].components, std::format("rooms[{}]", i));
+        decode_layout_components(RoomId{i}, document.rooms[i].components, std::format("rooms[{}]", i));
     }
 
     for (size_t i = 0; i < document.walls.size(); ++i)
     {
         const stratum_format::WallPlacement& wall = document.walls[i].placement;
-        decode_layout_components(WallId {zone_layout.wall_toward(wall.cell_position, -wall.normal)}, document.walls[i].components, std::format("walls[{}]", i));
+        decode_layout_components(WallId{zone_layout.wall_toward(wall.cell_position, -wall.normal)}, document.walls[i].components, std::format("walls[{}]", i));
     }
 
     for (size_t i = 0; i < document.flats.size(); ++i)
@@ -395,7 +395,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
         id_type flat_id = flat.role == stratum_format::FlatRole::Floor ? zone_layout.floor_id() : zone_layout.ceiling_id();
         std::string flat_path = std::format("flats[{}]", i);
 
-        decode_layout_components(FlatId {flat_id}, flat.properties.components, flat_path);
+        decode_layout_components(FlatId{flat_id}, flat.properties.components, flat_path);
 
         for (const auto& [room_id, properties] : flat.rooms)
         {
@@ -408,7 +408,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
         for (const auto& [cell_position, properties] : flat.cells)
         {
-            decode_layout_components(FlatCellPosition {flat_id, cell_position}, properties.components, flat_cell_path(flat_path, cell_position));
+            decode_layout_components(FlatCellPosition{flat_id, cell_position}, properties.components, flat_cell_path(flat_path, cell_position));
         }
     }
 

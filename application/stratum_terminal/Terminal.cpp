@@ -72,7 +72,7 @@ stratum_terminal::vector_type stratum_terminal::terminal_size()
 {
 #if defined(_WIN32)
 
-    CONSOLE_SCREEN_BUFFER_INFO info {};
+    CONSOLE_SCREEN_BUFFER_INFO info{};
     if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info))
     {
         return {};
@@ -84,7 +84,7 @@ stratum_terminal::vector_type stratum_terminal::terminal_size()
 
 #else
 
-    winsize ws {};
+    winsize ws{};
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != 0 || ws.ws_row == 0)
     {
         return {};
@@ -184,7 +184,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         m_size_original = terminal_size();
 
         // Only grown, as Windows Terminal does not restore the size on exit
-        vector_type wanted {std::max(columns_wanted, m_size_original.x()), std::max(rows_wanted, m_size_original.y())};
+        vector_type wanted{std::max(columns_wanted, m_size_original.x()), std::max(rows_wanted, m_size_original.y())};
 
         if (wanted != m_size_original && set_terminal_size(wanted))
         {

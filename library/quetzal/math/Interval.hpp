@@ -247,7 +247,7 @@ quetzal::math::Interval<T> quetzal::math::shift(const Interval<T>& interval, T t
 template<typename T>
 std::istream& quetzal::math::operator>>(std::istream& is, Interval<T>& interval)
 {
-    std::array<T, 2> bounds {};
+    std::array<T, 2> bounds{};
     if (quetzal::read_series(is, bounds, quetzal::bounds_delimiter_default))
     {
         interval.set_bounds(bounds[0], bounds[1]);
@@ -268,9 +268,9 @@ std::ostream& quetzal::math::operator<<(std::ostream& os, const Interval<T>& int
 template<typename T>
 std::from_chars_result quetzal::math::from_chars(const char* first, const char* last, Interval<T>& interval, const FormatSpec& spec)
 {
-    std::array<T, 2> bounds {};
+    std::array<T, 2> bounds{};
     auto result = quetzal::series_from_chars(first, last, bounds, spec, quetzal::bounds_delimiter_default);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         interval.set_bounds(bounds[0], bounds[1]);
     }
@@ -282,7 +282,7 @@ std::from_chars_result quetzal::math::from_chars(const char* first, const char* 
 template<typename T>
 std::to_chars_result quetzal::math::to_chars(char* first, char* last, const Interval<T>& interval, const FormatSpec& spec)
 {
-    const std::array<T, 2> bounds {interval.lower(), interval.upper()};
+    const std::array<T, 2> bounds{interval.lower(), interval.upper()};
     return quetzal::series_to_chars(first, last, bounds, spec, quetzal::bounds_delimiter_default);
 }
 
@@ -299,7 +299,7 @@ struct std::formatter<quetzal::math::Interval<T>> : quetzal::series_formatter<T>
     auto format(const quetzal::math::Interval<T>& interval, FormatContext& ctx) const
     {
         // The conditionals translate negative zero
-        const std::array<T, 2> bounds {interval.lower() == T(0) ? T(0) : interval.lower(), interval.upper() == T(0) ? T(0) : interval.upper()};
+        const std::array<T, 2> bounds{interval.lower() == T(0) ? T(0) : interval.lower(), interval.upper() == T(0) ? T(0) : interval.upper()};
         return this->format_series(bounds, ctx);
     }
 };

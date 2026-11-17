@@ -175,7 +175,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     typename Plane<Traits>::point_type point;
     typename Plane<Traits>::vector_type normal;
     auto result = quetzal::components_from_chars(first, last, spec,point, normal);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         plane = Plane<Traits>(point, normal);
     }

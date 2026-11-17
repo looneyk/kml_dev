@@ -57,7 +57,7 @@ void quetzal::stratum_sim::insert_definitions(const stratum_format::SettingDefin
         std::vector<std::pair<std::string, settings::Preset>> presets;
         for (const auto& preset_definition : definition.presets)
         {
-            presets.emplace_back(preset_definition.name, settings::Preset {preset_definition.display_name, preset_definition.modifiable,
+            presets.emplace_back(preset_definition.name, settings::Preset{preset_definition.display_name, preset_definition.modifiable,
                 preset_definition.values});
         }
 

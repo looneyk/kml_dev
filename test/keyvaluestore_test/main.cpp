@@ -99,13 +99,13 @@ namespace
         const KeyValueStore empty_store;
         CHECK_CASE("default is empty", empty_store.begin() == empty_store.end());
 
-        const KeyValueStore listed {{"alpha", "1"}, {"beta", "2"}};
+        const KeyValueStore listed{{"alpha", "1"}, {"beta", "2"}};
         check_case_entries("initializer list", listed, {{"alpha", "1"}, {"beta", "2"}});
 
-        const KeyValueStore listed_duplicate {{"alpha", "1"}, {"alpha", "2"}};
+        const KeyValueStore listed_duplicate{{"alpha", "1"}, {"alpha", "2"}};
         check_case_entries("initializer list keeps the last duplicate", listed_duplicate, {{"alpha", "2"}});
 
-        const vector<KeyValueStore::map_type::value_type> pairs {{"alpha", "1"}, {"beta", "2"}, {"alpha", "3"}};
+        const vector<KeyValueStore::map_type::value_type> pairs{{"alpha", "1"}, {"beta", "2"}, {"alpha", "3"}};
         const KeyValueStore spanned(pairs);
         check_case_entries("span keeps the last duplicate", spanned, {{"alpha", "3"}, {"beta", "2"}});
 
@@ -128,7 +128,7 @@ namespace
         key_value_store.insert({"beta", "2"});
         check_case_value("insert a pair overwrites", key_value_store.value("beta"), "2");
 
-        KeyValueStore removing {{"alpha", "1"}, {"beta", "2"}};
+        KeyValueStore removing{{"alpha", "1"}, {"beta", "2"}};
         removing.remove("alpha");
         check_case_entries("remove a key", removing, {{"beta", "2"}});
 
@@ -141,7 +141,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("lookup")
     {
-        const KeyValueStore key_value_store {{"alpha", "1"}, {"empty", ""}};
+        const KeyValueStore key_value_store{{"alpha", "1"}, {"empty", ""}};
 
         CHECK_CASE("contains a key", key_value_store.contains("alpha"));
         CHECK_CASE("does not contain an absent key", !key_value_store.contains("absent"));
@@ -175,8 +175,8 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("union")
     {
-        const Properties defaults {{"alpha", "1"}, {"beta", "2"}};
-        const Properties overrides {{"beta", "3"}, {"gamma", "4"}};
+        const Properties defaults{{"alpha", "1"}, {"beta", "2"}};
+        const Properties overrides{{"beta", "3"}, {"gamma", "4"}};
 
         const Properties combined = defaults | overrides;
         CHECK_CASE("a | b has the keys of both", combined.contains("alpha") && combined.contains("beta") && combined.contains("gamma"));
@@ -193,12 +193,12 @@ namespace
     template<typename S>
     void check_typed_access()
     {
-        constexpr bool has_value = requires(const S& s) { { s.template value<int>(string {}) } -> same_as<optional<int>>; };
-        constexpr bool has_value_or = requires(const S& s) { { s.template value_or<int>(string {}, 0) } -> same_as<int>; };
+        constexpr bool has_value = requires(const S& s) { { s.template value<int>(string{}) } -> same_as<optional<int>>; };
+        constexpr bool has_value_or = requires(const S& s) { { s.template value_or<int>(string{}, 0) } -> same_as<int>; };
 
         if constexpr (has_value)
         {
-            const S key_value_store {{"count", "42"}, {"ratio", "0.25"}, {"flag", "true"}, {"word", "abc"}, {"partial", "12abc"}};
+            const S key_value_store{{"count", "42"}, {"ratio", "0.25"}, {"flag", "true"}, {"word", "abc"}, {"partial", "12abc"}};
 
             const optional<int> count = key_value_store.template value<int>("count");
             CHECK_CASE("value<int>", count == 42, count ? format("got {}", *count) : "got no value");
@@ -220,7 +220,7 @@ namespace
 
         if constexpr (has_value_or)
         {
-            const S key_value_store {{"count", "42"}, {"word", "abc"}};
+            const S key_value_store{{"count", "42"}, {"word", "abc"}};
 
             CHECK_CASE("value_or<int>", key_value_store.template value_or<int>("count", 7) == 42);
             CHECK_CASE("value_or<int> of an absent key", key_value_store.template value_or<int>("absent", 7) == 7);
@@ -257,7 +257,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("text")
     {
-        const Properties key_value_store {{"alpha", "1"}, {"beta", "two words"}, {"gamma", "x=y"}};
+        const Properties key_value_store{{"alpha", "1"}, {"beta", "two words"}, {"gamma", "x=y"}};
         const entries_type entries_expected = entries(key_value_store);
 
         stringstream ss;

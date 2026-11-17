@@ -130,7 +130,7 @@ void quetzal::stratum_sim::register_game_types(World& world)
 {
     flecs::world& entities = world.entities();
 
-    create_entity_type(entities, "door").set<Access>(Access {AccessState::Closed});
+    create_entity_type(entities, "door").set<Access>(Access{AccessState::Closed});
 
     return;
 }
@@ -139,7 +139,7 @@ void quetzal::stratum_sim::register_game_types(World& world)
 quetzal::stratum_sim::Game::Game(const Config& config, const stratum_format::GameManifestDocument& manifest) :
     m_config(config),
     m_manifest(manifest),
-    m_counting_id_allocator(PersistentId {}),
+    m_counting_id_allocator(PersistentId{}),
     m_generation(),
     m_world(m_counting_id_allocator, m_generation, m_config.zone_count_max, m_config.pattern_limits),
     m_character(m_world),
@@ -186,7 +186,7 @@ void quetzal::stratum_sim::Game::create(const CharacterSpec& character_spec, str
     apply_manifest_settings(m_manifest.settings);
     set_notation(notation);
 
-    m_counting_id_allocator = CountingIdAllocator(PersistentId {});
+    m_counting_id_allocator = CountingIdAllocator(PersistentId{});
     seed_world(seed ? *seed : math::random_seed());
 
     clear_working_directory(m_config);
@@ -256,7 +256,7 @@ void quetzal::stratum_sim::Game::restore_game_state(const std::filesystem::path&
 {
     stratum_format::GameDocument document = stratum_format::read_game(filepath);
     set_notation(document.notation);
-    m_counting_id_allocator = CountingIdAllocator(PersistentId {document.next_id});
+    m_counting_id_allocator = CountingIdAllocator(PersistentId{document.next_id});
 
     const char* seed_end = document.seed.data() + document.seed.size();
     if (auto [end, ec] = std::from_chars(document.seed.data(), seed_end, m_seed); ec != std::errc() || end != seed_end)

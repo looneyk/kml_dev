@@ -346,7 +346,7 @@ std::string quetzal::math::Random<E>::state() const
 template<typename E>
 void quetzal::math::Random<E>::set_state(std::string_view text)
 {
-    std::istringstream is {std::string(text)};
+    std::istringstream is{std::string(text)};
     E engine;
     char trailing = 0;
 
@@ -413,7 +413,7 @@ quetzal::math::Random<E>::seed_type quetzal::math::to_seed(const std::string& s)
         throw std::invalid_argument(std::format("\"{}\" is too large for a seed", s));
     }
 
-    if (result.ec != std::errc {} || result.ptr != s.data() + s.size())
+    if (result.ec != std::errc{} || result.ptr != s.data() + s.size())
     {
         throw std::invalid_argument(std::format("\"{}\" is not a whole number", s));
     }

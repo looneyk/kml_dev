@@ -102,7 +102,7 @@ namespace
         coord_type y0 = j * ny / divisions_y;
         coord_type y1 = (j + 1) * ny / divisions_y;
 
-        return {point_type {x0, y0}, point_type {x1, y1}};
+        return {point_type{x0, y0}, point_type{x1, y1}};
     }
 
     //--------------------------------------------------------------------------
@@ -110,14 +110,14 @@ namespace
     // through solid cells and no two rooms share a wall
     Sector choose_sector(const box_type& bounds, const Grid1Parameters& grid1, bool room, random_type& random)
     {
-        point_type origin = bounds.position() + vector_type {grid1.room_margin, grid1.room_margin};
-        vector_type span = bounds.extent() - vector_type {2 * grid1.room_margin, 2 * grid1.room_margin};
+        point_type origin = bounds.position() + vector_type{grid1.room_margin, grid1.room_margin};
+        vector_type span = bounds.extent() - vector_type{2 * grid1.room_margin, 2 * grid1.room_margin};
 
         Sector sector;
         sector.room = room;
         sector.rectangle.set_extent(room
-            ? vector_type {random.random_closed(grid1.room_dimension_min, span.x()), random.random_closed(grid1.room_dimension_min, span.y())}
-            : vector_type {1, 1});
+            ? vector_type{random.random_closed(grid1.room_dimension_min, span.x()), random.random_closed(grid1.room_dimension_min, span.y())}
+            : vector_type{1, 1});
         sector.rectangle.set_position(
         {
             origin.x() + random.random(span.x() - sector.rectangle.extent().x() + 1),
@@ -200,7 +200,7 @@ namespace
         assert(dx == 0 || dy == 0);
 
         coord_type steps = dx != 0 ? (dx > 0 ? dx : -dx) : (dy > 0 ? dy : -dy);
-        vector_type step {dx > 0 ? 1 : (dx < 0 ? -1 : 0), dy > 0 ? 1 : (dy < 0 ? -1 : 0)};
+        vector_type step{dx > 0 ? 1 : (dx < 0 ? -1 : 0), dy > 0 ? 1 : (dy < 0 ? -1 : 0)};
 
         // I don't believe that this will create diagonal corridors correctly, it does not add an additional block when both dimensions increment at the same time ...
         // And, it looks like this will always create diagonal corridors no matter what the aspect ratio of the from, to difference is ...

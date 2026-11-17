@@ -146,7 +146,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     typename OrientedPoint<Traits>::point_type position;
     typename OrientedPoint<Traits>::orientation_type orientation;
     auto result = quetzal::components_from_chars(first, last, spec,position, orientation);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         oriented_point = OrientedPoint<Traits>(position, orientation);
     }

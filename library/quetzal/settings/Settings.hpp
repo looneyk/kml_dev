@@ -203,7 +203,7 @@ void quetzal::settings::Settings::register_type(std::string_view type_name, std:
     assert(!registered_type(type_name) && std::is_enum_v<T> == !values.empty());
     assert(std::ranges::all_of(values, [](const std::string& value) { return quetzal::try_type<T>(value).has_value(); }));
 
-    m_registered_types.emplace(std::string(type_name), SettingType {std::type_index(typeid(T)), base_type<T>(), std::move(values),
+    m_registered_types.emplace(std::string(type_name), SettingType{std::type_index(typeid(T)), base_type<T>(), std::move(values),
         accepts_function<T>()});
     return;
 }

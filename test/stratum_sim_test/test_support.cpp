@@ -31,16 +31,16 @@ namespace
     {
         stratum_format::ZoneDocument document = stratum_format::read_zone(zone_spec.store.value(stratum_sim_test::zone_file_key).value());
         const stratum_sim::Position position = zone_spec.position();
-        document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
+        document.position = stratum_format::zone_position_type{position.x, position.y, position.z};
         document.is_unpopulated = false;
         return document;
     }
 
 } // namespace
 
-const stratum_sim::Config stratum_sim_test::g_test_config {"out/saves", "out/working", test_zone_count_max};
+const stratum_sim::Config stratum_sim_test::g_test_config{"out/saves", "out/working", test_zone_count_max};
 
-const stratum_format::GameManifestDocument stratum_sim_test::g_test_manifest {.notation = stratum_format::Notation::Block, .views = {"cell"},
+const stratum_format::GameManifestDocument stratum_sim_test::g_test_manifest{.notation = stratum_format::Notation::Block, .views = {"cell"},
     .view_menu = false, .default_view = "cell", .settings = {{"world.region_size.x", "7"}, {"world.start_zone", "0,0,-1"}}};
 
 stratum_sim::Generation stratum_sim_test::g_test_generation = test_generation();
@@ -71,7 +71,7 @@ stratum_sim::Generation stratum_sim_test::test_generation()
     generation.m_region_specs["staircase"] = test_region_spec("staircase");
     generation.m_region_specs["door"] = test_region_spec("door");
     generation.m_region_specs["dungeon"] = test_region_spec("staircase");
-    generation.m_world_definition.region_spec_trees["dungeon"] = {{.region_spec = stratum_sim::RegionSpec {.name = "dungeon", .region_spec = "dungeon"}}};
+    generation.m_world_definition.region_spec_trees["dungeon"] = {{.region_spec = stratum_sim::RegionSpec{.name = "dungeon", .region_spec = "dungeon"}}};
     generation.m_world_definition.starting_region = "dungeon";
 
     return generation;
@@ -80,13 +80,13 @@ stratum_sim::Generation stratum_sim_test::test_generation()
 //------------------------------------------------------------------------------
 stratum_format::RegionExtent stratum_sim_test::box_extent(const range_type& x, const range_type& y, const range_type& z)
 {
-    return stratum_format::RegionExtent {.arrangement = stratum_format::RegionExtent::Arrangement::Ranges, .boxes = {{x, y, z}}, .positions = {}};
+    return stratum_format::RegionExtent{.arrangement = stratum_format::RegionExtent::Arrangement::Ranges, .boxes = {{x, y, z}}, .positions = {}};
 }
 
 //------------------------------------------------------------------------------
 stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& test_zone)
 {
-    static const map<string, string> zone_files {{"door", "data/door.zone"}, {"staircase", "data/walls.zone"}};
+    static const map<string, string> zone_files{{"door", "data/door.zone"}, {"staircase", "data/walls.zone"}};
 
     stratum_sim::RegionSpec region_spec;
     region_spec.extent = box_extent(range_type(0, 0), range_type(0, 0), range_type(-10, 10));
@@ -116,7 +116,7 @@ stratum_sim::PersistentId stratum_sim_test::top_level_region(const stratum_sim::
 stratum_sim::ZoneSpec stratum_sim_test::test_zone_spec(stratum_sim::level_type level)
 {
     stratum_sim::ZoneSpec zone_spec;
-    zone_spec.set_position(stratum_sim::Position {0, 0, level});
+    zone_spec.set_position(stratum_sim::Position{0, 0, level});
     return zone_spec;
 }
 
@@ -164,7 +164,7 @@ stratum_sim_test::WallCounts stratum_sim_test::wall_counts(const stratum_sim::Di
     {
         for (stratum_sim::coord_type i = 0; i < grid.extent.x(); ++i)
         {
-            stratum_sim::discrete_point_type cell_position {i, j};
+            stratum_sim::discrete_point_type cell_position{i, j};
 
             for (const stratum_sim::discrete_vector_type& direction : stratum_sim::cardinal_directions)
             {
@@ -186,7 +186,7 @@ stratum_sim_test::WallCounts stratum_sim_test::wall_counts(const stratum_sim::Di
 
 //------------------------------------------------------------------------------
 stratum_sim_test::OpenZone::OpenZone(const string& filepath) :
-    id_allocator(stratum_sim::PersistentId {}),
+    id_allocator(stratum_sim::PersistentId{}),
     world(id_allocator),
     zone(world.create_zone(world.region_id, world.next_id()))
 {
@@ -220,7 +220,7 @@ flecs::entity stratum_sim_test::load_zone_unpopulated_at(stratum_sim::World& wor
 {
     flecs::entity zone = world.entity(world.worldspace(worldspace_id).zone_ids.at(position));
     stratum_format::ZoneDocument document = stratum_format::read_zone(filepath);
-    document.position = stratum_format::zone_position_type {position.x, position.y, position.z};
+    document.position = stratum_format::zone_position_type{position.x, position.y, position.z};
     stratum_sim::load_layout(zone, document);
     return zone;
 }
@@ -236,12 +236,12 @@ void stratum_sim_test::enter_zone_file(stratum_sim::Game& game, const string& fi
 {
     if (!game.character().entity())
     {
-        game.character().create(stratum_sim::CharacterSpec {});
+        game.character().create(stratum_sim::CharacterSpec{});
     }
 
     stratum_sim::PersistentId worldspace_id = game.world().create_worldspace("staircase", {{.region_spec = test_region_spec("staircase")}}, test_worldspace_seed);
     stratum_sim::Session& session = game.session();
-    session.enter(game.world().load_template(worldspace_id, zone_position_at_level(-1), filepath, stratum_sim::ZoneSpec {}), test_entry_type(session), test_entry_offset);
+    session.enter(game.world().load_template(worldspace_id, zone_position_at_level(-1), filepath, stratum_sim::ZoneSpec{}), test_entry_type(session), test_entry_offset);
 
     return;
 }

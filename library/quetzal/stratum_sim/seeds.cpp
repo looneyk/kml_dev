@@ -11,7 +11,7 @@
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::seed_type quetzal::stratum_sim::derived_seed(seed_type seed, std::span<const std::uint64_t> values)
 {
-    std::vector<std::uint32_t> words {static_cast<std::uint32_t>(seed), static_cast<std::uint32_t>(seed >> 32)};
+    std::vector<std::uint32_t> words{static_cast<std::uint32_t>(seed), static_cast<std::uint32_t>(seed >> 32)};
     for (std::uint64_t value : values)
     {
         words.push_back(static_cast<std::uint32_t>(value));

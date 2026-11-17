@@ -195,7 +195,7 @@ quetzal::id_type quetzal::stratum_sim::Session::advance(EventQueue& events, Cloc
 
     if (over())
     {
-        events.push(Died {actor_controlled});
+        events.push(Died{actor_controlled});
         return nullid;
     }
 

@@ -454,7 +454,7 @@ namespace quetzal
         std::string_view default_series_delimiter = series_delimiter_default)
     {
         const std::string_view series_delimiter = resolved_series_delimiter(spec, default_series_delimiter);
-        std::from_chars_result result {first, std::errc {}};
+        std::from_chars_result result{first, std::errc{}};
 
         for (size_t i = 0; i < elements.size(); ++i)
         {
@@ -471,7 +471,7 @@ namespace quetzal
 
             const char* element_last = i + 1 < elements.size() ? find_pattern(result.ptr, last, series_delimiter) : last;
             result = component_from_chars(result.ptr, element_last, elements[i], spec);
-            if (result.ec != std::errc {})
+            if (result.ec != std::errc{})
             {
                 return result;
             }
@@ -487,21 +487,21 @@ namespace quetzal
         std::string_view default_series_delimiter = series_delimiter_default)
     {
         const std::string_view series_delimiter = resolved_series_delimiter(spec, default_series_delimiter);
-        std::to_chars_result result {first, std::errc {}};
+        std::to_chars_result result{first, std::errc{}};
 
         for (size_t i = 0; i < elements.size(); ++i)
         {
             if (i > 0)
             {
                 result = write_pattern(result.ptr, last, series_delimiter);
-                if (result.ec != std::errc {})
+                if (result.ec != std::errc{})
                 {
                     return result;
                 }
             }
 
             result = component_to_chars(result.ptr, last, elements[i], spec);
-            if (result.ec != std::errc {})
+            if (result.ec != std::errc{})
             {
                 return result;
             }
@@ -517,7 +517,7 @@ namespace quetzal
     std::from_chars_result components_from_chars(const char* first, const char* last, const FormatSpec& spec, C&... components)
     {
         const std::string_view series_delimiter = resolved_series_delimiter(spec, series_delimiter_default);
-        std::from_chars_result result {first, std::errc {}};
+        std::from_chars_result result{first, std::errc{}};
 
         size_t i = 0;
         auto read_component = [&](auto& component)
@@ -537,7 +537,7 @@ namespace quetzal
             const bool bounded = ++i < sizeof...(C) && !series_convertible<std::remove_cvref_t<decltype(component)>>;
             const char* component_last = bounded ? find_pattern(result.ptr, last, series_delimiter) : last;
             result = component_from_chars(result.ptr, component_last, component, spec);
-            return result.ec == std::errc {};
+            return result.ec == std::errc{};
         };
 
         (read_component(components) && ...);
@@ -550,7 +550,7 @@ namespace quetzal
     std::to_chars_result components_to_chars(char* first, char* last, const FormatSpec& spec, const C&... components)
     {
         const std::string_view series_delimiter = resolved_series_delimiter(spec, series_delimiter_default);
-        std::to_chars_result result {first, std::errc {}};
+        std::to_chars_result result{first, std::errc{}};
 
         size_t i = 0;
         auto write_component = [&](const auto& component)
@@ -558,14 +558,14 @@ namespace quetzal
             if (i++ > 0)
             {
                 result = write_pattern(result.ptr, last, series_delimiter);
-                if (result.ec != std::errc {})
+                if (result.ec != std::errc{})
                 {
                     return false;
                 }
             }
 
             result = component_to_chars(result.ptr, last, component, spec);
-            return result.ec == std::errc {};
+            return result.ec == std::errc{};
         };
 
         (write_component(components) && ...);
@@ -578,7 +578,7 @@ namespace quetzal
     {
         const std::string_view separator = resolved_separator(spec);
         const brackets_type brackets = resolved_brackets(spec);
-        std::from_chars_result result {skip_whitespace(first, last), std::errc {}};
+        std::from_chars_result result{skip_whitespace(first, last), std::errc{}};
 
         if (!brackets[0].empty())
         {
@@ -603,7 +603,7 @@ namespace quetzal
             }
 
             result = std::from_chars(position, last, t[i]);
-            if (result.ec != std::errc {})
+            if (result.ec != std::errc{})
             {
                 return result;
             }
@@ -633,7 +633,7 @@ namespace quetzal
         const brackets_type brackets = resolved_brackets(spec);
 
         std::to_chars_result result = write_pattern(first, last, brackets[0]);
-        if (result.ec != std::errc {})
+        if (result.ec != std::errc{})
         {
             return result;
         }
@@ -643,7 +643,7 @@ namespace quetzal
             if (i > 0)
             {
                 result = write_pattern(result.ptr, last, separator);
-                if (result.ec != std::errc {})
+                if (result.ec != std::errc{})
                 {
                     return result;
                 }
@@ -652,7 +652,7 @@ namespace quetzal
             // The conditional translates negative zero
             element_type element = t[i];
             result = std::to_chars(result.ptr, last, element == element_type(0) ? element_type(0) : element);
-            if (result.ec != std::errc {})
+            if (result.ec != std::errc{})
             {
                 return result;
             }
@@ -951,7 +951,7 @@ namespace quetzal
         formatter.parse(parse_context);
         formatter.set_format_spec(stream_format_spec(const_cast<std::ostream&>(os))); // pword isn't const, though this only reads
 
-        return std::format("{}", formatted_value<T> {t, formatter});
+        return std::format("{}", formatted_value<T>{t, formatter});
     }
 
     //--------------------------------------------------------------------------

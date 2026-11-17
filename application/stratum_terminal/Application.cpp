@@ -119,8 +119,8 @@ namespace
                 settings::store().value<int64_t>("world.zone_size.y")));
         }
 
-        return stratum_gen::ZoneRequest {zone_spec.store.value_or(stratum_sim::name_key, std::string()),
-            stratum_gen::zone_position_type {position.x, position.y, position.z}, *seed, parameters};
+        return stratum_gen::ZoneRequest{zone_spec.store.value_or(stratum_sim::name_key, std::string()),
+            stratum_gen::zone_position_type{position.x, position.y, position.z}, *seed, parameters};
     }
 
     //--------------------------------------------------------------------------
@@ -312,8 +312,8 @@ stratum_terminal::KeyPress stratum_terminal::Application::next_key()
     }
 
     char c = m_script[m_script_slot++];
-    return c == key_escape ? KeyPress {Key::Escape} : c == key_enter ? KeyPress {Key::Enter} : c == key_delete ? KeyPress {Key::Delete}
-        : KeyPress {Key::Character, c};
+    return c == key_escape ? KeyPress{Key::Escape} : c == key_enter ? KeyPress{Key::Enter} : c == key_delete ? KeyPress{Key::Delete}
+        : KeyPress{Key::Character, c};
 }
 
 //------------------------------------------------------------------------------
@@ -465,7 +465,7 @@ void stratum_terminal::Application::draw_menu()
 {
     if (m_menu_page == MenuPage::Saves)
     {
-        std::vector<std::string> lines {"OPEN", ""};
+        std::vector<std::string> lines{"OPEN", ""};
 
         size_t name_width = 0;
         for (const stratum_sim::SavedGameDetails& details : m_saved_games)
@@ -487,7 +487,7 @@ void stratum_terminal::Application::draw_menu()
         return;
     }
 
-    std::vector<std::string> lines {"STRATUM", "", "n  New game"};
+    std::vector<std::string> lines{"STRATUM", "", "n  New game"};
 
     if (m_session.loaded())
     {
@@ -686,7 +686,7 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press)
     auto step = [this](value_type dx, value_type dy)
     {
         stratum_sim::vector_type direction(dx, dy, value_type(0));
-        m_session.character().set_intent(stratum_sim::Intent {direction, value_type(1), direction});
+        m_session.character().set_intent(stratum_sim::Intent{direction, value_type(1), direction});
     };
 
     switch (key_press.key)
@@ -705,10 +705,10 @@ void stratum_terminal::Application::submit_key(const KeyPress& key_press)
         case 'h': step(value_type(-1), value_type(0)); return;
         case 'l': step(value_type(1), value_type(0)); return;
 
-        case ' ': m_session.character().submit(stratum_sim::Interact {}); return;
+        case ' ': m_session.character().submit(stratum_sim::Interact{}); return;
 
         case '>':
-        case '<': m_session.character().submit(stratum_sim::Enter {}); return;
+        case '<': m_session.character().submit(stratum_sim::Enter{}); return;
     }
 
     return;
@@ -728,7 +728,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         else if (const stratum_sim::Blocked* pblocked = event.try_get<stratum_sim::Blocked>())
         {
             flecs::entity access_point = pblocked->blocking_wall_id != nullid
-                ? stratum_sim::find_access_point(m_session.zone(), stratum_sim::WallId {pblocked->blocking_wall_id}) : flecs::entity();
+                ? stratum_sim::find_access_point(m_session.zone(), stratum_sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
 
             if (access_point)
             {

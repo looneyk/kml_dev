@@ -195,8 +195,8 @@ namespace
 
         flecs::entity zone = world.entity("zone").add<Zone>();
         flecs::entity door = world.entity("door").child_of(zone).set<Health>({4});
-        flecs::entity facing_west = world.entity(flecs::Parent {door}, "facing_west").add<Facing>();
-        flecs::entity facing_east = world.entity(flecs::Parent {door}, "facing_east").add<Facing>().set<Health>({1});
+        flecs::entity facing_west = world.entity(flecs::Parent{door}, "facing_west").add<Facing>();
+        flecs::entity facing_east = world.entity(flecs::Parent{door}, "facing_east").add<Facing>().set<Health>({1});
 
         CHECK_CASE("a child knows its parent", facing_west.parent() == door && facing_east.parent() == door);
 
@@ -224,9 +224,9 @@ namespace
 
         // Nested entities, one inside the next: an entity has one parent in one storage, and a child may be a parent
         flecs::entity chest = world.entity("chest").child_of(zone);
-        flecs::entity box = world.entity(flecs::Parent {chest}, "box");
-        flecs::entity tin = world.entity(flecs::Parent {box}, "tin");
-        flecs::entity coin = world.entity(flecs::Parent {tin}, "coin");
+        flecs::entity box = world.entity(flecs::Parent{chest}, "box");
+        flecs::entity tin = world.entity(flecs::Parent{box}, "tin");
+        flecs::entity coin = world.entity(flecs::Parent{tin}, "coin");
 
         CHECK_CASE("a child of a child of a child knows its parent", coin.parent() == tin && tin.parent() == box && box.parent() == chest);
         CHECK_CASE("each level iterates its own children", [&]

@@ -195,7 +195,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     typename Orientation<Traits>::vector_type direction;
     typename Orientation<Traits>::vector_type right;
     auto result = quetzal::components_from_chars(first, last, spec,direction, right);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         orientation = Orientation<Traits>(direction, right);
     }
@@ -217,7 +217,7 @@ struct std::formatter<quetzal::geometry::Orientation<Traits>> : quetzal::series_
     template<typename FormatContext>
     auto format(const quetzal::geometry::Orientation<Traits>& orientation, FormatContext& ctx) const
     {
-        const std::array<quetzal::math::Vector<Traits>, 2> vectors {orientation.direction(), orientation.right()};
+        const std::array<quetzal::math::Vector<Traits>, 2> vectors{orientation.direction(), orientation.right()};
         return this->format_series(vectors, ctx);
     }
 };

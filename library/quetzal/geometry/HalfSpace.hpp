@@ -160,7 +160,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     typename HalfSpace<Traits>::separator_type halfspace_separator;
     typename HalfSpace<Traits>::vector_type exterior_direction;
     auto result = quetzal::components_from_chars(first, last, spec,halfspace_separator, exterior_direction);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         halfspace = HalfSpace<Traits>(halfspace_separator, exterior_direction);
     }

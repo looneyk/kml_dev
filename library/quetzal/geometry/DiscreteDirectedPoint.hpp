@@ -142,7 +142,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
     typename DiscreteDirectedPoint<T, N>::point_type position;
     typename DiscreteDirectedPoint<T, N>::direction_type direction;
     auto result = quetzal::components_from_chars(first, last, spec,position, direction);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         directed_point = DiscreteDirectedPoint<T, N>(position, direction);
     }

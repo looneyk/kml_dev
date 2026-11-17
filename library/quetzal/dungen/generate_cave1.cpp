@@ -115,7 +115,7 @@ namespace
                 }
 
                 area.clear();
-                pending.assign(1, point_type {x, y});
+                pending.assign(1, point_type{x, y});
                 seen[slot(size, x, y)] = true;
 
                 while (!pending.empty())

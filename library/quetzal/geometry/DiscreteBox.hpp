@@ -479,7 +479,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 {
     std::array<typename DiscreteBox<T, N>::point_type, 2> points;
     auto result = quetzal::series_from_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
-    if (result.ec == std::errc {})
+    if (result.ec == std::errc{})
     {
         box.set_bounds(points[0], points[1]);
     }
@@ -491,7 +491,7 @@ std::from_chars_result quetzal::geometry::from_chars(const char* first, const ch
 template<std::signed_integral T, size_t N> requires (N > 0)
 std::to_chars_result quetzal::geometry::to_chars(char* first, char* last, const DiscreteBox<T, N>& box, const FormatSpec& spec)
 {
-    const std::array<typename DiscreteBox<T, N>::point_type, 2> points {box.lower(), box.upper()};
+    const std::array<typename DiscreteBox<T, N>::point_type, 2> points{box.lower(), box.upper()};
     return quetzal::series_to_chars(first, last, points, spec, quetzal::bounds_delimiter_default);
 }
 
@@ -507,7 +507,7 @@ struct std::formatter<quetzal::geometry::DiscreteBox<T, N>> : quetzal::series_fo
     template<typename FormatContext>
     auto format(const quetzal::geometry::DiscreteBox<T, N>& box, FormatContext& ctx) const
     {
-        const std::array<quetzal::geometry::DiscretePoint<T, N>, 2> points {box.lower(), box.upper()};
+        const std::array<quetzal::geometry::DiscretePoint<T, N>, 2> points{box.lower(), box.upper()};
         return this->format_series(points, ctx);
     }
 };

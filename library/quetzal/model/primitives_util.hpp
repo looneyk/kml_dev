@@ -2736,7 +2736,7 @@ void quetzal::model::seal_sphere(M& mesh, id_type submesh_id, const SphereSpecif
     {
         if (spec.elevation_termination_lower.style == TerminationStyle::Butt)
         {
-            typename M::vector_type normal {T(0), T(0), T(-1)};
+            typename M::vector_type normal{T(0), T(0), T(-1)};
             id_type surface_id = mesh.create_surface(submesh_id, spec.elevation_termination_lower.names[0], {normal});
             id_type face_id = nullid;
             if (!bOpenSide)
@@ -2881,7 +2881,7 @@ bool bPlanar = math::float_eq(sum, T(0.5)); // abs? ...
         {
             if (spec.major_termination_lower.style == TerminationStyle::Butt)
             {
-                typename M::vector_type normal {math::denoise011(sin(theta0)), -math::denoise011(cos(theta0)), T(0)};
+                typename M::vector_type normal{math::denoise011(sin(theta0)), -math::denoise011(cos(theta0)), T(0)};
                 id_type surface_id = mesh.create_surface(submesh_id, spec.major_termination_lower.names[0], {normal});
                 id_type face_id = nullid;
                 if (!bOpenMinor)

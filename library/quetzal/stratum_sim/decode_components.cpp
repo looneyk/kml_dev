@@ -134,7 +134,7 @@ std::string quetzal::stratum_sim::component_path(const std::string& path, const 
 std::optional<std::string> quetzal::stratum_sim::check_decodable(const flecs::world& world, const stratum_format::raw_values_type& components,
     const std::string& path)
 {
-    auto unbound = [](stratum_format::stored_entity_id_type id) { return EntityReference {PersistentId {id}, flecs::entity()}; };
+    auto unbound = [](stratum_format::stored_entity_id_type id) { return EntityReference{PersistentId{id}, flecs::entity()}; };
 
     for (const auto& [name, value] : component_objects(components))
     {

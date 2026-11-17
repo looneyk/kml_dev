@@ -146,7 +146,7 @@ quetzal::stratum_sim::WorldDefinition::region_spec_tree_type quetzal::stratum_si
     {
         const seed_type seed = random.seed();
         const RegionSpec composed = composed_region_spec(node.region_spec, region_specs);
-        const KeyValueStore symbols = node.parent_id != nullid ? parent_symbols(resolved[node.parent_id].region_spec) : KeyValueStore {};
+        const KeyValueStore symbols = node.parent_id != nullid ? parent_symbols(resolved[node.parent_id].region_spec) : KeyValueStore{};
 
         PatternResolver resolver(symbols, PatternResolver::random_type(composed.seed.value_or(seed)), world_seed, script_limits);
         RegionSpec resolved_spec = resolve_region_spec(composed, resolver);

@@ -20,7 +20,7 @@ namespace quetzal::stratum_sim
         std::filesystem::path saves_directory;   // Each save is a subdirectory
         std::filesystem::path working_directory; // Contains only the game directory of the game in progress
         std::size_t zone_count_max = 0;          // 0 for no limit
-        ScriptLimits pattern_limits {.memory_size_max = 16 << 20, .instruction_count_max = 1'000'000};
+        ScriptLimits pattern_limits{.memory_size_max = 16 << 20, .instruction_count_max = 1'000'000};
         std::filesystem::path assets_directory;
         std::filesystem::path user_directory;    // Everything the program creates while it runs
         std::filesystem::path logs_directory;

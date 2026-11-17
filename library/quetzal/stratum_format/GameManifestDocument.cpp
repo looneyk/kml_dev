@@ -18,7 +18,7 @@ namespace
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
 
-    constexpr std::array<std::string_view, 7> file_keys {"format", "version", "notation", "views", "view_menu", "default_view", "settings"};
+    constexpr std::array<std::string_view, 7> file_keys{"format", "version", "notation", "views", "view_menu", "default_view", "settings"};
 
     //--------------------------------------------------------------------------
     GameManifestDocument read_game_manifest_document(const raw_values_type& v)

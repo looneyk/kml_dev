@@ -46,16 +46,16 @@ namespace
     {
         CHECK_CASE("is a uniform random bit generator", uniform_random_bit_generator<engine_type>);
 
-        engine_type from_state(engine_type::state_type {1, 2, 3, 4});
+        engine_type from_state(engine_type::state_type{1, 2, 3, 4});
         CHECK_CASE_EQUAL("from the state 1, 2, 3, 4, draws the reference implementation's values", draw(from_state, 10),
-            (vector<uint64_t> {11520, 0, 1509978240, 1215971899390074240, 1216172134540287360, 607988272756665600, 16172922978634559625ull,
+            (vector<uint64_t>{11520, 0, 1509978240, 1215971899390074240, 1216172134540287360, 607988272756665600, 16172922978634559625ull,
             8476171486693032832, 10595114339597558777ull, 2904607092377533576}));
 
         engine_type seeded(0);
         CHECK_CASE("seeded with 0, its state is splitmix64's first four values from 0",
-            seeded == engine_type(engine_type::state_type {0xe220a8397b1dcdaf, 0x6e789e6aa1b965f4, 0x06c45d188009454f, 0xf88bb8a8724c81ec}));
+            seeded == engine_type(engine_type::state_type{0xe220a8397b1dcdaf, 0x6e789e6aa1b965f4, 0x06c45d188009454f, 0xf88bb8a8724c81ec}));
         CHECK_CASE_EQUAL("seeded with 0, draws the values of that state", draw(seeded, 5),
-            (vector<uint64_t> {11091344671253066420ull, 13793997310169335082ull, 1900383378846508768, 7684712102626143532, 13521403990117723737ull}));
+            (vector<uint64_t>{11091344671253066420ull, 13793997310169335082ull, 1900383378846508768, 7684712102626143532, 13521403990117723737ull}));
 
         CHECK_CASE("a default-constructed engine is seeded with the default seed", engine_type() == engine_type(engine_type::default_seed));
 
@@ -114,14 +114,14 @@ namespace
         {
             triangulars.push_back(sequence.triangular(0.0, 1.0));
         }
-        vector<int> shuffled {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        vector<int> shuffled{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         sequence.shuffle(shuffled);
         CHECK_CASE("seeded with 20261022, draws the values of the reference computation",
-            integers == vector<int> {7, 0, 0, 6, 6}
-            && reals == vector<double> {0.6576664257676362, 0.10932904142476729, 0.676894204682186}
-            && closed == vector<int> {-1, 5, 1, 4, 3}
-            && triangulars == vector<double> {0.11601881464091612, -0.39400299462655497, 0.5319746677851547}
-            && shuffled == vector<int> {9, 6, 0, 2, 8, 1, 3, 5, 7, 4});
+            integers == vector<int>{7, 0, 0, 6, 6}
+            && reals == vector<double>{0.6576664257676362, 0.10932904142476729, 0.676894204682186}
+            && closed == vector<int>{-1, 5, 1, 4, 3}
+            && triangulars == vector<double>{0.11601881464091612, -0.39400299462655497, 0.5319746677851547}
+            && shuffled == vector<int>{9, 6, 0, 2, 8, 1, 3, 5, 7, 4});
 
         random_type closed_sequence(20261023);
         vector<double> closed_reals;
@@ -147,13 +147,13 @@ namespace
             mixed_integers.push_back(closed_sequence.random_closed(10));
         }
         CHECK_CASE("seeded with 20261023, draws the closed and half-open values of the reference computation",
-            closed_reals == vector<double> {0.7597855801818301, 0.5594030035670937, 0.13107050224712602, 0.59324933165946, 0.9919538129350103}
-            && mixed_integers == vector<int> {5, 3, 2, 0, -5, 2, 9, 2});
+            closed_reals == vector<double>{0.7597855801818301, 0.5594030035670937, 0.13107050224712602, 0.59324933165946, 0.9919538129350103}
+            && mixed_integers == vector<int>{5, 3, 2, 0, -5, 2, 9, 2});
 
         random_type random(1);
         constexpr int draw_count = 100000;
 
-        array<int, 7> below_counts {};
+        array<int, 7> below_counts{};
         bool below_bounded = true;
         for (int i = 0; i < draw_count; ++i)
         {
@@ -169,7 +169,7 @@ namespace
             return count > draw_count / 7 * 9 / 10 && count < draw_count / 7 * 11 / 10;
         }));
 
-        array<int, 7> half_open_counts {};
+        array<int, 7> half_open_counts{};
         bool half_open_bounded = true;
         for (int i = 0; i < draw_count; ++i)
         {
@@ -185,7 +185,7 @@ namespace
             return count > draw_count / 7 * 9 / 10 && count < draw_count / 7 * 11 / 10;
         }));
 
-        array<int, 7> closed_counts {};
+        array<int, 7> closed_counts{};
         bool closed_bounded = true;
         for (int i = 0; i < draw_count; ++i)
         {
@@ -201,7 +201,7 @@ namespace
             return count > draw_count / 7 * 9 / 10 && count < draw_count / 7 * 11 / 10;
         }));
 
-        array<int, 7> closed_below_counts {};
+        array<int, 7> closed_below_counts{};
         bool closed_below_bounded = true;
         for (int i = 0; i < draw_count; ++i)
         {
@@ -285,16 +285,16 @@ namespace
         CHECK_CASE("shuffle permutes the range", sorted == identity && permutation != identity);
 
         vector<int> empty;
-        vector<int> single {7};
+        vector<int> single{7};
         random.shuffle(empty);
         random.shuffle(single);
-        CHECK_CASE("shuffle leaves an empty range and a range of one unchanged", empty.empty() && single == vector<int> {7});
+        CHECK_CASE("shuffle leaves an empty range and a range of one unchanged", empty.empty() && single == vector<int>{7});
 
-        vector<int> partial {0, 1, 2, 3, 4, 5};
+        vector<int> partial{0, 1, 2, 3, 4, 5};
         random.shuffle(partial.begin() + 3, partial.end());
         CHECK_CASE("shuffle of part of a range leaves the rest unchanged", partial[0] == 0 && partial[1] == 1 && partial[2] == 2);
 
-        vector<int> choices {1, 2, 3};
+        vector<int> choices{1, 2, 3};
         int& chosen = random.choose(choices);
         chosen = 10;
         CHECK_CASE("choose returns a reference to an element of the range", ranges::count(choices, 10) == 1);

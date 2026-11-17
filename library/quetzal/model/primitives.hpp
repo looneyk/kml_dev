@@ -894,7 +894,7 @@ quetzal::id_type quetzal::model::create_box(M& mesh, const std::string& name, co
 
     for (size_t i = 0; i < 6; ++i)
     {
-        typename M::face_attributes_type af {avs[i * 4].normal()};
+        typename M::face_attributes_type af{avs[i * 4].normal()};
         id_type surface_id = mesh.create_surface(submesh_id, names[i], af);
         mesh.create_face(surface_id, nh + i * 4, af);
     }
@@ -4220,7 +4220,7 @@ quetzal::id_type quetzal::model::create_dodecahedron(M& mesh, const std::string&
 
     for (size_t i = 0; i < 60; ++i)
     {
-        typename M::vertex_attributes_type av {positions[vertex_position_ids[i]], {}, texcoords[i % 5]};
+        typename M::vertex_attributes_type av{positions[vertex_position_ids[i]], {}, texcoords[i % 5]};
         mesh.create_vertex(nh + i, av);
         auto hd = halfedge_descriptors[i];
         mesh.create_halfedge(nh + hd[0], nh + hd[1], nh + hd[2], nv + hd[3], nf + hd[4]);

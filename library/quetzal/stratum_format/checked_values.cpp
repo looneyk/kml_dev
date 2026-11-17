@@ -238,7 +238,7 @@ quetzal::stratum_format::surface_point_type quetzal::stratum_format::detail::rea
 quetzal::stratum_format::discrete_vector_type quetzal::stratum_format::detail::read_direction(const raw_values_type& v, const std::string& path)
 {
     const raw_values_type& a = fixed_array(v, path, 2);
-    discrete_vector_type direction {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
+    discrete_vector_type direction{coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1))};
 
     if (std::abs(direction.x()) + std::abs(direction.y()) != 1)
     {

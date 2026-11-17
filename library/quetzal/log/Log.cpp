@@ -100,7 +100,7 @@ void quetzal::log::Log::write(LogLevel level, std::string_view category, std::st
         return;
     }
 
-    LogEntry entry {std::chrono::system_clock::now(), level, std::string(category), std::string(message), std::this_thread::get_id()};
+    LogEntry entry{std::chrono::system_clock::now(), level, std::string(category), std::string(message), std::this_thread::get_id()};
 
     std::scoped_lock lock(m_mutex);
     write_entry(entry);

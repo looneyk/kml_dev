@@ -44,7 +44,7 @@ namespace
     {
         object(v, path);
 
-        Barrier barrier {read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")), {}};
+        Barrier barrier{read_cell_position(required_member(v, path, "cell_position"), member_path(path, "cell_position")), {}};
 
         if (const raw_values_type* p = member(v, "normal"); p != nullptr)
         {
@@ -152,7 +152,7 @@ namespace
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position {i, j};
+                discrete_point_type cell_position{i, j};
                 if (!floor_cell(cells, cell_position))
                 {
                     continue;
@@ -388,14 +388,14 @@ namespace
             const discrete_point_type& a = junctions[k];
             const discrete_point_type& b = junctions[(k + 1) % n];
 
-            discrete_vector_type step {sign(b.i() - a.i()), sign(b.j() - a.j())};
-            discrete_vector_type inward {-turn * step.y(), turn * step.x()};
-            discrete_vector_type outward {-inward.x(), -inward.y()};
+            discrete_vector_type step{sign(b.i() - a.i()), sign(b.j() - a.j())};
+            discrete_vector_type inward{-turn * step.y(), turn * step.x()};
+            discrete_vector_type outward{-inward.x(), -inward.y()};
 
             for (discrete_point_type junction = a; junction != b; junction += step)
             {
-                discrete_point_type lower {std::min(junction.i(), junction.i() + step.x()), std::min(junction.j(), junction.j() + step.y())};
-                discrete_point_type inside {lower.i() - (inward.x() < 0 ? 1 : 0), lower.j() - (inward.y() < 0 ? 1 : 0)};
+                discrete_point_type lower{std::min(junction.i(), junction.i() + step.x()), std::min(junction.j(), junction.j() + step.y())};
+                discrete_point_type inside{lower.i() - (inward.x() < 0 ? 1 : 0), lower.j() - (inward.y() < 0 ? 1 : 0)};
                 discrete_point_type outside = inside + outward;
 
                 assert(on_grid(cells, inside));
@@ -449,7 +449,7 @@ namespace
             fail(path, "one of perimeter and cell_position is given, and never both");
         }
 
-        Room room {Perimeter {}, {}};
+        Room room{Perimeter{}, {}};
 
         if (perimeter != nullptr)
         {
@@ -528,7 +528,7 @@ namespace
             discrete_box_type box;
             for (const auto& cell_position : cover)
             {
-                box = quetzal::geometry::op_union(box, discrete_box_type(cell_position, discrete_vector_type {1, 1}));
+                box = quetzal::geometry::op_union(box, discrete_box_type(cell_position, discrete_vector_type{1, 1}));
             }
 
             bounds.push_back(box);
@@ -687,7 +687,7 @@ namespace
             }
 
             std::string cell_path = member_path(path, "cell_position");
-            FlatCell flat_cell {*role, read_cell_position(required_member(v, path, "cell_position"), cell_path)};
+            FlatCell flat_cell{*role, read_cell_position(required_member(v, path, "cell_position"), cell_path)};
             check_on_grid(cells, flat_cell.cell_position, cell_path);
 
             site.address = flat_cell;
@@ -695,15 +695,15 @@ namespace
         else if (const raw_values_type* p = member(v, "cell_position"); p != nullptr)
         {
             std::string cell_path = member_path(path, "cell_position");
-            ZoneCell zone_cell {read_cell_position(*p, cell_path)};
-            check_on_grid(cells, zone_cell.cell_position, cell_path);
+            discrete_point_type cell_position = read_cell_position(*p, cell_path);
+            check_on_grid(cells, cell_position, cell_path);
 
-            if (!floor_door_cell(cells, zone_cell.cell_position))
+            if (!floor_door_cell(cells, cell_position))
             {
                 fail(cell_path, "not a cell an actor can stand in");
             }
 
-            site.address = zone_cell;
+            site.address = ZoneCell{cell_position};
         }
 
         std::string relation_path = member_path(path, "relation");
@@ -787,7 +787,7 @@ namespace
 
         const std::string path = "layout.components.position";
         const raw_values_type& a = fixed_array(*p, path, 3);
-        return zone_position_type {coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1)),
+        return zone_position_type{coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1)),
             coord_value(a[2], element_path(path, 2))};
     }
 
@@ -998,7 +998,7 @@ namespace
             }
 
             bool sited = false;
-            std::vector<size_t> pending {root};
+            std::vector<size_t> pending{root};
 
             while (!pending.empty() && !sited)
             {
@@ -1221,7 +1221,7 @@ namespace
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position {i, j};
+                discrete_point_type cell_position{i, j};
                 if (!stair_cell(cells, cell_position))
                 {
                     continue;
@@ -1461,7 +1461,7 @@ namespace
         if (const raw_values_type* p = member(v, "generator"); p != nullptr)
         {
             object(*p, "generator");
-            document.generator = Generator {string_value(required_member(*p, "generator", "name"), "generator.name"),
+            document.generator = Generator{string_value(required_member(*p, "generator", "name"), "generator.name"),
                 text_values(required_member(*p, "generator", "parameters"), "generator.parameters")};
         }
 

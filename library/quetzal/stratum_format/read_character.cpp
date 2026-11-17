@@ -287,7 +287,7 @@ namespace
 
         std::string inventory_path = member_path(path, "inventory");
         const raw_values_type& inventory = array(required_member(character, path, "inventory"), inventory_path);
-        std::set<stored_entity_id_type> ids {document.id};
+        std::set<stored_entity_id_type> ids{document.id};
 
         for (size_t i = 0; i < inventory.size(); ++i)
         {
