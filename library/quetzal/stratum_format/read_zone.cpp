@@ -817,11 +817,6 @@ namespace
 
         access_point.order = order.get<std::uint64_t>();
 
-        if (const raw_values_type* region_spec = member(v, "region_spec"); region_spec != nullptr)
-        {
-            access_point.region_spec = string_value(*region_spec, member_path(path, "region_spec"));
-        }
-
         const raw_values_type* target = member(v, "target");
         if (target == nullptr)
         {
@@ -831,10 +826,10 @@ namespace
         std::string target_path = member_path(path, "target");
         if (target->is_string())
         {
-            std::optional<AccessPointTarget> parsed = parse_access_point_target(target->get<std::string>());
+            std::optional<AccessPointDestination> parsed = parse_access_point_destination(target->get<std::string>());
             if (!parsed.has_value())
             {
-                fail(target_path, "not a target written [region/]zone[@position]");
+                fail(target_path, "not an access point target");
             }
 
             access_point.target = *parsed;

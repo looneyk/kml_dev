@@ -15,7 +15,6 @@ add_library(quetzal_dungen STATIC
     place_staircases.cpp
     remove_doors.cpp
     Room.cpp
-    Staircase.cpp
     Wall.cpp
     write_zone.cpp
     Zone.cpp
@@ -35,7 +34,6 @@ add_library(quetzal_dungen STATIC
     place_staircases.hpp
     remove_doors.hpp
     Room.hpp
-    Staircase.hpp
     types.hpp
     Wall.hpp
     write_zone.hpp

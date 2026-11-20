@@ -1159,36 +1159,6 @@ std::filesystem::path quetzal::stratum_sim::World::saved_zone_path(PersistentId 
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::World::require_entry_point(flecs::entity access_point, flecs::entity zone, flecs::entity arrival_type,
-    level_type offset)
-{
-    flecs::entity entry = entry_point(zone, arrival_type, offset);
-
-    if (!entry)
-    {
-        const std::string message = std::format("zone {}, made for access point {}, has no access point of the type '{}' whose target is {:+}",
-            zone.get<PersistentId>().id, access_point.get<PersistentId>().id, arrival_type.name().c_str(), offset);
-        discard_made_zone(zone);
-        log::logger().error("stratum_sim", "{}", message);
-        throw std::runtime_error(message);
-    }
-
-    return entry;
-}
-
-//------------------------------------------------------------------------------
-void quetzal::stratum_sim::World::discard_made_zone(flecs::entity zone)
-{
-    assert(zone && zone.has<Zone>());
-
-    PersistentId zone_id = zone.get<PersistentId>();
-    unload_worldspace(worldspace_of(zone));
-    std::erase_if(m_entity_zones, [zone_id](const auto& entity_zone) { return entity_zone.second == zone_id; });
-
-    return;
-}
-
-//------------------------------------------------------------------------------
 void quetzal::stratum_sim::World::unload_zone(flecs::entity zone)
 {
     assert(zone && zone.has<Zone>());
@@ -1250,41 +1220,29 @@ void quetzal::stratum_sim::World::relocate(flecs::entity e, flecs::entity zone, 
 flecs::entity quetzal::stratum_sim::World::resolve_target(flecs::entity access_point)
 {
     assert(access_point.has<AccessPoint>() && access_point.get<AccessPoint>().target.has_value()
-        && std::holds_alternative<stratum_format::AccessPointTarget>(*access_point.get<AccessPoint>().target));
+        && std::holds_alternative<stratum_format::AccessPointDestination>(*access_point.get<AccessPoint>().target));
 
-    const auto& target = std::get<stratum_format::AccessPointTarget>(*access_point.get<AccessPoint>().target);
+    const auto& target = std::get<stratum_format::AccessPointDestination>(*access_point.get<AccessPoint>().target);
 
-    if (std::holds_alternative<std::string>(target.zone) || target.position.has_value())
+    flecs::entity zone_from = stratum_sim::zone_of(access_point);
+    assert(zone_from.has<Position>());
+
+    const std::optional<level_type> relative_level = target.zone_extended_name.has_value()
+        ? stratum_format::relative_zone_level(*target.zone_extended_name) : std::nullopt;
+
+    if (!relative_level.has_value())
     {
-        const std::string message = std::format("access point {} has a target with a named zone or a position, which is not resolved",
+        const std::string message = std::format("access point {} has a target with no relative zone level, which is not resolved",
             access_point.get<PersistentId>().id);
         log::logger().error("stratum_sim", "{}", message);
         throw std::runtime_error(message);
     }
 
-    flecs::entity zone_from = stratum_sim::zone_of(access_point);
-    assert(zone_from.has<Position>());
-
-    level_type level_from = zone_from.get<Position>().z;
-    const auto* relative = std::get_if<stratum_format::RelativeZone>(&target.zone);
-    level_type level = relative != nullptr ? level_from + relative->offset : std::get<stratum_format::AbsoluteZone>(target.zone).level;
-    level_type offset = level - level_from;
+    const level_type offset = *relative_level;
+    const level_type level = zone_from.get<Position>().z + offset;
 
     flecs::entity arrival_type = access_point.target<AccessType>().get<Arrival>().access_type;
-    const std::optional<std::string>& region_spec_name = access_point.get<AccessPoint>().region_spec;
-    PersistentId worldspace_id = worldspace_of(zone_from);
-
-    if (target.region.has_value() && !region_spec_name.has_value())
-    {
-        const PersistentId made = create_worldspace(*target.region,
-            {RegionSpecNode{.region_spec = value_at(m_generation.m_region_specs, *target.region, "region spec")}}, target_seed(access_point));
-        return require_entry_point(access_point, load_zone_at(made, new_zone_position(made, level)), arrival_type, -offset);
-    }
-
-    if (target.region.has_value())
-    {
-        worldspace_id = target_worldspace(*target.region, region_spec_name.value(), target_seed(access_point));
-    }
+    const PersistentId worldspace_id = target.region_spec_name.has_value() ? target_worldspace(access_point) : worldspace_of(zone_from);
 
     flecs::entity zone = load_zone_at(worldspace_id, new_zone_position(worldspace_id, level));
     flecs::entity entry = entry_point(zone, arrival_type, -offset);
@@ -1752,57 +1710,45 @@ void quetzal::stratum_sim::World::fill_zone(flecs::entity zone, const stratum_fo
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::World::create_target_worldspaces(flecs::entity zone)
 {
-    // <worldspace name, region spec name, seed>
-    std::vector<std::tuple<std::string, std::string, seed_type>> target_worldspaces;
+    std::vector<flecs::entity> access_points;
 
     m_entities.query_builder<const AccessPoint>()
         .with(flecs::ChildOf, zone)
         .build()
         .each([&](flecs::entity e, const AccessPoint& access_point)
         {
-            if (access_point.region_spec.has_value())
+            const auto* unbound = access_point.target.has_value() ? std::get_if<stratum_format::AccessPointDestination>(&*access_point.target) : nullptr;
+
+            if (unbound != nullptr && unbound->region_spec_name.has_value())
             {
-                target_worldspaces.emplace_back(target_worldspace_name(e), access_point.region_spec.value(), target_seed(e));
+                access_points.push_back(e);
             }
         });
 
-    for (const auto& [name, region_spec_name, seed] : target_worldspaces)
+    for (flecs::entity access_point : access_points)
     {
-        target_worldspace(name, region_spec_name, seed);
+        target_worldspace(access_point);
     }
 
     return;
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::World::target_worldspace_name(flecs::entity access_point) const
+quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::target_worldspace(flecs::entity access_point)
 {
-    const AccessPoint& point = access_point.get<AccessPoint>();
-    const auto* unbound = point.target.has_value() ? std::get_if<stratum_format::AccessPointTarget>(&*point.target) : nullptr;
+    const auto* target = std::get_if<stratum_format::AccessPointDestination>(&access_point.get<AccessPoint>().target.value());
+    assert(target != nullptr && target->region_spec_name.has_value());
 
-    if (unbound == nullptr || !unbound->region.has_value())
-    {
-        const std::string message = std::format("access point {} has a region spec, and its target is not unbound with a region",
-            access_point.get<PersistentId>().id);
-        log::logger().error("stratum_sim", "{}", message);
-        throw std::runtime_error(message);
-    }
+    const std::string& region_spec_name = *target->region_spec_name;
+    const std::string name = std::format("{}_{}", region_spec_name, access_point.get<PersistentId>().id);
 
-    return unbound->region.value();
-}
-
-//------------------------------------------------------------------------------
-quetzal::stratum_sim::PersistentId quetzal::stratum_sim::World::target_worldspace(std::string_view name, std::string_view region_spec_name,
-    seed_type seed)
-{
     auto named = std::ranges::find(m_worldspaces, name, &Worldspace::name);
     if (named != m_worldspaces.end())
     {
         return named->worldspace_id;
     }
 
-    return create_worldspace(name, {RegionSpecNode{.region_spec = value_at(m_generation.m_region_specs, std::string(region_spec_name), "region spec")}},
-        seed);
+    return create_worldspace(name, {RegionSpecNode{.region_spec = value_at(m_generation.m_region_specs, region_spec_name, "region spec")}}, target_seed(access_point));
 }
 
 //------------------------------------------------------------------------------

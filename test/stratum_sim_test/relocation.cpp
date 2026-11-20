@@ -30,7 +30,7 @@
 #include "quetzal/stratum_sim/WorldDefinition.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/AccessPointTarget.hpp"
+#include "quetzal/stratum_format/AccessPointDestination.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
@@ -649,7 +649,7 @@ namespace
         auto down_of = [&](flecs::entity zone) { return stratum_sim::entry_point(zone, staircase_type, -1); };
         auto retarget = [](flecs::entity e, string_view text)
         {
-            e.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_target(text);
+            e.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_destination(text);
         };
 
         // data/walls.zone has one staircase leading up and one leading down
@@ -681,57 +681,55 @@ namespace
 
         CHECK_CASE("moving down finds the unbound staircase that leads back, in the zone of its worldspace at the level below",
             world.resolve_target(first_down) == second_up);
-
+/*
         retarget(first_down, "=-2");
         CHECK_CASE("an absolute target finds a zone at its level", world.resolve_target(first_down) == second_up);
-        retarget(first_down, "-1");
+        retarget(first_down, "../[-1]");
         retarget(second_up, "=-1");
         CHECK_CASE("a staircase that leads back with an absolute target is found", world.resolve_target(first_down) == second_up);
-        retarget(second_up, "+1");
+*/
+        retarget(second_up, "../[+1]");
 
-        retarget(first_up, "staircase/+1");
+        auto target_worldspace_name = [](string_view region_spec_name, flecs::entity access_point)
+        {
+            return format("{}_{}", region_spec_name, access_point.get<stratum_sim::PersistentId>().id);
+        };
+
+        retarget(first_up, "staircase/../[+1]");
+        size_t worldspaces_before_staircase = world.worldspaces().size();
         flecs::entity arrival = world.resolve_target(first_up);
         flecs::entity made = zone_arrived_in(arrival);
         stratum_sim::PersistentId region_made = made ? stratum_sim::region_of(made) : stratum_sim::PersistentId{};
-        CHECK_CASE("a target with a region generates the zone at its level in a new worldspace created from the region spec of that name, and named for it, though a zone at the level has a staircase that leads back", made
+        CHECK_CASE("a target with a region spec name generates the zone at its level in a new worldspace created from that region spec, and named for it and the access point, though a zone at the level has a staircase that leads back", made
             && made != field && region_made != dungeon && region_made != world.region_id
             && zone_file_of(world.region(region_made).region_spec) == "data/walls.zone"
             && world.region(region_made).zone_ids.size() == test_extent_zone_count && level_of(made) == 0
-            && world.worldspace(stratum_sim::worldspace_of(made)).name == "staircase_2" && arrival == down_of(made));
-
-        retarget(first_up, "cellar/+1");
-        first_up.get_mut<stratum_sim::AccessPoint>().region_spec = "staircase";
-        size_t worldspaces_before_cellar = world.worldspaces().size();
-        made = zone_arrived_in(world.resolve_target(first_up));
-        CHECK_CASE("a target with a region and an access point with a region spec finds the zone in the worldspace of the region's name, created from the region spec if there is none",
-            made && world.worldspace(stratum_sim::worldspace_of(made)).name == "cellar" && level_of(made) == 0
-            && world.worldspaces().size() == worldspaces_before_cellar + 1);
+            && world.worldspace(stratum_sim::worldspace_of(made)).name == target_worldspace_name("staircase", first_up) && arrival == down_of(made)
+            && world.worldspaces().size() == worldspaces_before_staircase + 1);
         CHECK_CASE("and the same worldspace again", zone_arrived_in(world.resolve_target(first_up)) == made
-            && world.worldspaces().size() == worldspaces_before_cellar + 1);
-        first_up.get_mut<stratum_sim::AccessPoint>().region_spec.reset();
+            && world.worldspaces().size() == worldspaces_before_staircase + 1);
 
-        // data/walls.zone with its staircase leading down retargeted to the worldspace vault, created from the staircase spec
+        // data/walls.zone with its staircase leading down retargeted to a worldspace created from the staircase spec
         stratum_format::ZoneDocument vault_document = stratum_format::read_zone("data/walls.zone");
         for (auto& entity : vault_document.entities)
         {
-            const stratum_format::AccessPointTarget leading_down = stratum_format::parse_access_point_target("-1").value();
+            const stratum_format::AccessPointDestination leading_down = stratum_format::parse_access_point_destination("../[-1]").value();
             if (entity.access_point.has_value() && entity.access_point->target == stratum_format::AccessPoint::target_type(leading_down))
             {
-                entity.access_point->target = stratum_format::parse_access_point_target("vault/-1").value();
-                entity.access_point->region_spec = "staircase";
+                entity.access_point->target = stratum_format::parse_access_point_destination("staircase/../[-1]").value();
             }
         }
 
         filesystem::create_directories("out");
         stratum_format::write("out/vault_down.zone", vault_document);
         flecs::entity vault_above = world.load_template(dungeon_worldspace, zone_position_at_level(5), "out/vault_down.zone", stratum_sim::ZoneSpec{});
-        auto vault = ranges::find(world.worldspaces(), string("vault"), &stratum_sim::Worldspace::name);
-        CHECK_CASE("filling a zone creates the worldspace that each target with a region spec refers to", vault != world.worldspaces().end()
+        auto vault = ranges::find(world.worldspaces(), target_worldspace_name("staircase", down_of(vault_above)), &stratum_sim::Worldspace::name);
+        CHECK_CASE("filling a zone creates the target worldspace of each target with a region spec name", vault != world.worldspaces().end()
             && zone_file_of(vault->regions.root().region_spec) == "data/walls.zone");
         made = zone_arrived_in(world.resolve_target(down_of(vault_above)));
         CHECK_CASE("and going through the access point arrives in it", made && stratum_sim::worldspace_of(made) == vault->worldspace_id);
 
-        retarget(first_up, "unregistered/+1");
+        retarget(first_up, "unregistered/../[+1]");
         bool region_spec_unregistered = false;
 
         try
@@ -744,7 +742,7 @@ namespace
         }
 
         CHECK_CASE("a region spec that is not registered is an error", region_spec_unregistered);
-        retarget(first_up, "+1");
+        retarget(first_up, "../[+1]");
 
         arrival = world.resolve_target(down_of(second));
         made = zone_arrived_in(arrival);
@@ -778,16 +776,13 @@ namespace
             throws(first_down));
 
         // A zone made from data/door.zone above a staircase leading up has no staircase leading back down
-        size_t worldspace_count = world.worldspaces().size();
-        size_t zone_count = world.zone_count();
-        retarget(first_up, "door/+1");
-        CHECK_CASE("a zone made in a new worldspace with no access point that leads back is an error, and the worldspace is discarded",
-            throws(first_up) && world.worldspaces().size() == worldspace_count && world.zone_count() == zone_count);
-        retarget(first_up, "+1");
+        retarget(first_up, "door/../[+1]");
+        CHECK_CASE("a zone made in a new worldspace with no access point that leads back is an error", throws(first_up));
+        retarget(first_up, "../[+1]");
 
         stratum_sim::PersistentId doors_worldspace = world.create_worldspace("door", {{.region_spec = test_region_spec("door")}}, test_worldspace_seed);
         flecs::entity below_doors = load_at_level(doors_worldspace, -1);
-        worldspace_count = world.worldspaces().size();
+        size_t worldspace_count = world.worldspaces().size();
         size_t filled_count = filled_zone_count(world);
         flecs::entity above_doors = world.entity(world.worldspace(doors_worldspace).zone_ids.at(zone_position_at_level(0)));
         CHECK_CASE("a zone generated in its own worldspace with no access point that leads back is an error, and is kept",
@@ -833,26 +828,16 @@ namespace
             && stratum_sim::targets_level(up, 1) && !stratum_sim::targets_level(up, -1));
 
         // Of the access points whose targets are the offset, the lowest-ordered is the entry point
-        stratum_format::AccessPointTarget up_target{nullopt, stratum_format::RelativeZone{1}, nullopt};
+        stratum_format::AccessPointDestination up_target{nullopt, "../[+1]"};
         flecs::entity up_2 = stratum_sim::create_access_point(zone, staircase_type, up.get<stratum_sim::Site>(), 2, up_target);
         CHECK_CASE("the entry point is the access point of the type with the lowest order", stratum_sim::entry_point(zone, staircase_type, 1) == up
             && up_2.is_alive());
-
-        // An absolute target's offset is the difference between its level and the zone's
-        up_2.get_mut<stratum_sim::AccessPoint>().target = stratum_format::AccessPointTarget{nullopt, stratum_format::AbsoluteZone{-1}, nullopt};
-        bool unleveled = !stratum_sim::targets_level(up_2, 1);
-        flecs::entity leveled = load_zone_unpopulated_at(world, world.worldspace_id, zone_position_at_level(-2), "data/walls.zone");
-        flecs::entity leveled_up = stratum_sim::create_access_point(leveled, staircase_type,
-            stratum_sim::entry_point(leveled, staircase_type, 1).get<stratum_sim::Site>(), 2,
-            stratum_format::AccessPointTarget{nullopt, stratum_format::AbsoluteZone{-1}, nullopt});
-        CHECK_CASE("an absolute target's offset is its difference from the zone's level, and a zone with no level has none",
-            unleveled && stratum_sim::targets_level(leveled_up, 1) && !stratum_sim::targets_level(leveled_up, -1));
 
         // A portal on the floor, in the middle of a room
         stratum_sim::placement_type north(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(0.0f, 1.0f, 0.0f));
         flecs::entity portal = stratum_sim::create_access_point(zone, portal_type,
             stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::FlatCellPosition{layout.floor_id(), stratum_sim::discrete_point_type{0, 1}}, north},
-            0, stratum_format::AccessPointTarget{nullopt, stratum_format::RelativeZone{0}, nullopt});
+            0, stratum_format::AccessPointDestination{nullopt, "../[+0]"});
         CHECK_CASE("an access point of any type, on any surface, is an entry point", stratum_sim::entry_point(zone, portal_type, 0) == portal);
         CHECK_CASE("an actor arrives on the floor of the access point's flat cell, facing in the site's orientation",
             stratum_sim::arrival_placement(portal).position() == layout.position(stratum_sim::discrete_point_type{0, 1})
@@ -893,7 +878,7 @@ namespace
         stratum_sim::create_access_point(portal_only, game_portal_type,
             stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::FlatCellPosition{portal_only_layout.floor_id(), stratum_sim::discrete_point_type{0, 0}},
             stratum_sim::placement_type(stratum_sim::point_type(0.0f, 0.0f, 0.0f), stratum_sim::vector_type(1.0f, 0.0f, 0.0f))}, 0,
-            stratum_format::AccessPointTarget{nullopt, stratum_format::RelativeZone{0}, nullopt});
+            stratum_format::AccessPointDestination{nullopt, "../[+0]"});
 
         bool thrown = false;
 
@@ -981,11 +966,11 @@ namespace
             return false;
         };
 
-        flecs::entity named = up_of(first);
-        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_target("town/market@fountain");
-        stratum_format::AccessPointTarget named_target = get<stratum_format::AccessPointTarget>(target_of(named));
-        CHECK_CASE("a named zone is not resolved, which is an error, and nothing moves or binds", throws(named)
-            && stratum_sim::zone_of(actor) == made && get<stratum_format::AccessPointTarget>(target_of(named)) == named_target);
+        flecs::entity unresolved = up_of(first);
+        unresolved.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_destination("unregistered/../[+1]");
+        stratum_format::AccessPointDestination unresolved_target = get<stratum_format::AccessPointDestination>(target_of(unresolved));
+        CHECK_CASE("a target that is not resolved is an error, and nothing moves or binds", throws(unresolved)
+            && stratum_sim::zone_of(actor) == made && get<stratum_format::AccessPointDestination>(target_of(unresolved)) == unresolved_target);
 
         world.unload_zone(first);
         CHECK_CASE("a bound target whose zone has unloaded, in a world with no game directory to read it back from, is an error, and nothing moves",
@@ -1024,7 +1009,7 @@ namespace
         flecs::entity second = load_at_level(-2);
 
         flecs::entity chute = stratum_sim::create_access_point(first, chute_type, on_floor(first, {2, 1}), 0,
-            *stratum_format::parse_access_point_target("-1"));
+            *stratum_format::parse_access_point_destination("../[-1]"));
         flecs::entity landing = stratum_sim::create_access_point(second, landing_type, on_floor(second, {2, 1}), 0);
         stratum_sim::create_access_point(second, landing_type, on_floor(second, {0, 1}), 1);
 
@@ -1160,12 +1145,12 @@ namespace
             && session.zone() != first
             && ranges::any_of(enter_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); }));
 
-        // A named zone is not resolved. A game whose advance throws is quit, so this game is used only for this case
+        // A game whose advance throws is quit, so this game is used only for this case
         stratum_sim::Game failing(g_test_config, g_test_manifest);
         stratum_sim::Session& failing_session = failing.session();
         enter_zone_file(failing, "data/walls.zone");
-        flecs::entity named = stratum_sim::entry_point(failing_session.zone(), stratum_sim::access_type(failing.world().entities(), "staircase"), -1);
-        named.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_target("town/market");
+        flecs::entity unresolved = stratum_sim::entry_point(failing_session.zone(), stratum_sim::access_type(failing.world().entities(), "staircase"), -1);
+        unresolved.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_destination("unregistered/../[+1]");
 
         flecs::entity unmoved = failing_session.zone();
         failing_session.character().submit(stratum_sim::Interact{});

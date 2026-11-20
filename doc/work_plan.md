@@ -29,6 +29,7 @@ The design behind the items is in these documents, which the items refer to by s
 - `region_spec_plan.md` defines the form of a `RegionSpec` and a `ZoneSpec`, patterns included, so that a designer can
   write one by hand and the game can generate one.
 - `sim_zone_model.md` has the model beneath the code.
+- `site_plan.md` replaces `Site` with a placement component and in and on relationships.
 - `template_plan.md` covers templates, the data a zone's content is made from, and pregenerated content.
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
   option updates.
@@ -71,6 +72,8 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 - [ ] **Component names** (`component_names_plan.md`, `## Steps`): the zone components and the layout entity ids
   renamed, and a flat's room overrides kept in the flat's map.
+- [ ] **Site replacement** (`site_plan.md`, `## Steps`): `Site` replaced by a placement, an `AttachedTo` relationship,
+  and a position on the surface, and the `site` file component by `attachment` and `placement`.
 
 - [x] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
       flecs parent of its zones, with its coordinate system from its top-level region's spec, and each zone's
@@ -88,8 +91,8 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **The world's structure created whole** (`world_structure_plan.md`): each worldspace created whole from a region
       spec tree, with its region tree and an empty zone at every position of its extent, the starting worldspace with
       the game and each other worldspace when the zone of an access point that leads to it is generated.
-- [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`): the `{zone, position}`
-      target in place of `AccessPointTarget` (`zone_plan.md`, `## Implementation`), and an unbound target resolved to the
+- [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`, and `world_structure_plan.md`,
+      `## Extended names`): an unbound `AccessPointDestination` resolved to the
       zone of an extended name or a persistent id, or at a position relative to the access point's zone or absolute in a
       worldspace, with the zone's content generated if it has none.
 - [ ] **A reference's zone in the reference:** an `EntityReference` to an entity that never changes zone, such as an
@@ -117,7 +120,8 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **Naming patterns** (`zone_plan.md`, `### Identity`): a region spec's naming patterns, one for its regions and one
       for their zones, in place of `<basename>_<counter>`, with extended names unique at every level of the region
       hierarchy.
-- [ ] **The target's notation** in place of `{zone, position}`, once the open question on it is answered.
+- [ ] **The target's notation:** the whole extended name grammar (`world_structure_plan.md`, `## Extended names`) read and
+      written in an `AccessPointDestination`, in place of `../[k]` alone.
 
 ## Access points
 
@@ -237,8 +241,6 @@ These are the open questions.
 - **What type does a store entry have as a pattern's symbol?** The stub makes it a number when its text parses as
   one, and a string otherwise.
 - **Which symbols does a region spec's own resolution have?**
-- **What is the target's notation?** `AccessPointTarget` is deprecated until it is designed (`zone_plan.md`,
-  `### Targets`).
 - **What properties does each type of region have?** A surface area's and a dungeon's overlap but differ, and
   difficulty goes from the starting value across a dungeon's zones in a way not yet decided.
 - **What does a region file contain, and how does it relate to the zone file format?** It may have only the region's

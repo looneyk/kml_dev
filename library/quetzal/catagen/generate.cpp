@@ -451,10 +451,9 @@ namespace
     //--------------------------------------------------------------------------
     bool staircase_faces(const Zone& zone, const point_type& cell)
     {
-        return any_of(zone.staircases().begin(), zone.staircases().end(), [&](const Staircase& staircase)
+        return ranges::any_of(zone.transit_endpoints(), [&](const stratum_format::TransitEndpoint& endpoint)
         {
-            const directed_point_type placement = staircase.placement();
-            return placement.position() + placement.direction() == cell;
+            return endpoint.cell_position + endpoint.egress_direction == cell;
         });
     }
 
@@ -619,7 +618,7 @@ namespace
         vector<size_t> available(rooms.size());
         iota(available.begin(), available.end(), size_t(0));
 
-        while (zone.staircases().size() < down_count + up_count && !available.empty())
+        while (zone.transit_endpoints().size() < down_count + up_count && !available.empty())
         {
             size_t slot = random.random(available.size());
             point_type cell = center(rooms[available[slot]]);
@@ -628,12 +627,12 @@ namespace
             optional<directed_point_type> placement = staircase_placement(zone, cell, random);
             if (placement)
             {
-                Rise rise = zone.staircases().size() < up_count ? Rise::Up : Rise::Down;
-                zone.create_staircase(to_string(rise), *placement, rise);
+                zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_format::Directionality::Up
+                    : stratum_format::Directionality::Down);
             }
         }
 
-        if (zone.staircases().empty())
+        if (zone.transit_endpoints().empty())
         {
             throw runtime_error("the zone has no room a staircase can take without closing off a passage, and so no entry");
         }
@@ -661,7 +660,7 @@ namespace
 
         random.shuffle(candidates);
 
-        for (size_t slot = 0; slot < candidates.size() && zone.staircases().size() < down_count + up_count; ++slot)
+        for (size_t slot = 0; slot < candidates.size() && zone.transit_endpoints().size() < down_count + up_count; ++slot)
         {
             if (zone.cell(candidates[slot]) != CellType::Open)
             {
@@ -671,12 +670,12 @@ namespace
             optional<directed_point_type> placement = staircase_placement(zone, candidates[slot], random);
             if (placement)
             {
-                Rise rise = zone.staircases().size() < up_count ? Rise::Up : Rise::Down;
-                zone.create_staircase(to_string(rise), *placement, rise);
+                zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_format::Directionality::Up
+                    : stratum_format::Directionality::Down);
             }
         }
 
-        if (down_count + up_count > 0 && zone.staircases().empty())
+        if (down_count + up_count > 0 && zone.transit_endpoints().empty())
         {
             throw runtime_error("the zone has no cell a staircase can take without closing off a passage");
         }

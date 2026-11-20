@@ -5,8 +5,8 @@
 // Zone.hpp
 //------------------------------------------------------------------------------
 
-#include "Staircase.hpp"
 #include "types.hpp"
+#include "quetzal/stratum_format/TransitEndpoint.hpp"
 #include <string>
 #include <vector>
 
@@ -20,7 +20,7 @@ namespace quetzal::catagen
     {
     public:
 
-        using staircases_type = std::vector<Staircase>;
+        using transit_endpoints_type = std::vector<stratum_format::TransitEndpoint>;
 
         Zone() = default;
         Zone(const std::string& name, const vector_type& extent); // Solid layout, no open areas
@@ -54,8 +54,8 @@ namespace quetzal::catagen
         WallType wall(const point_type& cell, CardinalDirection direction) const;
         void set_wall(const point_type& cell, CardinalDirection direction, WallType type);
 
-        const staircases_type& staircases() const;
-        void create_staircase(const std::string& name, const directed_point_type& placement, Rise rise);
+        const transit_endpoints_type& transit_endpoints() const;
+        void create_staircase(const directed_point_type& placement, stratum_format::Directionality directionality);
 
         void clear();
 
@@ -70,7 +70,7 @@ namespace quetzal::catagen
         std::vector<CellType> m_cells;
         std::vector<WallType> m_walls_vertical; // (nx + 1) by ny
         std::vector<WallType> m_walls_horizontal; // nx by (ny + 1)
-        staircases_type m_staircases;
+        transit_endpoints_type m_transit_endpoints;
     };
 
     point_type neighbor(const point_type& cell, CardinalDirection direction);

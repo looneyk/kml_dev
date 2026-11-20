@@ -12,6 +12,7 @@
 #include <cassert>
 
 using namespace std;
+using quetzal::stratum_format::Directionality;
 
 namespace
 {
@@ -130,16 +131,16 @@ void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates
 
     random.shuffle(candidates);
 
-    auto rise = up_count > 0 ? Rise::Up : Rise::Down;
+    auto rise = up_count > 0 ? Directionality::Up : Directionality::Down;
     // 0 requested means automatic success
     bool up_placed = up_count == 0;
     bool down_placed = down_count == 0;
 
-    using counter_type = std::tuple<bool&, size_t&, size_t&, Rise>;
-    std::map<Rise, counter_type> counters =
+    using counter_type = std::tuple<bool&, size_t&, size_t&, Directionality>;
+    std::map<Directionality, counter_type> counters =
     {
-        {Rise::Up, {up_placed, up_count, down_count, Rise::Down}},
-        {Rise::Down, {down_placed, down_count, up_count, Rise::Up}},
+        {Directionality::Up, {up_placed, up_count, down_count, Directionality::Down}},
+        {Directionality::Down, {down_placed, down_count, up_count, Directionality::Up}},
     };
 
     for (size_t i = 0; i < candidates.size(); ++i)
@@ -150,7 +151,7 @@ void quetzal::dungen::place_staircases(Zone& zone, vector<point_type> candidates
             continue;
         }
 
-        zone.create_staircase(to_string(rise), *placement, rise);
+        zone.create_staircase(*placement, rise);
         auto [placed, count, count_other, rise_other] = counters.at(rise);
         assert(count > 0);
         --count;

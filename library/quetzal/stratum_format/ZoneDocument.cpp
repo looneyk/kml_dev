@@ -13,14 +13,7 @@ namespace
 
     using quetzal::stratum_format::Encoding;
     using quetzal::stratum_format::FlatRole;
-    using quetzal::stratum_format::Notation;
     using quetzal::stratum_format::Relation;
-
-    constexpr std::array<std::pair<Notation, std::string_view>, 2> notation_names
-    {{
-        {Notation::Block, "block"},
-        {Notation::Wall, "wall"}
-    }};
 
     constexpr std::array<std::pair<Encoding, std::string_view>, 2> encoding_names
     {{
@@ -72,12 +65,6 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-std::string_view quetzal::stratum_format::name(Notation notation)
-{
-    return value_name(notation_names, notation);
-}
-
-//------------------------------------------------------------------------------
 std::string_view quetzal::stratum_format::name(Encoding encoding)
 {
     return value_name(encoding_names, encoding);
@@ -93,12 +80,6 @@ std::string_view quetzal::stratum_format::name(FlatRole role)
 std::string_view quetzal::stratum_format::name(Relation relation)
 {
     return value_name(relation_names, relation);
-}
-
-//------------------------------------------------------------------------------
-std::optional<quetzal::stratum_format::Notation> quetzal::stratum_format::to_notation(std::string_view name)
-{
-    return named_value(notation_names, name);
 }
 
 //------------------------------------------------------------------------------

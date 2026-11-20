@@ -18,6 +18,6 @@
     ]
   },
   "entities": [
-    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [1, 4], "orientation": [0, -1] }, "access_point": { "type": "staircase", "target": "+1", "order": 0 } } }
+    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [1, 4], "orientation": [0, -1] }, "access_point": { "type": "staircase", "target": "../[+1]", "order": 0 } } }
   ]
 }

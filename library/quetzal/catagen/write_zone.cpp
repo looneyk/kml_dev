@@ -141,11 +141,11 @@ namespace
             result.push_back(std::move(row));
         }
 
-        for (const auto& staircase : zone.staircases())
+        for (const auto& endpoint : zone.transit_endpoints())
         {
-            if (staircase.rise() == Rise::Up)
+            if (endpoint.directionality == quetzal::stratum_format::Directionality::Up)
             {
-                point_type position = staircase.placement().position();
+                const point_type position = endpoint.cell_position;
                 result[static_cast<size_t>(height - 2 - 2 * position.j())][static_cast<size_t>(2 * position.i() + 1)] = '<';
             }
         }
@@ -218,29 +218,19 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
     }
 
     size_t staircase_count = 0;
-    size_t staircase_down_count = 0;
 
-    for (const auto& staircase : zone.staircases())
+    for (const auto& endpoint : zone.transit_endpoints())
     {
         // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
-        const directed_point_type placement = staircase.placement();
-        const vector_type open_side = placement.direction();
-        stratum_format::WallPlacement wall{placement.position() + open_side, open_side};
+        const stratum_format::WallPlacement wall{endpoint.cell_position + endpoint.egress_direction, endpoint.egress_direction};
 
-        const bool leads_down = staircase.rise() == Rise::Down;
-        stratum_format::AccessPointTarget target{std::nullopt, stratum_format::RelativeZone{leads_down ? -1 : 1}, std::nullopt};
-        stratum_format::AccessPoint access_point{"staircase", staircase_count++, target};
-
-        if (leads_down && parameters.staircase_down_region_spec.has_value())
-        {
-            const std::string& region_spec = parameters.staircase_down_region_spec.value();
-            target.region = std::format("{}_{}", region_spec, ++staircase_down_count);
-            access_point.target = target;
-            access_point.region_spec = region_spec;
-        }
+        const bool leads_down = endpoint.directionality == stratum_format::Directionality::Down;
+        const stratum_format::AccessPointDestination target{leads_down ? parameters.staircase_down_region_spec : std::nullopt,
+            stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
+        stratum_format::AccessPoint access_point{endpoint.type, staircase_count++, target};
 
         document.access_points.push_back(++id);
-        document.entities.push_back({id, "staircase", stratum_format::Site{stratum_format::Relation::On, wall, nullopt, nullopt}, nullopt,
+        document.entities.push_back({id, endpoint.type, stratum_format::Site{stratum_format::Relation::On, wall, nullopt, nullopt}, nullopt,
             std::move(access_point), {}});
     }
 

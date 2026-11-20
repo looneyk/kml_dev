@@ -118,15 +118,11 @@ namespace
             return false;
         }
 
-        if (const auto* target = std::get_if<quetzal::stratum_format::AccessPointTarget>(&*access_point.target))
+        if (const auto* target = std::get_if<quetzal::stratum_format::AccessPointDestination>(&*access_point.target))
         {
-            if (const auto* relative = std::get_if<quetzal::stratum_format::RelativeZone>(&target->zone))
-            {
-                return relative->offset < 0;
-            }
-
-            const auto* absolute = std::get_if<quetzal::stratum_format::AbsoluteZone>(&target->zone);
-            return absolute != nullptr && zone_position != nullptr && absolute->level < zone_position->z;
+            const std::optional<std::int32_t> relative_level = target->zone_extended_name.has_value()
+                ? quetzal::stratum_format::relative_zone_level(*target->zone_extended_name) : std::nullopt;
+            return relative_level.has_value() && *relative_level < 0;
         }
 
         flecs::entity bound = std::get<sim::EntityReference>(*access_point.target).entity;

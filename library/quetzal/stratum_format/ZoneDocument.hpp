@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Notation.hpp"
-#include "AccessPointTarget.hpp"
+#include "AccessPointDestination.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
@@ -159,14 +159,11 @@ namespace quetzal::stratum_format
     // An access point with no target is arrival only
     struct AccessPoint
     {
-        using target_type = std::variant<AccessPointTarget, stored_entity_id_type>;
+        using target_type = std::variant<AccessPointDestination, stored_entity_id_type>;
 
         std::string type;
         std::uint64_t order = 0;
         std::optional<target_type> target;
-
-        // The region spec that the worldspace the target refers to is created from, when the zone is made
-        std::optional<std::string> region_spec;
     };
 
     //--------------------------------------------------------------------------

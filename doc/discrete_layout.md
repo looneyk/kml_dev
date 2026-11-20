@@ -94,8 +94,8 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
     { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
     { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
     { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } } } },
-    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "-1", "order": 0 } } },
-    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "access_point": { "type": "staircase", "target": "+1", "order": 1 } } }
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "../[-1]", "order": 0 } } },
+    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "access_point": { "type": "staircase", "target": "../[+1]", "order": 1 } } }
   ]
 }
 ```
@@ -269,7 +269,7 @@ an access point on a wall that is neither a stair cell's open side nor a door's 
 A door facing may be an access point, and then leads to another zone. A door between two zones is two doors, one in
 each, their access points bound to each other.
 
-An `access_point` component has four members:
+An `access_point` component has three members:
 
 - **`type`,** what the access point is, a name the world registers: `staircase`, `door`, `portal`, `waypoint`, or one
   a mod adds; whether it goes up, down, or across is its `target`. The type is normally the entity's `type`, or for a
@@ -278,13 +278,10 @@ An `access_point` component has four members:
   are ordered from 0, without a gap, so a zone's staircases share one sequence, up and down alike.
 - **`target`,** where going through it leads (`### An access point's target`). It is optional: an access point with
   no target is arrival only, such as the far end of a one-way portal.
-- **`region_spec`,** the registered region spec that the worldspace its target's region refers to is created from. It
-  is optional, and with it the target's region is the name of a worldspace, which the world creates when the zone is
-  made if it has none of that name.
 
 ```json
-"access_point": { "type": "staircase", "target": "+1", "order": 0 }
-"access_point": { "type": "staircase", "target": "dungeon_1/-1", "order": 0, "region_spec": "dungeon" }
+"access_point": { "type": "staircase", "target": "../[+1]", "order": 0 }
+"access_point": { "type": "staircase", "target": "dungeon/-1", "order": 0 }
 ```
 
 An actor arriving at an access point is placed by its site. On a wall, the actor is in the wall's cell, facing away
@@ -296,7 +293,7 @@ one at which an arriving actor is placed in a cell an actor cannot stand in.
 
 Which access point an arriving actor is placed at depends on where it comes from, so the list does not
 choose. Each type is registered with the type it arrives at, usually itself, and of the access points of that type, the actor
-arrives at one that leads back to the level it left: through a `-1`, at a staircase whose target is `+1`. An access
+arrives at one that leads back to the level it left: through a `../[-1]`, at a staircase whose target is `../[+1]`. An access
 point with no target, which is arrival only, accepts an arrival from any level. Of those, it is the available one with
 the lowest order; an access point already bound to another is unavailable, and an arrival-only access point is never
 bound. A generator lists every staircase it places. Once a layout is read,
@@ -647,7 +644,7 @@ An access point is a component of an entity that moves an actor --- a staircase,
 where it leads is its `target`, bound or unbound.
 
 ```json
-"access_point": { "type": "staircase", "target": "-1", "order": 0 }
+"access_point": { "type": "staircase", "target": "../[-1]", "order": 0 }
 ```
 
 **Bound: the access point arrived at,** as a reference (`archived/addressing.md`, `### Access points`). A target is bound by
@@ -655,34 +652,25 @@ having been traveled: until a way has been gone through, nothing has fixed where
 generated still has access points nobody has used, and every one of them is unbound. A zone template's access points
 are all unbound; a bound target is written only in a saved zone, `"target": { "entity": 90412 }`.
 
-**Unbound: a string, `[region/]zone[@position]`.** The region and the position are optional.
+**Unbound: a string, a region spec name, a zone extended name, or both.**
 
 ```
-target   = [region "/"] zone ["@" position]
-region   = name
-zone     = relative | absolute | name
-relative = ("+" | "-") digits
-absolute = "=" ["-"] digits
-name     = letter {letter | digit | "_"}
-position = one or more characters other than "/" and "@"
+target            = region_spec_name ["/" zone_extended_name] | zone_extended_name
+region_spec_name  = name
+zone_extended_name = "../[" ("+" | "-") digits "]"
+name              = letter {letter | digit | "_"}
 ```
 
 | Target | Destination |
 | --- | --- |
-| `-1` | One level down, from the access point's region |
-| `+2` | Two levels up |
-| `+0` | Another zone at the same level |
-| `=0` | Level 0 |
-| `=-3` | Level -3 |
-| `sewers/=-1` | Level -1 of a new region created from the region spec `sewers` |
-| `town/market@fountain` | The zone `market` in the region `town`, at the position `fountain` |
+| `../[-1]` | One zone level down, from the access point's region |
+| `../[+2]` | Two zone levels up |
+| `../[+0]` | Another zone at the same zone level |
+| `sewers/../[-1]` | One zone level down, in a worldspace of the access point's own created from the region spec `sewers` |
 
-A relative zone is a number of levels from the access point's zone (`## layout`), and always has its sign. An absolute
-zone is a level, marked with `=`. A named zone is a zone of pregenerated content, and the position a place in it.
-An omitted region is the access point's own region, from which the
-caller's rules for moving down, up, and across apply. A written region is a region spec, from which a new region is
-created, or, if the access point has a `region_spec`, the name of a worldspace. Region names, zone names, and positions are the caller's vocabulary, and the caller resolves neither a named
-zone nor a position.
+The zone extended name is the subset of extended names (`world_structure_plan.md`, `## Extended names`) that selects
+the zone a number of zone levels from the access point's zone (`## layout`), and its number always has its sign. With no
+region spec name, the zone is in the access point's own worldspace.
 
 Resolving one finds a zone or makes one. Traversal passes the target to whatever manages the zones, which
 returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it
@@ -690,13 +678,11 @@ resolves to is written back as a bound target, so leaving and returning arrive a
 
 A level resolves to a zone at that level, so it is a real target as soon as that zone is generated
 or loaded. An actor arriving through an access point that is not yet bound is placed at one of that zone's unbound
-access points that leads back --- through a `-1`, at one whose target is `+1`, or `=`*L* for the level *L* left
---- and going through binds both ends: the access point gone through is bound to the access point arrived at, and that
+access points that leads back --- through a `../[-1]`, at one whose target is `../[+1]` --- and going through binds both ends: the access point gone through is bound to the access point arrived at, and that
 one to the access point it came from. The layout's `access_points` lists them, and every zone has at least one.
 
 The reader decodes an access point: its `type` and `order`, both required, and its `target`, if it has one, a string
-that matches the grammar or a reference. It keeps a region, a zone name, and a position as written, and the writer
-writes a target back as the same string. A bound target is a reference, and the reader rejects one in a template.
+that matches the grammar or a reference. The writer writes a target back as the same string. A bound target is a reference, and the reader rejects one in a template.
 
 ## Reader requirements
 

@@ -29,7 +29,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/AccessPointTarget.hpp"
+#include "quetzal/stratum_format/AccessPointDestination.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
@@ -564,8 +564,8 @@ namespace
         CHECK_CASE("it is the access point, as the file lists it", staircase && staircase.has<stratum_sim::AccessPoint>()
             && stratum_sim::entry_point(zone, stratum_sim::access_type(entities, "staircase"), 1) == staircase);
         CHECK_CASE("with its target", staircase && staircase.get<stratum_sim::AccessPoint>().target.has_value()
-            && get<stratum_format::AccessPointTarget>(*staircase.get<stratum_sim::AccessPoint>().target)
-                == stratum_format::AccessPointTarget{nullopt, stratum_format::RelativeZone{1}, nullopt});
+            && get<stratum_format::AccessPointDestination>(*staircase.get<stratum_sim::AccessPoint>().target)
+                == stratum_format::AccessPointDestination{nullopt, "../[+1]"});
 
         // The same zone saved: every id in the file is persistent
         string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.6", "zone": { "id": 900 },
@@ -614,7 +614,7 @@ namespace
                   {{ "id": 2, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [3, 1], "normal": [1, 0] }} }} }} }},
                   {{ "id": 3, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [1, 1], "normal": [-1, 0] }} }} }} }},
                   {{ "id": 4, "type": "staircase", "components": {{ "site": {{ "relation": "on", "flat": "floor", "cell_position": [1, 2], "orientation": [0, -1] }},
-                    "access_point": {{ "type": "staircase", "target": "+1", "order": 0 }}{} }} }} ] }})",
+                    "access_point": {{ "type": "staircase", "target": "../[+1]", "order": 0 }}{} }} }} ] }})",
                 layout_components.empty() ? "" : ", " + layout_components,
                 layout_sections.empty() ? "" : layout_sections + ",",
                 door_components.empty() ? "" : R"(, "components": { )" + door_components + " }",

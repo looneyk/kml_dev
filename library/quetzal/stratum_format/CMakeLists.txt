@@ -1,9 +1,11 @@
 add_library(quetzal_stratum_format STATIC
-    AccessPointTarget.cpp
+    AccessPointDestination.cpp
     checked_values.cpp
+    Directionality.cpp
     GameManifestDocument.cpp
     grid.cpp
     json_util.cpp
+    Notation.cpp
     read_character.cpp
     read_config.cpp
     read_game.cpp
@@ -15,6 +17,7 @@ add_library(quetzal_stratum_format STATIC
     RegionSpecsDocument.cpp
     SettingDefinitionsDocument.cpp
     SettingsDocument.cpp
+    TransitEndpoint.cpp
     WorldDefinitionDocument.cpp
     write_character.cpp
     write_config.cpp
@@ -22,11 +25,12 @@ add_library(quetzal_stratum_format STATIC
     write_world.cpp
     write_zone.cpp
     ZoneDocument.cpp
-    AccessPointTarget.hpp
+    AccessPointDestination.hpp
     CharacterDocument.hpp
     checked_values.hpp
     config_format.hpp
     ConfigDocument.hpp
+    Directionality.hpp
     GameDocument.hpp
     GameManifestDocument.hpp
     Notation.hpp
@@ -46,6 +50,7 @@ add_library(quetzal_stratum_format STATIC
     saved_game_format.hpp
     SettingDefinitionsDocument.hpp
     SettingsDocument.hpp
+    TransitEndpoint.hpp
     types.hpp
     write_character.hpp
     write_config.hpp

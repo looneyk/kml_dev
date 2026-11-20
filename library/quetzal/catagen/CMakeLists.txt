@@ -1,12 +1,10 @@
 add_library(quetzal_catagen STATIC
     generate.cpp
     Parameters.cpp
-    Staircase.cpp
     write_zone.cpp
     Zone.cpp
     generate.hpp
     Parameters.hpp
-    Staircase.hpp
     types.hpp
     write_zone.hpp
     Zone.hpp

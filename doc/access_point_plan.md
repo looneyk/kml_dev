@@ -13,7 +13,7 @@ placement derived from the site. The open items are in `work_plan.md` (`## Acces
 
 - **An access point has a type, an order, and an optional target.** The type is the `(AccessType, type)` pair to a
   registered access point type, and the order counts from 0 without gaps among the zone's access points of that type.
-  The target is unbound, an `AccessPointTarget` such as a level offset, or bound to another access point.
+  The target is unbound, an `AccessPointDestination` such as a level offset, or bound to another access point.
 - **Most access points have a target, and most targets are bound in pairs.** Going through an access point that has a
   target moves the actor to the access point it refers to, as `World::relocate_through` does now.
 - **An access point with no target is arrival only,** such as a starting spot or the far end of a one-way portal.
@@ -42,8 +42,8 @@ reached through `layout_as`, so `ContinuousLayout` is unchanged.
 The `relocator` file component becomes `access_point`, with `type`, `order`, and an optional `target`, and no
 `placement`. `stratum_format::Relocator` becomes `stratum_format::AccessPoint`. An entity with an `access_point`
 component is listed in `layout.components.access_points`, the zone's list of its access points (`zone_plan.md`), and the format version becomes 0.6, with the changes in an
-appendix to `discrete_layout.md`. dungen and catagen write the component without a placement; `Staircase::placement()`
-remains the stair block's cell and open direction, from which each generator computes the site.
+appendix to `discrete_layout.md`. dungen and catagen write the component without a placement; a `TransitEndpoint`'s
+`cell_position` and `egress_direction` remain the stair block's cell and open direction, from which each generator computes the site.
 
 ## Renames
 
@@ -57,9 +57,6 @@ The verb *relocate* remains, since relocation is what going through an access po
 | `enter_relocator` (`commands.cpp`) | `enter_access_point` |
 | `World::resolve_relocator_target(relocator)` | `World::resolve_target(access_point)` |
 | `targets_relocator_level(e, offset)` | `targets_level(e, offset)` |
-
-`AccessPointTarget` is deprecated, and the first pass's `{zone, position}` target is to replace it
-(`zone_plan.md`, `## Implementation`).
 
 `can_enter` also requires a target. The reference documents that use *relocator* for the component are swept in the
 same commit as the code: `archived/addressing.md`, `discrete_layout.md`, `game_system_reference.md`, `game_file_spec.md`,
@@ -76,3 +73,100 @@ same commit as the code: `archived/addressing.md`, `discrete_layout.md`, `game_s
    every zone file in the tree, and the reference files regenerated.
 4. **One-way access points resolved.** An unbound target whose arrival type's access points have no target resolves to
    one of them by order, without requiring that it leads back, and binding sets only the departure's target.
+
+
+## New access point proposal
+
+**The classes**
+
+AccessPoint: one end of a translocation pair
+    type: staircase, door, ladder, rope, portal, waypoint, ...
+    placement (position, egress direction)
+    optional directionality
+    AccessPointDestination
+
+AccessPointDestination: a specifier for the destination of an access point translocation, one of:
+    access_point_id // an existing access point
+    region_name/region_spec_name // an access point in the first zone created in a new worldspace
+    zone extended name // absolute or relative, see notes about tracking unused access points below, not used if access point pairs are generated up front
+
+**Specific usages**
+
+Block notation
+
+Interact with any access point type from the block cell position itself or an adjacent cell. Landing cells are this fixed set of position and adjacent cells.
+
+Wall notation
+
+|type|rise|pos|ori|egress|lpos|ingress|
+|---|---|---|---|---|---|---|
+|stair|down|0|1|-1|-1|1|
+|stair|up|0|1|-1|-1|1|
+|door|null|0|1|-1|-1|1|
+|ladder|down|0|1|-1|-1|1|
+|ladder|up|0|1|0|0|0|
+|rope|down|0|1|-1|-1|1|
+|rope|up|0|1|0|0|0|
+|portal|null|0|null|0|0|0|
+|shaft|down|0|null|0|0|0|
+|shaft|up|0|null|0|0|0|
+
+pos - position is the cell position of the access point, the block cell for stair/door, the shaft cell for ladder/rope, and the flat cell for portal.
+ori - orientation is the horizontal component of the direction that one would walk into a staircase/door or enter a shaft from (the normal of the wall that a ladder/rope is attached to). It can be calculated using the egress direction.
+egress is the direction of travel emerging from a staircase/door or shaft
+
+landing position lpos = pos + egress
+ingress = -egress
+
+ori = -egress
+
+Stairs in both notations are a full cell. (Changed from previous where wall notation stairs were attached to a wall)
+Stair orientation is the horizontal component of the direction that one would walk into the staircase.
+Door here only applies to doors with access points, normal doors do not use the access point procedure.
+ladder/rope is the actual access point attached to the top and bottom of a shaft.
+A shaft access point attached to the top is one way down and the bottom access point is invisible.
+Numbers are x coordinates where the access point and landing are aligned along the x-axis.
+Example shows values where the access point is on the right and the landing is to the left of it.
+With the exception of ladder/rope where the bottom landing and the access point positions coincide.
+ladder/rope are shafts with an attached access point.
+Entering a shaft from the bottom is not possible without a lift/aid and/or climbing gear, or levitation.
+
+**Notes**
+
+Landing really only applies to wall notation, for block notation, the landing spaces are fixed, the placement position and open adjacent positions
+
+enter from placement position
+arrive at landing position, in opposite landing direction
+
+destination zone coding
++|-x real value, a relative distance
++|-[n] [] integer value, a relative count of floors, levels, cells, ...
+= prefix indicates an absolute distance or count
+
+destination must agree with directionality (an up staircase cannot lead to a lower zone)
+
+destination may be invisible, so it looks like just a regular location
+destination may not have a destination, one-way
+
+stair, ladder, rope cells can be interactive or automatic
+shaft/rope top cells walked on, if automatic, the rope will be used if there, otherwise fall
+notification state controls whether it is interactive or automatic
+
+transporting to a portal, they are not active until stepped off
+
+When the enpty zones of a worldspace are created, along with the zone seed, a seed pool will be created for the access points that will eventually be created in it.
+
+The static way of doing access points
+It may be the case that upon creation of a worldspace, each zone is created and all the inter-zone translocation access point pairs are also created,
+and placed at a position in their zones when the zone is filled.
+This means that AccessPointDestination will be either one of these access point ids generated up front,
+or a region spec that will define the creation of a new worldspace/region.
+
+The dynamic way of doing access points
+When a zone/level is created, a number of down staircases will be created. they will typically have a relative zone level offset of -1, but can be any lower value as well.
+When each new zone/level is created, a number of up staircases will be created, one for each down staircase above it, and similarly for down staircases.
+Entering the first staircase leading to each new zone/level will trigger its creation
+So each empty zone in a dungeon will store a list of up and down staircases that it will have to link to on creation.
+That would become the minimum number of staircases for the generator parameters. Any additional staircases betond that minimum would need to link to other new zones/levels.
+This is written in terms of staircases, but it applies to other type of access points as well.
+If unconstrained, this can create an unmanageable web of access points.

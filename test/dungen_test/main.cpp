@@ -13,7 +13,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
-#include "quetzal/stratum_format/AccessPointTarget.hpp"
+#include "quetzal/stratum_format/AccessPointDestination.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include "quetzal/testing/reference_files.hpp"
@@ -389,7 +389,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each staircase leading down leads to level -1 of the worldspace <region spec>_<k>, created from the region spec
+    // Each staircase leading down leads to level -1 of a worldspace created from the region spec
     TEST_CASE("staircase down region spec")
     {
         const Scenario surface1 = scenarios().back();
@@ -397,26 +397,18 @@ namespace
         stratum_format::ZoneDocument document = document_of(zone_text(surface1.parameters, surface1.zone_name));
 
         vector<string> targets;
-        bool region_specs_written = true;
         for (const auto& entity : document.entities)
         {
             if (entity.access_point.has_value())
             {
-                const auto* target = get_if<stratum_format::AccessPointTarget>(&*entity.access_point->target);
-                targets.push_back(target != nullptr ? stratum_format::format_access_point_target(*target) : string());
-                region_specs_written = region_specs_written && entity.access_point->region_spec == "dungeon";
+                const auto* target = get_if<stratum_format::AccessPointDestination>(&*entity.access_point->target);
+                targets.push_back(target != nullptr ? stratum_format::format_access_point_destination(*target) : string());
             }
         }
 
-        vector<string> expected;
-        for (size_t k = 1; k <= targets.size(); ++k)
-        {
-            expected.push_back(format("dungeon_{}/-1", k));
-        }
-
         CHECK_CASE("surface1 places from two to four staircases, all leading down", targets.size() >= 2 && targets.size() <= 4);
-        CHECK_CASE("each to level -1 of dungeon_1, dungeon_2 and on, in order", targets == expected);
-        CHECK_CASE("and each with the region spec its worldspace is created from", region_specs_written);
+        CHECK_CASE("each to level -1 of a worldspace created from the dungeon region spec",
+            ranges::all_of(targets, [](const string& target) { return target == "dungeon/../[-1]"; }));
         return;
     }
 
@@ -980,24 +972,15 @@ namespace
                         return false;
                     }
 
-                    // A staircase leading down to a worldspace of a region spec has the region <region spec>_<k>
                     const bool leads_down = glyph(cell_position) == '>';
-                    const optional<string>& region_spec = leads_down ? parameters.staircase_down_region_spec : nullopt;
-                    stratum_format::AccessPointTarget target{nullopt, stratum_format::RelativeZone{leads_down ? -1 : 1}, nullopt};
+                    const stratum_format::AccessPointDestination target{leads_down ? parameters.staircase_down_region_spec : nullopt,
+                        stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
                     const auto& access_point_target = entity.access_point->target;
-                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::AccessPointTarget>(&*access_point_target) : nullptr;
-                    const bool region_expected = unbound != nullptr && entity.access_point->region_spec == region_spec
-                        && (region_spec.has_value() ? unbound->region.has_value() && unbound->region->starts_with(*region_spec + "_")
-                        : !unbound->region.has_value());
+                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::AccessPointDestination>(&*access_point_target) : nullptr;
 
-                    if (!region_expected || unbound->zone != target.zone || unbound->position.has_value())
+                    if (unbound == nullptr || *unbound != target)
                     {
-                        if (region_spec.has_value())
-                        {
-                            target.region = *region_spec + "_<k>";
-                        }
-
-                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_access_point_target(target));
+                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_access_point_destination(target));
                         return false;
                     }
                 }
@@ -1135,8 +1118,8 @@ namespace
             vector<string> warnings;
 
             CHECK_CASE("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
-                && zone.staircases().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
-            CHECK_CASE("oriented toward the floor beside it", !zone.staircases().empty() && zone.staircases()[0].placement().direction() == dungen::vector_type{1, 0});
+                && zone.transit_endpoints().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
+            CHECK_CASE("oriented toward the floor beside it", !zone.transit_endpoints().empty() && zone.transit_endpoints()[0].egress_direction == dungen::vector_type{1, 0});
             CHECK_CASE("a staircase's cell gets no second staircase", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 
@@ -1152,7 +1135,7 @@ namespace
             vector<string> warnings;
 
             CHECK_CASE("a staircase in the middle of a corridor is placed, since it blocks nothing",
-                placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings).empty() && zone.staircases().size() == 1);
+                placing(zone, {{2, 1}}, {1, 1}, {0, 0}, warnings).empty() && zone.transit_endpoints().size() == 1);
         }
 
         {
@@ -1169,10 +1152,10 @@ namespace
             vector<string> warnings;
 
             bool placed = placing(zone, {{1, 1}, {5, 1}}, {1, 1}, {1, 1}, warnings).empty();
-            size_t up_count = static_cast<size_t>(count_if(zone.staircases().begin(), zone.staircases().end(),
-                [](const dungen::Staircase& staircase) { return staircase.rise() == dungen::Rise::Up; }));
+            size_t up_count = static_cast<size_t>(ranges::count_if(zone.transit_endpoints(),
+                [](const stratum_format::TransitEndpoint& endpoint) { return endpoint.directionality == stratum_format::Directionality::Up; }));
 
-            CHECK_CASE("staircases leading up and down alternate", placed && zone.staircases().size() == 2 && up_count == 1 && warnings.empty());
+            CHECK_CASE("staircases leading up and down alternate", placed && zone.transit_endpoints().size() == 2 && up_count == 1 && warnings.empty());
         }
 
         {
@@ -1180,7 +1163,7 @@ namespace
             vector<string> warnings;
 
             bool placed = placing(zone, {{1, 1}, {5, 1}}, {3, 3}, {0, 0}, warnings).empty();
-            CHECK_CASE("fewer placed than were drawn is a warning", placed && zone.staircases().size() == 2
+            CHECK_CASE("fewer placed than were drawn is a warning", placed && zone.transit_endpoints().size() == 2
                 && warnings == vector<string>{"2 of 3 staircases leading up and 0 of 0 leading down placed, the candidates running out"});
         }
 

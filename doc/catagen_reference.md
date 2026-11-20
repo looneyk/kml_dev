@@ -37,10 +37,10 @@ and floor, even where the generated wall is open, and none on its other edges. c
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
 glyph: the two sides of its edge. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto
---- floor or a door --- has toward its block. Its `access_point` has the `type` `staircase`; a `target` of `-1` or
-`+1`; and an `order` that counts from 0 among all the staircases, in the order they are written. With a
-`staircase_down_region_spec`, the *k*th staircase leading down, from 1, has the target `<region spec>_<k>/-1` and the
-`region_spec` itself, so it leads to level -1 of a worldspace of its own, which the world creates from that region spec.
+--- floor or a door --- has toward its block. Its `access_point` has the `type` `staircase`; a `target` of `../[-1]` or
+`../[+1]`; and an `order` that counts from 0 among all the staircases, in the order they are written. With a
+`staircase_down_region_spec`, each staircase leading down has the target `<region spec>/../[-1]`, so it leads to level -1 of
+a worldspace of its own, which the world creates from that region spec.
 `layout.components.access_points` refers to every staircase. Local
 ids are assigned in the order the entities are written --- each door, then its door facings, and the staircases last,
 in the order they were placed --- so the same parameters give the same ids.
@@ -51,10 +51,11 @@ in the order they were placed --- so the same parameters give the same ids.
 are the discrete point, vector, half-open box and directed point over it. `CellType` is `Solid`, `Open` or `Staircase`;
 `WallType` is `Open`, `Solid` or `Door`, where `Open` is the absence of a wall. Directions are `CardinalDirection`.
 
-**`Zone`** --- a name, a rectangle of cells and the walls between them, and a list of `Staircase`s. Rooms and doors are
-cell and wall state. `create_staircase` sets a cell's type to `Staircase` and adds a `Staircase`, which has its
-`placement`, a `directed_point_type` of the cell position and the direction it opens onto, and its `Rise`, down or up.
-`staircases()` returns them in the order they were created. Walls are
+**`Zone`** --- a name, a rectangle of cells and the walls between them, and a list of `stratum_format::TransitEndpoint`s.
+Rooms and doors are cell and wall state. `create_staircase(placement, directionality)` sets a cell's type to `Staircase`
+and adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress direction the
+direction it opens onto and the orientation its opposite, and the `Directionality`, up or down. `transit_endpoints()` returns them in the
+order they were created. Walls are
 stored by the line they lie on, which includes the outermost lines: `wall_vertical(i, j)` lies between cells
 `(i - 1, j)` and `(i, j)`, so `i` runs to `nx` inclusive, and `wall_horizontal(i, j)` lies between `(i, j - 1)` and
 `(i, j)`, so `j` runs to `ny` inclusive. `wall(cell, direction)` reads either; the east wall of `(i, j)` and the west

@@ -26,7 +26,7 @@ There is one glyph per cell:
 | `.` | `Room`, `Corridor` | floor |
 | `+` | `Door` | a solid cell an actor may pass through |
 | `>` | `Staircase` | a staircase leading down |
-| `<` | `Staircase` | a staircase leading up; the cell type is the same, and the zone's `Staircase` record has the rise |
+| `<` | `Staircase` | a staircase leading up; the cell type is the same, and the zone's `TransitEndpoint` has the directionality |
 
 The origin is the lower left cell, and the highest row is written first, so the file reads as a map oriented as the
 display is.
@@ -37,10 +37,10 @@ cell in no room, is a barrier. A staircase cell is floor, part of the room it wa
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
 glyph. Each staircase is a `staircase` entity sited on the floor of its cell, with the orientation it was placed with,
-so an actor enters it from any side. Its `access_point` has the `type` `staircase`; a `target` of `-1` or `+1`; and an `order` that counts from 0 among all the
-staircases, in the order they are written. With a `staircase_down_region_spec`, the *k*th staircase leading down, from
-1, has the target `<region spec>_<k>/-1` and the `region_spec` itself, so it leads to level -1 of a worldspace of its
-own, which the world creates from that region spec.
+so an actor enters it from any side. Its `access_point` has the `type` `staircase`; a `target` of `../[-1]` or `../[+1]`; and an `order` that counts from 0 among all the
+staircases, in the order they are written. With a `staircase_down_region_spec`, each staircase leading down has the
+target `<region spec>/../[-1]`, so it leads to level -1 of a worldspace of its own, which the world creates from that region
+spec.
 `layout.components.access_points` refers to every staircase. Local ids are assigned in the order the entities are
 written --- each door, then its door facings, and the staircases last --- so the same parameters give the same ids.
 
@@ -50,11 +50,12 @@ These structures are the same whichever algorithm fills them:
 
 - `Cell` --- a type, the id of the room it belongs to, and four `Wall`s.
 - `Cells` --- a rectangle of cells, addressed by `point_type`.
-- `Zone` --- an id, a name, the cells and their `extent`, the `Room`, `Door` and `Staircase` records over them, and a
-  renderer for printing.
+- `Zone` --- an id, a name, the cells and their `extent`, the `Room` and `Door` records and the
+  `stratum_format::TransitEndpoint`s over them, and a renderer for printing.
   `create_room`, `create_door` and `create_staircase` each set the cell type and add the record. `create_room` takes a
-  rectangle or a list of cells, whose bounding box is the room's rectangle. A `Staircase` has its
-  `placement`, a `directed_point_type` of the cell position and the direction it opens onto, and its `Rise`, down or up.
+  rectangle or a list of cells, whose bounding box is the room's rectangle. `create_staircase(placement, directionality)`
+  adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress direction the
+  direction it opens onto and the orientation its opposite, and the `Directionality`, up or down.
 - `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a `Zone` by `match` and
   `match_replace`. `maze1` prunes with these.
 - `types.hpp` --- `coord_type`, `point_type`, `vector_type`, `directed_point_type`, `random_type` (the random number

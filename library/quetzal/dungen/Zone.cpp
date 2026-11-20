@@ -18,7 +18,7 @@ quetzal::dungen::Zone::Zone(id_type id, const string& name, vector_type extent, 
     m_cells(extent, {cell_type}, 0),
     m_rooms(),
     m_doors(),
-    m_staircases()
+    m_transit_endpoints()
 {
 }
 
@@ -194,39 +194,19 @@ void quetzal::dungen::Zone::create_door(point_type position)
 }
 
 //------------------------------------------------------------------------------
-const quetzal::dungen::Zone::staircases_type& quetzal::dungen::Zone::staircases() const
+const quetzal::dungen::Zone::transit_endpoints_type& quetzal::dungen::Zone::transit_endpoints() const
 {
-    return m_staircases;
+    return m_transit_endpoints;
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Zone::staircases_type& quetzal::dungen::Zone::staircases()
+void quetzal::dungen::Zone::create_staircase(const directed_point_type& placement, stratum_format::Directionality directionality)
 {
-    return m_staircases;
-}
+    cell(placement.position()).set_type(CellType::Staircase);
 
-//------------------------------------------------------------------------------
-const quetzal::dungen::Staircase& quetzal::dungen::Zone::staircase(id_type id) const
-{
-    assert(id < m_staircases.size());
-    return m_staircases[id];
-}
-
-//------------------------------------------------------------------------------
-quetzal::dungen::Staircase& quetzal::dungen::Zone::staircase(id_type id)
-{
-    assert(id < m_staircases.size());
-    return m_staircases[id];
-}
-
-//------------------------------------------------------------------------------
-void quetzal::dungen::Zone::create_staircase(const std::string& name, const directed_point_type& placement, Rise rise)
-{
-    Cell& c = cell(placement.position());
-    c.set_type(CellType::Staircase);
-
-    id_type staircase_id = m_staircases.size();
-    m_staircases.emplace_back(staircase_id, name, placement, rise);
+    const vector_type egress_direction = placement.direction();
+    m_transit_endpoints.push_back({.id = m_transit_endpoints.size(), .type = "staircase", .cell_position = placement.position(),
+        .orientation = -egress_direction, .egress_direction = egress_direction, .directionality = directionality});
 
     return;
 }
@@ -263,9 +243,9 @@ void quetzal::dungen::Zone::print(ostream& os) const
         os << door;
     }
 
-    for (const auto& staircase : m_staircases)
+    for (const auto& endpoint : m_transit_endpoints)
     {
-        os << staircase;
+        os << endpoint;
     }
 
     render(os);

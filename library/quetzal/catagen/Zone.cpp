@@ -107,18 +107,19 @@ void quetzal::catagen::Zone::set_wall(const point_type& position, CardinalDirect
 }
 
 //------------------------------------------------------------------------------
-const quetzal::catagen::Zone::staircases_type& quetzal::catagen::Zone::staircases() const
+const quetzal::catagen::Zone::transit_endpoints_type& quetzal::catagen::Zone::transit_endpoints() const
 {
-    return m_staircases;
+    return m_transit_endpoints;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::Zone::create_staircase(const string& name, const directed_point_type& placement, Rise rise)
+void quetzal::catagen::Zone::create_staircase(const directed_point_type& placement, stratum_format::Directionality directionality)
 {
     set_cell(placement.position(), CellType::Staircase);
 
-    id_type staircase_id = m_staircases.size();
-    m_staircases.emplace_back(staircase_id, name, placement, rise);
+    const vector_type egress_direction = placement.direction();
+    m_transit_endpoints.push_back({.id = m_transit_endpoints.size(), .type = "staircase", .cell_position = placement.position(),
+        .orientation = -egress_direction, .egress_direction = egress_direction, .directionality = directionality});
 
     return;
 }
@@ -131,7 +132,7 @@ void quetzal::catagen::Zone::clear()
     m_cells.clear();
     m_walls_vertical.clear();
     m_walls_horizontal.clear();
-    m_staircases.clear();
+    m_transit_endpoints.clear();
     return;
 }
 

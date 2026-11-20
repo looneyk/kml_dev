@@ -12,7 +12,7 @@
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RegionSpecsDocument.hpp"
-#include "quetzal/stratum_format/AccessPointTarget.hpp"
+#include "quetzal/stratum_format/AccessPointDestination.hpp"
 #include "quetzal/stratum_format/SettingDefinitionsDocument.hpp"
 #include "quetzal/stratum_format/SettingsDocument.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
@@ -264,8 +264,8 @@ namespace
 
         if (access_point.target.has_value())
         {
-            const auto* target = get_if<stratum_format::AccessPointTarget>(&*access_point.target);
-            m["target"] = target != nullptr ? map_type(stratum_format::format_access_point_target(*target))
+            const auto* target = get_if<stratum_format::AccessPointDestination>(&*access_point.target);
+            m["target"] = target != nullptr ? map_type(stratum_format::format_access_point_destination(*target))
                 : map_type{{"entity", get<stratum_format::stored_entity_id_type>(*access_point.target)}};
         }
 
@@ -440,7 +440,7 @@ namespace
         const auto& stair_access_point = document.entities[3].access_point;
         CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
             && stair_access_point->type == "staircase" && stair_access_point->order == 0 && stair_access_point->target.has_value()
-            && get<stratum_format::AccessPointTarget>(*stair_access_point->target) == stratum_format::AccessPointTarget{nullopt, stratum_format::RelativeZone{-1}, nullopt}
+            && get<stratum_format::AccessPointDestination>(*stair_access_point->target) == stratum_format::AccessPointDestination{nullopt, "../[-1]"}
             && !document.entities[3].components.contains("access_point"));
 
         const auto& chest_site = document.entities[5].site;
@@ -735,7 +735,7 @@ namespace
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 8, "type": "portal", "components": { "site": { "relation": "on",)"
-                        R"( "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "access_point": { "type": "portal", "target": "elsewhere", "order": 0 } } })"));
+                        R"( "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "access_point": { "type": "portal", "target": "../[-1]", "order": 0 } } })"));
                     v["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 8 })"));
                 }, "", "entities[7]: a second access point on the walls around the stair cell at [3, 2]"},
             {"no access points", [](auto& v) { v["layout"]["components"].erase("access_points"); },
@@ -768,14 +768,14 @@ namespace
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 8, "type": "portal", "components": { "site": { "relation": "on",)"
-                        R"( "wall": { "cell_position": [0, 0], "normal": [1, 0] } }, "access_point": { "type": "portal", "target": "elsewhere", "order": 0 } } })"));
+                        R"( "wall": { "cell_position": [0, 0], "normal": [1, 0] } }, "access_point": { "type": "portal", "target": "../[-1]", "order": 0 } } })"));
                     v["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 8 })"));
                 }, "", "layout.components.access_points[2]: an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall"},
             {"an access point that is not sited on a surface", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 9, "type": "portal", "components": { "parent": { "entity": 6 }, "access_point": { "type": "portal",)"
-                        R"( "target": "elsewhere", "order": 0 } } })"));
+                        R"( "target": "../[-1]", "order": 0 } } })"));
                     v["layout"]["components"]["access_points"][0] = parse_values(R"({ "entity": 9 })");
                 }, "layout.components.access_points[0]: an entity that is not sited on a surface: a wall, the floor or the ceiling"},
             {"a staircase leading down alone as the access point, as a tower entered from below has", [](auto& v)
@@ -811,12 +811,12 @@ namespace
                 { v["entities"][3]["components"]["access_point"]["target"] = -1; },
                 "entities[3].components.access_point.target: neither a target nor a reference to an entity"},
             {"an access point whose target is a level offset of more than one level", [](auto& v)
-                { v["entities"][3]["components"]["access_point"]["target"] = "-2"; }, ""},
-            {"an access point whose target is an absolute level in a named region, at a position", [](auto& v)
-                { v["entities"][3]["components"]["access_point"]["target"] = "sewers/=-3@grate"; }, ""},
+                { v["entities"][3]["components"]["access_point"]["target"] = "../[-2]"; }, ""},
+            {"an access point whose target is a level offset in a named region", [](auto& v)
+                { v["entities"][3]["components"]["access_point"]["target"] = "sewers/../[-3]"; }, ""},
             {"an access point whose target does not match the grammar", [](auto& v)
                 { v["entities"][3]["components"]["access_point"]["target"] = "1"; },
-                "entities[3].components.access_point.target: not a target written [region/]zone[@position]"},
+                "entities[3].components.access_point.target: not an access point target"},
             {"a template's access point bound", [](auto& v)
                 { v["entities"][3]["components"]["access_point"]["target"] = parse_values(R"({ "entity": 5 })"); },
                 "entities[3].components.access_point.target: bound, which an access point is only in a saved zone"},
@@ -829,7 +829,7 @@ namespace
 
         // A door facing as an access point, as a door into another region has, raises no warning
         stratum_format::raw_values_type door_access = load_values(data_directory / "cistern.json");
-        door_access["entities"][1]["components"]["access_point"] = parse_values(R"({ "type": "door", "target": "+0", "order": 0 })");
+        door_access["entities"][1]["components"]["access_point"] = parse_values(R"({ "type": "door", "target": "../[+0]", "order": 0 })");
         door_access["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 2 })"));
 
         vector<string> warnings;
@@ -987,32 +987,27 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("relocator targets")
     {
-        using stratum_format::AbsoluteZone;
-        using stratum_format::RelativeZone;
-        using stratum_format::AccessPointTarget;
+        using stratum_format::AccessPointDestination;
 
-        const vector<pair<string, AccessPointTarget>> targets{
-            {"-1", {nullopt, RelativeZone{-1}, nullopt}},
-            {"+2", {nullopt, RelativeZone{2}, nullopt}},
-            {"+0", {nullopt, RelativeZone{0}, nullopt}},
-            {"=0", {nullopt, AbsoluteZone{0}, nullopt}},
-            {"=-3", {nullopt, AbsoluteZone{-3}, nullopt}},
-            {"sewers/=-1", {"sewers", AbsoluteZone{-1}, nullopt}},
-            {"town/market@fountain", {"town", string("market"), "fountain"}},
-            {"-1@3,5", {nullopt, RelativeZone{-1}, "3,5"}}
+        const vector<pair<string, AccessPointDestination>> targets{
+            {"../[-1]", {nullopt, "../[-1]"}},
+            {"../[+2]", {nullopt, "../[+2]"}},
+            {"../[+0]", {nullopt, "../[+0]"}},
+            {"sewers/../[-1]", {"sewers", "../[-1]"}},
+            {"sewers", {"sewers", nullopt}}
         };
 
         for (const auto& [text, expected] : targets)
         {
-            optional<AccessPointTarget> parsed = stratum_format::parse_access_point_target(text);
+            optional<AccessPointDestination> parsed = stratum_format::parse_access_point_destination(text);
             CHECK_CASE(format("{} is read and written back the same", text), parsed == expected
-                && stratum_format::format_access_point_target(*parsed) == text);
+                && stratum_format::format_access_point_destination(*parsed) == text);
         }
 
-        for (const string& text : {"", "1", "-", "+-1", "=", "=+2", "+1.5", "sewers/", "../=0", "./-1", "a/b/c", "1a/-1", "-1@", "-1@a@b", "@x", "market-1",
-            "-99999999999"})
+        for (const string& text : {"", "-1", "+1", "../[1]", "../[-]", "../[+-1]", "../[+1.5]", "../[=0]", "../[-1", "../-1]", "./[-1]", "[-1]",
+            "sewers/", "sewers/-1", "1a/../[-1]", "a/b/../[-1]", "../[-1]@3,5", "../[-99999999999]", "town/market"})
         {
-            CHECK_CASE(format("\"{}\" is not a target", text), !stratum_format::parse_access_point_target(text).has_value());
+            CHECK_CASE(format("\"{}\" is not a target", text), !stratum_format::parse_access_point_destination(text).has_value());
         }
 
         return;

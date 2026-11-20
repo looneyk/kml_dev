@@ -39,12 +39,10 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   draws made while the spec is resolved, so nothing saves it.
 - **A zone's seed pool is drawn before the rest of its generation,** from the zone's seed, so the seeds of the
   worldspaces its access points lead to do not depend on the rest of the generation.
-- **An access point's target is a zone reference and an optional position,** written `<zone>[@<position>]`. The zone is
-  `#<zone id>`, `#<region id>/<zone name>`, or an absolute extended name, `/<root region name>/.../<zone name>`: `#`
-  precedes an id and `/` each name. Relative extended names are not implemented. The position is kept as written.
-- **A level offset, relative such as `-1` or absolute such as `=-3`, is a placeholder zone name,** which the generators
-  write since they do not have the zone ids. Loading the zone replaces each with `#<zone id>` of the zone at that level
-  in the same worldspace, and a placeholder with no zone there is an error.
+- **An access point's target is a zone's extended name,** with an optional position (`## Extended names`).
+- **The generators select a target zone by its level,** with `[`*k*`]` or `[=`*n*`]` (`## Extended names`), since
+  they do not have the zone ids. Loading the zone replaces each such target with `#<zone id>` of the zone it refers to,
+  and a target with no zone there is an error.
 - **A target in another region or worldspace is chosen from the zone's region spec,** which has a list of destinations
   and the criteria for choosing one. Both are the designer's, and the generators write no such target.
 - **A target in a worldspace that does not exist is an absolute extended name,** which its designer knows from the
@@ -93,6 +91,41 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   `zone_counter` counting the zones in the worldspace from 0 in worldspace position order. Its placeholder name is
   replaced when its `ZoneSpec` is resolved.
 
+## Extended names
+
+An extended name refers to a worldspace, a region, or a zone by the chain of names down the hierarchy, as a path does in
+a Linux file system. It is absolute, relative, or begins with an id, and it may end with a position in the zone. A zone
+level is the zone's signed index from the surface, not a depth in the region tree.
+
+```text
+extended_name := [ "/" ] segment { "/" segment } [ "@" position ]
+segment       := name | ".." | "#" id | "[" [ "=" ] zone_level "]"
+position      := "(" coordinate "," coordinate ")"
+coordinate    := signed_numeric_value
+```
+
+| Symbol | Meaning | Details |
+| --- | --- | --- |
+| *name* | Name | A letter followed by letters, digits, and underscores |
+| `/` | Separator | Separates the segments |
+| Initial `/` | Root | The first name is a root region's name, which is its worldspace's name: `/<root region name>/.../<zone name>` |
+| No initial `/` | Relative | Starts at the current zone, the zone that contains the reference, such as the zone of an access point whose target it is |
+| `..` | Parent | The region that contains a zone, or the parent of a region |
+| `#`*id* | Persistent id | The first segment. The rest of the name continues from the zone or region with that id: `#<zone id>`, or `#<region id>/<zone name>` |
+| `[`*k*`]` | Relative zone level | Replaced by the name of the zone whose zone level is *k* more than the current zone's, in the region that the preceding segments refer to. *k* is a signed integer, and the segment is the last |
+| `[=`*n*`]` | Absolute zone level | Replaced by the name of the zone whose zone level is *n*, in the region that the preceding segments refer to. *n* is a signed integer, and the segment is the last |
+| `@`*position* | Optional position | The coordinate position in the zone. Must be the last element if given. |
+
+| Extended name | Refers to |
+| --- | --- |
+| `/surface/surface_3_4` | The zone `surface_3_4` in the root region `surface` |
+| `/town/market@(12,7)` | The zone `market` in the root region `town`, at the cell position [12, 7] |
+| `../[-2]` | The zone whose zone level is two less than the current zone's, in the region that contains the current zone |
+| `../[=-3]` | The zone whose zone level is -3, in the region that contains the current zone |
+| `../../crypt/[-1]` | The zone in the region `crypt`, a sibling of the current zone's region, whose zone level is one less than the current zone's |
+| `#812` | The zone with the persistent id 812 |
+| `#40/market` | The zone `market` in the region with the persistent id 40 |
+
 ## Steps
 
 - [x] 1. **The structure created whole.** `World::create_worldspace` creates a worldspace, its top-level region, and an
@@ -118,17 +151,17 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   the tree.
 - [x] 6. **Seeds from the worldspace.** The draws in `## Design`, and each worldspace's seed saved in `world.json`.
   `RegionPosition`, `new_region_position`, and the coordinate derivation in `region_seed` and `zone_seed` go.
-- [ ] 7. **Access point targets.** `AccessPointTarget` is the zone reference and position of `## Design`,
-  and `RelativeZone`, `AbsoluteZone`, and region targets go. `load_layout` replaces
-  placeholder zone names. Going through an unbound target resolves it using zone id, since the target zone (and worldspace as needed)
-  will be created in the access point traversal process.
-  `entry_point` takes the lowest-ordered access point of the arrival type that has no target or an unbound target to
-  the zone the actor came from. A staircase has a `Rise`, and `create_target_worldspaces` goes. Until the form of a
-  region spec's destinations is designed, the surface spec in `region_specs.json` has a placeholder key,
-  `zone.destinations`, a list of absolute extended names that the zone's staircases leading down take in order when
-  it is loaded. The generators' `stairs_down_region_spec` and the access point's `region_spec` go.
+- [ ] 7. **Access point targets.** `AccessPointDestination`'s zone extended name is the zone reference and position
+  of `## Design`, and region spec targets go. `load_layout` replaces each target that selects a zone by its level with
+  `#<zone id>`. Going through an unbound target resolves it to a zone id, since its zone, and its worldspace as needed,
+  are created when the access point is gone through. `entry_point` takes the lowest-ordered access point of the arrival
+  type that has no target or an unbound target to the zone the actor came from. A staircase entity has the
+  `Directionality` that the generators' `TransitEndpoint` supplies, and `create_target_worldspaces` goes. Until the form
+  of a region spec's destinations is designed, the surface spec in `region_specs.json` has a placeholder key,
+  `zone.destinations`, a list of absolute extended names that the zone's staircases leading down take in order when it
+  is loaded. The generators' `stairs_down_region_spec` goes.
 - [ ] 8. **Seed pools.** Building a zone draws its seed pool, and a worldspace created through one of its access points
-  takes its seed from the pool. `discard_made_zone` and `World::target_seed` go.
+  takes its seed from the pool. `World::target_seed` goes.
 
 ## Open questions
 

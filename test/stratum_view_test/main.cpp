@@ -5,7 +5,7 @@
 
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/AccessPointTarget.hpp"
+#include "quetzal/stratum_format/AccessPointDestination.hpp"
 #include "quetzal/stratum_sim/AccessPoint.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
@@ -409,11 +409,11 @@ namespace
         // An access point on the floor is drawn as stairs, down if its target is below the zone and up otherwise
         flecs::entity hatch = stratum_sim::create_access_point(zone, stratum_sim::access_type(world.entities(), "portal"),
             stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::FlatCellPosition{layout.floor_id(), stratum_sim::discrete_point_type{2, 1}}, {}}, 0,
-            *stratum_format::parse_access_point_target("-1"));
+            *stratum_format::parse_access_point_destination("../[-1]"));
         CHECK_CASE("an access point on the floor leading down draws as stairs down", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '>'
             && stratum_view::render_lattice(world, zone, no_viewer).at({5, 3}) == '>');
 
-        hatch.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_target("+1");
+        hatch.get_mut<stratum_sim::AccessPoint>().target = *stratum_format::parse_access_point_destination("../[+1]");
         CHECK_CASE("and one leading up as stairs up", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '<');
 
         return;

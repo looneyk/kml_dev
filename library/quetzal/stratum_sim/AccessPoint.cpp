@@ -69,22 +69,14 @@ bool quetzal::stratum_sim::targets_level(flecs::entity e, level_type offset)
 {
     const auto* access_point = e.try_get<AccessPoint>();
     const auto* target = access_point != nullptr && access_point->target.has_value()
-        ? std::get_if<stratum_format::AccessPointTarget>(&*access_point->target) : nullptr;
+        ? std::get_if<stratum_format::AccessPointDestination>(&*access_point->target) : nullptr;
 
     if (target == nullptr)
     {
         return false;
     }
 
-    if (const auto* relative = std::get_if<stratum_format::RelativeZone>(&target->zone))
-    {
-        return relative->offset == offset;
-    }
-
-    const auto* absolute = std::get_if<stratum_format::AbsoluteZone>(&target->zone);
-    const auto* zone_position = absolute != nullptr ? zone_of(e).try_get<Position>() : nullptr;
-
-    return zone_position != nullptr && absolute->level == zone_position->z + offset;
+    return target->zone_extended_name.has_value() && stratum_format::relative_zone_level(*target->zone_extended_name) == offset;
 }
 
 //------------------------------------------------------------------------------

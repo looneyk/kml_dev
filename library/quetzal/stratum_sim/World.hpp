@@ -138,14 +138,12 @@ namespace quetzal::stratum_sim
         // and stays that way, located in the zone through InZone. Any other entity becomes a child of the zone
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
 
-        // Returns the access point at which an actor arrives through the access point, whose unbound target is a relative or
-        // absolute level with no position. It is the entry point of the arrival type that leads back, in the zone at the
-        // target level's position, read back if it has unloaded and with its content generated if it is empty. That zone is in
-        // the access point's worldspace if the region is omitted, in the worldspace of the region's name if the access point
-        // has a region spec, created from that spec if there is none, and otherwise in a new worldspace created from the region
-        // spec of that name. Throws std::runtime_error if the target has a named zone or a position, if that region spec is
-        // not registered, if the worldspace has no zone at the position, if that zone cannot be read back, or if it has no
-        // such entry point, after discarding a new worldspace
+        // Returns the access point at which an actor arrives through the access point, whose target is unbound. It is the
+        // entry point of the arrival type that leads back, in the zone at the target level's position, read back if it has
+        // unloaded and with its content generated if it is empty. That zone is in the access point's worldspace if the target
+        // has no region spec name, and otherwise in the access point's target worldspace. Throws std::runtime_error if the
+        // region spec is not registered, if the worldspace has no zone at the position, if that zone cannot be read back, or
+        // if it has no such entry point
         flecs::entity resolve_target(flecs::entity access_point);
 
         // Moves the actor through the access point to the arrival placement of the access point its target refers to, and
@@ -240,19 +238,14 @@ namespace quetzal::stratum_sim
         // cannot build it
         void fill_zone(flecs::entity zone, const stratum_format::ZoneDocument& document, std::string_view source);
 
-        // Creates, for each of the zone's access points that has a region spec, the worldspace its target's region refers to,
-        // from that region spec, if the world has no worldspace of that name
-        // Throws std::runtime_error if such an access point's target is not unbound with a region, or the region spec is not
-        // registered
+        // Creates the target worldspace of each of the zone's access points whose unbound target has a region spec name
+        // Throws std::runtime_error if a region spec is not registered
         void create_target_worldspaces(flecs::entity zone);
 
-        // Returns the region of the access point's unbound target
-        // Throws std::runtime_error if the target is not unbound with a region
-        std::string target_worldspace_name(flecs::entity access_point) const;
-
-        // Returns the id of the worldspace of that name, created from the registered region spec and the seed if the world has none
+        // Returns the id of the worldspace named for the region spec of the access point's unbound target and the access
+        // point's persistent id, created from the registered region spec if the world has none
         // Throws std::runtime_error if it is created and the region spec is not registered
-        PersistentId target_worldspace(std::string_view name, std::string_view region_spec_name, seed_type seed);
+        PersistentId target_worldspace(flecs::entity access_point);
 
         // Temporary, until a zone's seed pool is drawn: returns the seed of a worldspace created for the access point,
         // derived from the world seed and the access point's persistent id
@@ -280,14 +273,6 @@ namespace quetzal::stratum_sim
         // Name, or else the region's default with the zone's coordinates, or else the region's name, with a suffix from
         // the region's counter if another zone of the region has it
         void name_zone(flecs::entity zone);
-
-        // Returns the entry point of the zone, in a worldspace made for the access point, of the arrival type and leading back
-        // offset levels. Throws std::runtime_error, after discarding the worldspace, if it has none
-        flecs::entity require_entry_point(flecs::entity access_point, flecs::entity zone, flecs::entity arrival_type, level_type offset);
-
-        // Discards the worldspace of the zone made for the access point, which has never been entered. The world index no
-        // longer has the zone's entities
-        void discard_made_zone(flecs::entity zone);
 
         // The entities that property reads, nearest first
         entities_type property_chain(flecs::entity e) const;

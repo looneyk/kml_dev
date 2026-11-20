@@ -99,7 +99,7 @@ namespace
             return std::nullopt;
         }
 
-        if (const auto* unbound = std::get_if<quetzal::stratum_format::AccessPointTarget>(&*target))
+        if (const auto* unbound = std::get_if<quetzal::stratum_format::AccessPointDestination>(&*target))
         {
             return *unbound;
         }
@@ -355,7 +355,6 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
         flecs::entity e = entities.at(entity.id);
         set_access_point(e, access_type(world, access_point.type), access_point.order, access_point_target(access_point.target, entities));
-        e.get_mut<AccessPoint>().region_spec = access_point.region_spec;
     }
 
     decode_components(zone, document.components, "layout", resolve);

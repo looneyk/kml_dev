@@ -25,7 +25,7 @@ namespace
     using stored_entity_id_type = quetzal::stratum_format::stored_entity_id_type;
 
     //--------------------------------------------------------------------------
-    // Formats a parameter as the token its command line option takes
+    // Formats a parameter as command line token
     template<typename T>
     string token(const T& value)
     {
@@ -83,8 +83,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Writes the Zone's own extent rather than the requested one, since an algorithm may round the requested extent to one its
-    // layout can use
+    // Writes the Zone's extent rather than the requested one, since an algorithm may round the requested extent to one its layout can use
     quetzal::stratum_format::Generator generator(const Zone& zone, const Parameters& parameters)
     {
         quetzal::KeyValueStore values;
@@ -165,7 +164,7 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
 {
     auto [nx, ny] = zone.extent().rep();
 
-    assert(!zone.staircases().empty());
+    assert(!zone.transit_endpoints().empty());
 
     stratum_format::ZoneDocument document;
     document.version = stratum_format::format_version;
@@ -193,12 +192,12 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
         cells.rows.push_back(std::move(row));
     }
 
-    // A staircase cell's type does not encode which way it leads; the Staircase does
-    for (const auto& staircase : zone.staircases())
+    // A staircase cell's type does not encode which way it leads; the TransitEndpoint does
+    for (const auto& endpoint : zone.transit_endpoints())
     {
-        if (staircase.rise() == Rise::Up)
+        if (endpoint.directionality == stratum_format::Directionality::Up)
         {
-            point_type position = staircase.placement().position();
+            const point_type position = endpoint.cell_position;
             cells.rows[static_cast<size_t>(ny - 1 - position.y())][static_cast<size_t>(position.x())] = '<';
         }
     }
@@ -258,28 +257,20 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
     }
 
     size_t staircase_count = 0;
-    size_t staircase_down_count = 0;
 
-    for (const auto& staircase : zone.staircases())
+    for (const auto& endpoint : zone.transit_endpoints())
     {
-        const directed_point_type placement = staircase.placement();
-        const stratum_format::FlatCell floor_cell{stratum_format::FlatRole::Floor, placement.position()};
+        const stratum_format::FlatCell floor_cell{stratum_format::FlatRole::Floor, endpoint.cell_position};
 
-        const bool leads_down = staircase.rise() == Rise::Down;
-        stratum_format::AccessPointTarget target{std::nullopt, stratum_format::RelativeZone{leads_down ? -1 : 1}, std::nullopt};
-        stratum_format::AccessPoint access_point{"staircase", staircase_count++, target};
+        const bool leads_down = endpoint.directionality == stratum_format::Directionality::Down;
+        const stratum_format::AccessPointDestination target{leads_down ? parameters.staircase_down_region_spec : std::nullopt,
+            stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
+        stratum_format::AccessPoint access_point{endpoint.type, staircase_count++, target};
 
-        if (leads_down && parameters.staircase_down_region_spec.has_value())
-        {
-            const std::string& region_spec = parameters.staircase_down_region_spec.value();
-            target.region = std::format("{}_{}", region_spec, ++staircase_down_count);
-            access_point.target = target;
-            access_point.region_spec = region_spec;
-        }
-
+        // A floor site's orientation is the direction an arriving actor faces
+        const stratum_format::Site site{stratum_format::Relation::On, floor_cell, nullopt, endpoint.egress_direction};
         document.access_points.push_back(++id);
-        document.entities.push_back({id, "staircase", stratum_format::Site{stratum_format::Relation::On, floor_cell, nullopt, placement.direction()},
-            nullopt, std::move(access_point), {}});
+        document.entities.push_back({id, endpoint.type, site, nullopt, std::move(access_point), {}});
     }
 
     return document;
