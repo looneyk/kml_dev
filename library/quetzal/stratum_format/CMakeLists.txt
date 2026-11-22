@@ -1,5 +1,5 @@
 add_library(quetzal_stratum_format STATIC
-    AccessPointDestination.cpp
+    AccessPoint.cpp
     checked_values.cpp
     Directionality.cpp
     GameManifestDocument.cpp
@@ -25,7 +25,8 @@ add_library(quetzal_stratum_format STATIC
     write_world.cpp
     write_zone.cpp
     ZoneDocument.cpp
-    AccessPointDestination.hpp
+    ZoneExtendedName.cpp
+    AccessPoint.hpp
     CharacterDocument.hpp
     checked_values.hpp
     config_format.hpp
@@ -58,6 +59,7 @@ add_library(quetzal_stratum_format STATIC
     write_world.hpp
     write_zone.hpp
     ZoneDocument.hpp
+    ZoneExtendedName.hpp
 )
 
 set_property(TARGET quetzal_stratum_format PROPERTY FOLDER "library")

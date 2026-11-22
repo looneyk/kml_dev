@@ -10,7 +10,7 @@
 #include "quetzal/log/timestamped_files.hpp"
 #include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
-#include "quetzal/stratum_sim/AccessPoint.hpp"
+#include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
 #include "quetzal/stratum_sim/Name.hpp"
@@ -728,11 +728,11 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         else if (const stratum_sim::Blocked* pblocked = event.try_get<stratum_sim::Blocked>())
         {
             flecs::entity access_point = pblocked->blocking_wall_id != nullid
-                ? stratum_sim::find_access_point(m_session.zone(), stratum_sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
+                ? stratum_sim::find_entered_access_point(m_session.zone(), stratum_sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
 
             if (access_point)
             {
-                std::string name = stratum_sim::access_type_name(access_point);
+                std::string name = stratum_sim::entity_type_name(access_point);
                 m_message = std::format("There is a {} before you.", name.empty() ? "way" : name);
                 continue;
             }

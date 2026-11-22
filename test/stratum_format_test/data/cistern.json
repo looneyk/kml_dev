@@ -42,8 +42,8 @@
     { "id": 1, "type": "door", "components": { "material": "oak", "open": false } },
     { "id": 2, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
     { "id": 3, "type": "door_facing", "components": { "parent": { "entity": 1 }, "site": { "relation": "on", "wall": { "cell_position": [2, 1], "normal": [1, 0] } }, "concealed": true } },
-    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "../[-1]", "order": 0 } } },
-    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, 1] } }, "access_point": { "type": "staircase", "target": "../[+1]", "order": 1 } } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [3, 2], "orientation": [0, 1] }, "access_point": { "destination": "../[-1]", "order": 0, "egress": [0, -1] }, "directionality": "Down" } },
+    { "id": 5, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [3, 0], "orientation": [0, -1] }, "access_point": { "destination": "../[+1]", "order": 1, "egress": [0, 1] }, "directionality": "Up" } },
     { "id": 6, "type": "chest", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [0, 2], "orientation": [1, 0] } } },
     { "id": 7, "type": "key", "components": { "parent": { "entity": 6 }, "site": { "relation": "in" }, "opens": { "entity": 1 } } }
   ]

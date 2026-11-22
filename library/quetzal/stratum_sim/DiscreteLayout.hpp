@@ -81,9 +81,8 @@ namespace quetzal::stratum_sim
         discrete_point_type wall_cell_position(id_type wall_id) const;
         const discrete_vector_type& wall_direction(id_type wall_id) const;
 
-        // The placement of an actor arriving at an access point with this site: in the wall's cell facing away from the
-        // wall, or on the floor of the flat cell facing in the site's orientation
-        placement_type arrival_placement(const Site& site) const;
+        // The placement of an actor following transit to an access point's destination
+        placement_type destination_placement(const Site& site, const discrete_vector_type& egress) const;
 
         // True if there is no wall in that direction; otherwise the result of is_wall_crossable for the wall
         bool crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction, const crossable_function_type& is_wall_crossable) const;

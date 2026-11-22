@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "cells.hpp"
-#include "quetzal/stratum_sim/AccessPoint.hpp"
+#include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
 #include "quetzal/stratum_sim/Site.hpp"
@@ -106,29 +106,11 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns true if the entity's access point is known to lead below its zone. Stairs whose direction is not known are
-    // drawn leading up, the entrance glyph
+    // Stairs with no directionality are drawn leading up, the entrance glyph
     bool leads_down(flecs::entity e)
     {
-        const sim::AccessPoint& access_point = e.get<sim::AccessPoint>();
-        const auto* zone_position = sim::zone_of(e).try_get<sim::Position>();
-
-        if (!access_point.target.has_value())
-        {
-            return false;
-        }
-
-        if (const auto* target = std::get_if<quetzal::stratum_format::AccessPointDestination>(&*access_point.target))
-        {
-            const std::optional<std::int32_t> relative_level = target->zone_extended_name.has_value()
-                ? quetzal::stratum_format::relative_zone_level(*target->zone_extended_name) : std::nullopt;
-            return relative_level.has_value() && *relative_level < 0;
-        }
-
-        flecs::entity bound = std::get<sim::EntityReference>(*access_point.target).entity;
-        const auto* bound_position = bound && bound.is_alive() ? sim::zone_of(bound).try_get<sim::Position>() : nullptr;
-
-        return bound_position != nullptr && zone_position != nullptr && bound_position->z < zone_position->z;
+        const auto* directionality = e.try_get<quetzal::stratum_format::Directionality>();
+        return directionality != nullptr && *directionality == quetzal::stratum_format::Directionality::Down;
     }
 
     //--------------------------------------------------------------------------
@@ -138,7 +120,7 @@ namespace
     void each_stairs_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
     {
         sim::with_in_zone(zone.world().query_builder<const sim::Site>(), zone)
-            .with<sim::AccessPoint>()
+            .with<quetzal::stratum_format::AccessPoint>()
             .build()
             .each([&](flecs::entity e, const sim::Site& site)
             {

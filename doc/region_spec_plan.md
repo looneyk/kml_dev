@@ -83,7 +83,7 @@ pattern for that zone. Every value can be a pattern (`## Patterns`).
 - **A nested object groups the members for one part of the region,** and a member at the top level is a property of
   the region. The `zone` object has the keys of an ordinary `ZoneSpec`. Each reader of a spec rejects the members it
   does not read.
-- **Each value is a token that its reader parses,** such as `staircase` for an access point type.
+- **Each value is a token that its reader parses,** such as `staircase` for an entity type.
 - **An override is a merge patch** (JSON Merge Patch, RFC 7386): a key adds or replaces a value, the value `&nil`
   removes the key, and a list is replaced whole. A subregion's overrides and a mod's patches to types and styles
   (`modding_plan.md`) are one mechanism. A spec is composed as `merge(parent, merge(designed, own))`
@@ -238,8 +238,8 @@ patterns, and a value in any other field is literal text.
 
 ## Connections between worldspaces
 
-- **An entrance into another worldspace has a zone's extended name as its target,** such as a staircase in a surface
-  zone that leads to `barrow/Level -1`. A pattern in the `zone.parameters.` keys adds the target to the zone's parameters, and the generator writes
+- **An entrance into another worldspace has a zone's extended name as its destination,** such as a staircase in a surface
+  zone that leads to `barrow/Level -1`. A pattern in the `zone.parameters.` keys adds the destination to the zone's parameters, and the generator writes
   it to the access point.
 
 ## The structure World::create builds

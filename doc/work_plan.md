@@ -9,7 +9,7 @@ goal that every item is held to: everything a game adds is data or script.
 
 The design behind the items is in these documents, which the items refer to by section:
 
-- `access_point_plan.md` merges `Relocator` into one `AccessPoint` component with an optional target, and derives the
+- `access_point_plan.md` merges `Relocator` into one `AccessPoint` component with an optional destination, and derives the
   arrival placement from the site of the access point's entity.
 - `component_names_plan.md` renames the zone components and the layout entity ids to follow ECS convention.
 - `difficulty_plan.md` covers the difficulty modes: the settings each is a preset of, permadeath among them.
@@ -37,7 +37,7 @@ The design behind the items is in these documents, which the items refer to by s
   zones created whole from `RegionSpec`s before play, the registries of zone generators and region
   specs, and each zone's content generated when it is needed.
 - `zone_plan.md` defines the world's structure: worldspaces, zones, and hierarchical regions, their names, extended
-  names and persistent ids, positions and levels, and access points and their targets.
+  names and persistent ids, positions and levels, and access points and their destinations.
 
 `archived/` has the plans whose work is built.
 
@@ -91,10 +91,8 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **The world's structure created whole** (`world_structure_plan.md`): each worldspace created whole from a region
       spec tree, with its region tree and an empty zone at every position of its extent, the starting worldspace with
       the game and each other worldspace when the zone of an access point that leads to it is generated.
-- [ ] **Targets resolved by extended name and by position** (`zone_plan.md`, `### Targets`, and `world_structure_plan.md`,
-      `## Extended names`): an unbound `AccessPointDestination` resolved to the
-      zone of an extended name or a persistent id, or at a position relative to the access point's zone or absolute in a
-      worldspace, with the zone's content generated if it has none.
+- [ ] **Destinations with a position** (`world_structure_plan.md`, `## Extended names`): going through a destination whose zone
+      extended name ends with `@`*position* places the arriving actor at that cell position in the zone.
 - [ ] **A reference's zone in the reference:** an `EntityReference` to an entity that never changes zone, such as an
       access point, stores that zone's persistent id, and the world index has no entry for it.
 - [ ] **The world index limited to references across zones:** an entry for an entity only while something outside its
@@ -112,7 +110,7 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **The pregenerated content index** (`template_plan.md`, `## Pregenerated content`): built at game start by scanning
       `assets/zones`, or read from an index file built in the background, listing each zone's and region's extended
       name with its zone data file and the names of the access points in it.
-- [ ] **Access point names:** a `name` on an access point, read, written, and listed in the index, for a target that
+- [ ] **Access point names:** a `name` on an access point, read, written, and listed in the index, for a destination that
       arrives at a named access point.
 - [ ] **Subregions** (`zone_plan.md`, `### Regions`): a region's parent region, a `RegionSpec`'s subregion specs, and
       each subregion's extent, in the syntax that the open question on the extent's key names decides
@@ -120,21 +118,11 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **Naming patterns** (`zone_plan.md`, `### Identity`): a region spec's naming patterns, one for its regions and one
       for their zones, in place of `<basename>_<counter>`, with extended names unique at every level of the region
       hierarchy.
-- [ ] **The target's notation:** the whole extended name grammar (`world_structure_plan.md`, `## Extended names`) read and
-      written in an `AccessPointDestination`, in place of `../[k]` alone.
 
 ## Access points
 
-`access_point_plan.md` has the design.
-
-- [x] **The arrival placement from the site.** stratum_sim's `AccessPoint` has no placement, and an arriving actor is
-      placed from the site of the access point's entity. The zone file is unchanged.
-- [x] **One `AccessPoint` component in stratum_sim,** with an optional target, `Relocator` merged into it, and the
-      identifiers that refer to the component renamed (`access_point_plan.md`, `## Renames`).
-- [x] **The `access_point` file component,** format 0.6, with no placement, every zone file in the tree rewritten,
-      and the reference files regenerated.
-- [x] **One-way access points resolved:** an unbound target arriving at an access point type whose access points have
-      no target.
+`access_point_plan.md` has the design. Its open work, the access point type, `Directionality`, and the destinations, is
+`world_structure_plan.md`, step 7, part of **The world's structure created whole**.
 
 ## Attachments
 
@@ -347,8 +335,6 @@ These are the open questions.
   floor/door cell on either side satisfies it. A perimeter whose walls all face outward, around a pillar or solid
   ground, passes while enclosing no floor/door cell. The reader already determines which side of each edge is inside;
   a check of the enclosed area is needed to reject these.
-- **Where are access point types registered from data, a mod's among them, instead of in `World`'s constructor?**
-  `modding_plan.md` has the goal.
 - **What scale does the probability of a staircase leading down take, and what bounds it?** It is inversely
   proportional to how far below the surface the zone's level is and proportional to `difficulty`, and is 1 for now. A
   region has no lowest level to bound it.
@@ -451,6 +437,9 @@ These are set aside on purpose.
 
 - **Pursuers following the character through an access point** (`session_plan.md`, `### Following through an access
   point`). Only the controlled actor enters an access point.
+- **An access point with several destinations,** such as a lift that stops at several levels or a portal hub: a list of
+  destinations in the `AccessPoint` or in its `destination_type`, which of the two being undecided. An
+  object has one access point.
 - **A doorway into a dead end,** which has a wall on one side only: what a door glyph there requires, and what the
   generators and the reader do with one.
 - **maze1's unreachable corridor.** Excavation can leave corridor that no door reaches, which dead-end pruning removes

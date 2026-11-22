@@ -12,6 +12,7 @@
     },
     "dungeon": {
       "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": [-100, -1] } ] },
+      "entry_zone": "&region_name .. '_1'",
       "zone.name": "&region_name .. '_' .. math.abs(z)"
     }
   }

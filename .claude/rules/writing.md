@@ -138,6 +138,8 @@ are introduced, not after.
 - **"That exists" is the tell.** "The only attachment that exists", "nothing uses it yet": an appeal to the current
   inventory is a reason from a census, not from the design. It is fine as a cost estimate ("this touches four call
   sites"), never as a reason to build for less, and it is never a point on the narrow side of a comparison.
+- **Existing usage is not a reason.** That a name, type, or form is already used in documents or code is never a reason
+  to keep it or to choose it.
 - **The narrow option is never offered** as a choice: drop, skip, and defer-until-used are not alternatives.
 - **Size and performance** are written as a cost per operation, with how they scale, never from the data seen so far.
 - **Real constraints are still written down:** the build scope rule, `notes` files being the author's, git being

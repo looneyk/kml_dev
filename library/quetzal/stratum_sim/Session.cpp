@@ -4,11 +4,12 @@
 //------------------------------------------------------------------------------
 
 #include "Session.hpp"
-#include "AccessPoint.hpp"
+#include "access_points.hpp"
 #include "actors.hpp"
 #include "ai.hpp"
 #include "DiscreteLayout.hpp"
 #include "Site.hpp"
+#include "quetzal/log/Log.hpp"
 #include <format>
 #include <stdexcept>
 #include <cassert>
@@ -37,9 +38,9 @@ void quetzal::stratum_sim::Session::clear()
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::start(flecs::entity access_point)
 {
-    assert(access_point && access_point.has<AccessPoint>());
+    assert(access_point && access_point.has<stratum_format::AccessPoint>());
 
-    start(zone_of(access_point), arrival_placement(access_point));
+    start(zone_of(access_point), destination_placement(access_point));
     return;
 }
 
@@ -86,16 +87,18 @@ bool quetzal::stratum_sim::Session::over() const
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset)
+void quetzal::stratum_sim::Session::enter(flecs::entity zone, flecs::entity type, level_type offset)
 {
     assert(zone && zone.has<Zone>());
-    assert(access_type);
+    assert(type);
 
-    flecs::entity entry = entry_point(zone, access_type, offset);
+    flecs::entity entry = entry_point(zone, type, offset);
 
     if (!entry)
     {
-        throw std::runtime_error(std::format("zone has no access point of the type '{}' whose target is {:+}", access_type.name().c_str(), offset));
+        const std::string message = std::format("zone has no access point of the type '{}' whose destination is {:+}", type.name().c_str(), offset);
+        log::logger().error("stratum_sim", "{}", message);
+        throw std::runtime_error(message);
     }
 
     start(entry);

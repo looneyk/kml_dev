@@ -165,7 +165,7 @@ The reader uses nlohmann/json, vendored at `library3/json`.
 - **A flat is sampled at cell scale.** `sim_zone_model.md` keeps the surface sampling grid separate from the movement
   grid and allows it to be finer; this format writes heights on the cell grid.
 - **A zone is identified by its file.**
-- **A staircase has a destination**, its access point's target.
+- **A staircase has a destination**, its access point's.
 - **A flat has a file representation**, replacing `load_layout`'s `height_ceiling` parameter.
 - **A room has components**, stored on its entity.
 - **`door_type` goes when a zone is loaded from its entities** (`game_system_reference.md`, `### load_layout`), since a door is one

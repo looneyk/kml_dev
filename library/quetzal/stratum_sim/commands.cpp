@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "commands.hpp"
-#include "AccessPoint.hpp"
+#include "access_points.hpp"
 #include "actors.hpp"
 #include "attachments.hpp"
 #include "DiscreteLayout.hpp"
@@ -25,10 +25,10 @@ namespace
     {
         using namespace quetzal::stratum_sim;
 
-        flecs::entity arrival = world.relocate_through(actor, access_point);
+        flecs::entity destination = world.relocate_through(actor, access_point);
 
         events.push(Relocated{static_cast<quetzal::id_type>(actor.id()), static_cast<quetzal::id_type>(access_point.id()),
-            static_cast<quetzal::id_type>(arrival.id())});
+            static_cast<quetzal::id_type>(destination.id())});
 
         return Scheduler::action_cost;
     }
@@ -83,7 +83,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         if constexpr (enter_access_point_by_moving)
         {
             flecs::entity access_point = result.blocking_wall_id != nullid && e.has<ControlledActor>()
-                ? find_access_point(zone, WallId{result.blocking_wall_id}) : flecs::entity();
+                ? find_entered_access_point(zone, WallId{result.blocking_wall_id}) : flecs::entity();
 
             if (access_point && can_enter(access_point, e))
             {
@@ -131,14 +131,18 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        flecs::entity access_point = e.has<ControlledActor>() ? find_access_point(zone, WallId{wall_id}) : flecs::entity();
-        if (access_point && can_enter(access_point, e))
+        flecs::entity access_point = find_entered_access_point(zone, WallId{wall_id});
+        if (access_point && e.has<ControlledActor>() && can_enter(access_point, e))
         {
             return enter_access_point(world, e, access_point, events);
         }
 
         Interaction interaction = Interaction::Nothing;
         flecs::entity way = find_access_attachment(zone, wall_id);
+        if (!way && access_point && access_entity(access_point))
+        {
+            way = access_point;
+        }
 
         // A locked way through stays as it is
         if (flecs::entity holder = access_entity(way); holder && holder.get<Access>().state != AccessState::Locked)

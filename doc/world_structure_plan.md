@@ -2,7 +2,7 @@
 
 When a game is created, `World` creates the starting worldspace whole from the root region spec of the world
 definition's starting region: the worldspace, its region tree, and an empty zone at every position of its extent.
-Entering an access point whose target is in a worldspace that does not exist creates that worldspace in the same way. An empty zone has no
+Entering an access point whose destination is in a worldspace that does not exist creates that worldspace in the same way. An empty zone has no
 layout and no entities until it is first entered or loaded. The steps below are commit-sized units, each passing every
 test, and are the work of **The world's structure created whole** in `work_plan.md`.
 
@@ -30,8 +30,8 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   (`region_spec_plan.md`, `## Zones of a worldspace`).
 - **A worldspace is created from a root region spec and a seed.** The starting worldspace's are the root spec of the
   world definition's `starting_region` and the first draw of a random engine seeded from the world seed. An access point that leads to a
-  worldspace that does not exist has an absolute extended name as its target, and entering it creates the worldspace
-  from the region spec tree of the name's root region and a seed from its zone's seed pool.
+  worldspace that does not exist has a region spec name or an absolute extended name as its destination, and entering it
+  creates the worldspace from the region spec tree that the destination refers to and a seed from its zone's seed pool.
 - **Seeds derive from the worldspace.** The worldspace's random engine, seeded from the worldspace's seed, draws each
   zone's seed in worldspace position order, since the extent fixes the number of zones, and then the seeds of its region
   specs. A region spec has a seed, and a region does not. A spec's `seed` takes precedence over the drawn one.
@@ -39,15 +39,18 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   draws made while the spec is resolved, so nothing saves it.
 - **A zone's seed pool is drawn before the rest of its generation,** from the zone's seed, so the seeds of the
   worldspaces its access points lead to do not depend on the rest of the generation.
-- **An access point's target is a zone's extended name,** with an optional position (`## Extended names`).
-- **The generators select a target zone by its level,** with `[`*k*`]` or `[=`*n*`]` (`## Extended names`), since
-  they do not have the zone ids. Loading the zone replaces each such target with `#<zone id>` of the zone it refers to,
-  and a target with no zone there is an error.
-- **A target in another region or worldspace is chosen from the zone's region spec,** which has a list of destinations
-  and the criteria for choosing one. Both are the designer's, and the generators write no such target.
-- **A target in a worldspace that does not exist is an absolute extended name,** which its designer knows from the
-  designed worldspace in the assets. A target that does not fully specify its zone is an error.
-- **A staircase has a `Rise`,** up or down, which the generators write and the view draws.
+- **An access point's destination is an `AccessPoint::destination_type`:** the persistent id of the access point it is bound to, a
+  region spec name, or a zone's extended name with an optional position (`## Extended names`).
+- **The generators select a destination zone by its level,** with `[`*k*`]` or `[=`*n*`]` (`## Extended names`), since
+  they do not have the zone ids. Loading the zone replaces each such destination with `#<zone id>` of the zone it refers to,
+  and a destination with no zone there is an error.
+- **A destination in another region or worldspace is chosen from the zone's region spec,** which has a list of destinations
+  and the criteria for choosing one. Both are the designer's, and the generators write no such destination.
+- **A destination in a worldspace that does not exist is a region spec name or an absolute extended name,** which its
+  designer knows from the designed worldspace in the assets. An absolute extended name that does not fully specify its
+  zone is an error.
+- **The entity an access point is on, such as a staircase, has an optional `Directionality`,** up or down, which the
+  generators write and the views draw.
 - **The world definition file lists the game's region spec trees.** It is `assets/data/world_definition.json`, and
   more of the world's content is added to it later. Each tree is a list of region specs linked by the name of each
   spec's parent region, and a root spec has none. Each region's list of subregions is built when the file is loaded, for
@@ -109,7 +112,7 @@ coordinate    := signed_numeric_value
 | *name* | Name | A letter followed by letters, digits, and underscores |
 | `/` | Separator | Separates the segments |
 | Initial `/` | Root | The first name is a root region's name, which is its worldspace's name: `/<root region name>/.../<zone name>` |
-| No initial `/` | Relative | Starts at the current zone, the zone that contains the reference, such as the zone of an access point whose target it is |
+| No initial `/` | Relative | Starts at the current zone, the zone that contains the reference, such as the zone of an access point whose destination it is |
 | `..` | Parent | The region that contains a zone, or the parent of a region |
 | `#`*id* | Persistent id | The first segment. The rest of the name continues from the zone or region with that id: `#<zone id>`, or `#<region id>/<zone name>` |
 | `[`*k*`]` | Relative zone level | Replaced by the name of the zone whose zone level is *k* more than the current zone's, in the region that the preceding segments refer to. *k* is a signed integer, and the segment is the last |
@@ -151,23 +154,58 @@ coordinate    := signed_numeric_value
   the tree.
 - [x] 6. **Seeds from the worldspace.** The draws in `## Design`, and each worldspace's seed saved in `world.json`.
   `RegionPosition`, `new_region_position`, and the coordinate derivation in `region_seed` and `zone_seed` go.
-- [ ] 7. **Access point targets.** `AccessPointDestination`'s zone extended name is the zone reference and position
-  of `## Design`, and region spec targets go. `load_layout` replaces each target that selects a zone by its level with
-  `#<zone id>`. Going through an unbound target resolves it to a zone id, since its zone, and its worldspace as needed,
-  are created when the access point is gone through. `entry_point` takes the lowest-ordered access point of the arrival
-  type that has no target or an unbound target to the zone the actor came from. A staircase entity has the
-  `Directionality` that the generators' `TransitEndpoint` supplies, and `create_target_worldspaces` goes. Until the form
-  of a region spec's destinations is designed, the surface spec in `region_specs.json` has a placeholder key,
-  `zone.destinations`, a list of absolute extended names that the zone's staircases leading down take in order when it
-  is loaded. The generators' `stairs_down_region_spec` goes.
+- [ ] 7. **Access points and their destinations.** The design is `access_point_plan.md`'s, with the destinations of `## Design`.
+  - [x] a. **`Arrival` removed.** An actor arrives at an access point of the type it went through.
+  - [x] b. **The access point type from the prefab.** An access point's type is its entity's prefab, and `AccessType`,
+    the registered access point types, and the `access_point` file component's `type` go. `register_game_types`
+    registers the `staircase`, `portal`, and `waypoint` prefabs beside `door`. Every zone file in the tree is rewritten
+    and the reference files regenerated.
+  - [x] c. **`Directionality`.** The entity an access point is on, such as a staircase, has an optional
+    `Directionality` component, the entity's `directionality` file component, which the generators write from each
+    `TransitEndpoint`. The views draw a staircase leading up or down from it, in place of its destination's level.
+  - [x] d. **The arrival placement from the egress.** An `AccessPoint` has an egress, the `access_point` file
+    component's `egress`, which the generators write from each `TransitEndpoint`'s `egress_direction`. An arriving actor
+    is placed in the cell at the position of the access point's entity plus the egress, facing along the egress, or in
+    the entity's orientation if the egress is zero. In the wall notation a staircase is sited on its stair block's cell
+    instead of on the wall that the floor presents to the block, and the reference files are regenerated.
+  - [x] e. **The destination variant.** `AccessPoint::destination_type` is a variant of an access point's persistent id, a
+    region spec name, and a zone's extended name, and an `AccessPoint`'s destination is an optional `destination_type`.
+    A bound destination is the persistent id of the access point it is bound to, found through the world index, and the
+    stored id of that access point in a file. The `EntityReference` destination goes. A region spec name destination arrives at
+    the zone whose name is the region spec's `entry_zone`, a pattern such as `&region_name .. '_1'`, and every region
+    spec's resolution has the symbol `region_name`.
+  - [ ] f. **The extended name grammar.** `stratum_format` reads and writes a zone extended name in the whole grammar of
+    `## Extended names`, and the reader rejects a destination that does not parse.
+  - [ ] g. **Level destinations replaced on load.** `load_layout` replaces each destination that selects a zone by its level, with
+    `[`*k*`]` or `[=`*n*`]`, with `#<zone id>` of the zone it refers to, and a destination with no zone there is an error.
+  - [ ] h. **Destinations resolved when gone through.** Going through an unbound destination resolves it to a zone, by its zone
+    extended name or its region spec name, and creates the zone's content, and its worldspace as needed, then.
+    `create_destination_worldspaces` goes. `entry_point` takes the lowest-ordered access point of the departure's type that
+    has no destination or an unbound destination to the zone the actor came from, in place of `targets_level` and
+    `accepts_arrival`.
+  - [ ] i. **Destinations from the region spec.** Until the form of a region spec's destinations is designed, the
+    surface spec in `region_specs.json` has a placeholder key, `zone.destinations`, a list of absolute extended names
+    that the zone's access points leading down take in order when it is loaded. The generators'
+    `stairs_down_region_spec` goes.
+  - [ ] j. **Interaction through attachments.** `Interact` and a move blocked by a wall act on the entities attached to
+    the wall and to the floor of the cell beyond it, and `Enter` and a move onto a cell act on those attached to the
+    cell's floor, each by the components the entity has: an `AccessPoint` is entered, and an `Access` is opened or
+    closed. In the wall notation, an access point on the floor of the cell beyond is entered only from the cell its
+    egress leads to. A move onto a cell enters an access point whose `automatic_entry` is true, the `access_point` file
+    component's `automatic_entry`, false when absent, and any other is entered by `Interact` or `Enter`. The hosts'
+    messages come from the same attachments. `find_access_point`, `find_entered_access_point`, and
+    `enter_access_point_by_moving` go.
 - [ ] 8. **Seed pools.** Building a zone draws its seed pool, and a worldspace created through one of its access points
-  takes its seed from the pool. `World::target_seed` goes.
+  takes its seed from the pool. `World::destination_seed` goes.
 
 ## Open questions
 
 - **Do a registered spec's `subregion.<name>` entries (`region_spec_plan.md`, `### subregion.`), with their counts and
   weighted choices, remain beside a tree's parent links?**
 - **What form do a region spec's list of destinations and its criteria for choosing one take?**
+- **How are a region spec name destination and a zone extended name destination used?**
+- **How does a zone file tell a region spec name destination from a relative zone extended name?** A bare name, such as
+  `dungeon`, reads as either.
 
 ## Documents revised on approval
 

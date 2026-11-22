@@ -36,6 +36,9 @@ namespace quetzal::stratum_sim
     inline constexpr std::string_view position_z_key = "position.z";
     inline constexpr std::string_view parameters_prefix = "parameters.";
 
+    // The RegionSpec key of the name of the zone at which a worldspace created from the spec is entered
+    inline constexpr std::string_view entry_zone_key = "entry_zone";
+
     //--------------------------------------------------------------------------
     // The registries that World creates regions and zones from
     struct Generation

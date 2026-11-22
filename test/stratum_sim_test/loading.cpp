@@ -19,7 +19,7 @@
 #include "quetzal/stratum_sim/Session.hpp"
 #include "quetzal/stratum_sim/Game.hpp"
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
-#include "quetzal/stratum_sim/AccessPoint.hpp"
+#include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/actors.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
@@ -29,7 +29,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/AccessPointDestination.hpp"
+#include "quetzal/stratum_format/AccessPoint.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
@@ -558,14 +558,17 @@ namespace
         CHECK_CASE("each sited on its wall, which lists it", facing_west && facing_west.try_get<stratum_sim::AttachedEntities>() != nullptr
             && facing_west.get<stratum_sim::AttachedEntities>().entities == vector<flecs::entity>{facings.empty() ? flecs::entity() : facings[0]});
 
-        flecs::entity staircase_type = stratum_sim::entity_type(world.entities(), "staircase");
+        flecs::entity facing_type = stratum_sim::entity_type(world.entities(), "door_facing");
         CHECK_CASE("an entity whose type is not loaded is an instance of a type of that name, made without the components a type sets",
-            staircase && staircase_type && staircase.has(flecs::IsA, staircase_type) && !staircase_type.has<stratum_sim::Access>());
-        CHECK_CASE("it is the access point, as the file lists it", staircase && staircase.has<stratum_sim::AccessPoint>()
-            && stratum_sim::entry_point(zone, stratum_sim::access_type(entities, "staircase"), 1) == staircase);
-        CHECK_CASE("with its target", staircase && staircase.get<stratum_sim::AccessPoint>().target.has_value()
-            && get<stratum_format::AccessPointDestination>(*staircase.get<stratum_sim::AccessPoint>().target)
-                == stratum_format::AccessPointDestination{nullopt, "../[+1]"});
+            !facings.empty() && facing_type && facings[0].has(flecs::IsA, facing_type) && !facing_type.has<stratum_sim::Access>());
+
+        flecs::entity staircase_type = stratum_sim::entity_type(world.entities(), "staircase");
+        CHECK_CASE("the staircase is an instance of its registered type", staircase && staircase_type
+            && staircase.has(flecs::IsA, staircase_type));
+        CHECK_CASE("it is the access point, as the file lists it", staircase && staircase.has<stratum_format::AccessPoint>()
+            && stratum_sim::entry_point(zone, staircase_type, 1) == staircase);
+        CHECK_CASE("with its destination", staircase && staircase.get<stratum_format::AccessPoint>().destination.has_value()
+            && *staircase.get<stratum_format::AccessPoint>().destination == stratum_format::AccessPoint::destination_type{stratum_format::ZoneExtendedName{"../[+1]"}});
 
         // The same zone saved: every id in the file is persistent
         string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.6", "zone": { "id": 900 },
@@ -576,7 +579,7 @@ namespace
               { "id": 902, "type": "door_facing", "components": { "parent": { "entity": 901 }, "site": { "relation": "on", "wall": { "cell_position": [3, 1], "normal": [1, 0] } } } },
               { "id": 903, "type": "door_facing", "components": { "parent": { "entity": 901 }, "site": { "relation": "on", "wall": { "cell_position": [1, 1], "normal": [-1, 0] } } } },
               { "id": 904, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [1, 2], "orientation": [0, -1] },
-                "access_point": { "type": "staircase", "target": { "entity": 7713 }, "order": 0 } } } ] })";
+                "access_point": { "destination": { "entity": 7713 }, "order": 0 } } } ] })";
         istringstream saved_stream(saved_text);
         flecs::entity saved = loaded(stratum_format::read_zone(saved_stream, "saved"));
 
@@ -585,9 +588,9 @@ namespace
             && world.entity(stratum_sim::PersistentId{902}).parent() == world.entity(stratum_sim::PersistentId{901}));
 
         flecs::entity bound = world.entity(stratum_sim::PersistentId{904});
-        const auto* target = bound ? get_if<stratum_sim::EntityReference>(&*bound.get<stratum_sim::AccessPoint>().target) : nullptr;
-        CHECK_CASE("a bound target refers to an access point in a zone not loaded", target != nullptr
-            && target->persistent_id == stratum_sim::PersistentId {7713} && !target->entity);
+        const auto* destination = bound ? get_if<uint64_t>(&*bound.get<stratum_format::AccessPoint>().destination) : nullptr;
+        CHECK_CASE("a bound destination refers to an access point in a zone not loaded", destination != nullptr && *destination == 7713
+            && !world.entity(stratum_sim::PersistentId{7713}));
 
         return;
     }
@@ -614,7 +617,7 @@ namespace
                   {{ "id": 2, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [3, 1], "normal": [1, 0] }} }} }} }},
                   {{ "id": 3, "type": "door_facing", "components": {{ "parent": {{ "entity": 1 }}, "site": {{ "relation": "on", "wall": {{ "cell_position": [1, 1], "normal": [-1, 0] }} }} }} }},
                   {{ "id": 4, "type": "staircase", "components": {{ "site": {{ "relation": "on", "flat": "floor", "cell_position": [1, 2], "orientation": [0, -1] }},
-                    "access_point": {{ "type": "staircase", "target": "../[+1]", "order": 0 }}{} }} }} ] }})",
+                    "access_point": {{ "type": "staircase", "destination": "../[+1]", "order": 0 }}{} }} }} ] }})",
                 layout_components.empty() ? "" : ", " + layout_components,
                 layout_sections.empty() ? "" : layout_sections + ",",
                 door_components.empty() ? "" : R"(, "components": { )" + door_components + " }",
@@ -635,7 +638,7 @@ namespace
 
         flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(zone,
             zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type{3, 1}, cardinal_direction(CardinalDirection::West))));
-        flecs::entity staircase = stratum_sim::entry_point(zone, stratum_sim::access_type(entities, "staircase"), 1);
+        flecs::entity staircase = stratum_sim::entry_point(zone, stratum_sim::entity_type(entities, "staircase"), 1);
 
         const auto* finish = door.try_get<TestFinish>();
         CHECK_CASE("a component object is decoded into the component registered under its name", finish != nullptr

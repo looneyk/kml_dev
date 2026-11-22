@@ -89,12 +89,12 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The actor went through the departure access point and arrived at the arrival access point, which may be in another zone
+    // The actor went through the departure access point and arrived at the destination access point, which may be in another zone
     struct Relocated
     {
         id_type entity_id = nullid;
         id_type departure_id = nullid;
-        id_type arrival_id = nullid;
+        id_type destination_id = nullid;
     };
 
     //--------------------------------------------------------------------------

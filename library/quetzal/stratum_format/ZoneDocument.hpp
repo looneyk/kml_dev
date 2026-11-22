@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "Notation.hpp"
-#include "AccessPointDestination.hpp"
+#include "AccessPoint.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
@@ -152,18 +152,6 @@ namespace quetzal::stratum_format
         std::optional<std::variant<WallPlacement, FlatCell, ZoneCell>> address;
         std::optional<surface_point_type> position;
         std::optional<discrete_vector_type> orientation;
-    };
-
-    //--------------------------------------------------------------------------
-    // The access_point file component. The target is unbound, or in a saved zone the id of the access point it is bound to.
-    // An access point with no target is arrival only
-    struct AccessPoint
-    {
-        using target_type = std::variant<AccessPointDestination, stored_entity_id_type>;
-
-        std::string type;
-        std::uint64_t order = 0;
-        std::optional<target_type> target;
     };
 
     //--------------------------------------------------------------------------

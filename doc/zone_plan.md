@@ -81,12 +81,12 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
   above it and its own, such as `surface/town/district`. A top-level region's name is its worldspace's, so every
   region's extended name begins with its worldspace's name.
 - **Every extended name is unique across the game,** at every level of the hierarchy. A content designer
-  refers to a zone or a region by its extended name, as in a target in a pregenerated zone.
+  refers to a zone or a region by its extended name, as in a destination in a pregenerated zone.
 - **A zone's display name,** shown to players, may differ from its extended name and from its name.
 - **A region spec's naming patterns are the designer's,** one for the regions created from it and one for their zones,
   so generated zones and regions have unique extended names too. Region specs are design assets, or derive their
   values from design assets.
-- **Every worldspace, zone, and region has a persistent id,** given when it is created. A bound target, a region's list
+- **Every worldspace, zone, and region has a persistent id,** given when it is created. A bound destination, a region's list
   of its zones, and a saved game refer to it by its persistent id.
 - **A region is rarely referred to by name,** apart from the world map, or through one of its zones.
 - **A zone refers to its region** by the region's persistent id or its extended name.
@@ -109,24 +109,23 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
 - **An access point is just the transport information of the object it is attached to.** And has no type, etc. of its own
 - **The order counts from 0 among a zone's access points of one type,** A zone's list of access points is ordered, a zone's staircases
   sharing one sequence for example.
-- **An access point has an optional target.** The target is typically attached to an object of the same type as the original access point's, but this is not enforced.
-  One with no target is arrival only, such as the far end of a one-way portal.
+- **An access point has an optional destination.** The destination is typically attached to an object of the same type as the original access point's, but this is not enforced.
+  One with no destination is arrival only, such as the far end of a one-way portal.
 
-### Targets
+### Destinations
 
-- **A target refers to another access point directly or to a zone.** A direct target is bound, and refers to the
-  access point by its persistent id. A target that refers to a zone is unbound.
-- **A zone reference has a zone's extended name or a position,** and optionally the name of an access point in that
-  zone to arrive at. A position is relative to the access point's zone, in its worldspace, or absolute in a worldspace.
-- **Every zone a target refers to exists before play starts,** since the world's structure is created whole, so an
-  unbound target always resolves to a zone. An extended name resolves to the zone of that extended name. A relative position *k* from
-  a zone at *P* resolves to the zone at *P* + *k* in the same worldspace, and an absolute position to the zone at that
-  position in its worldspace.
-- **A target is bound by having been gone through.** Going through an unbound target generates the zone's content if it
-  has none, places the arriving actor at the named access point or at an unbound access point of the arrival type
-  whose target leads back, and binds both ends, so the binding is the connection from then on. A zone template's
-  targets are all unbound.
-- **The target's notation is not designed.**
+- **A destination refers to another access point directly or to a zone.** A direct destination is bound, and refers to the
+  access point by its persistent id. A destination that refers to a zone is unbound.
+- **A zone reference is a zone's extended name or a region spec name,** and optionally the name of an access point in
+  that zone to arrive at (`world_structure_plan.md`, `## Extended names`).
+- **Every zone of a worldspace exists from the time the worldspace is created,** since a worldspace is created whole,
+  so an unbound destination in an existing worldspace always resolves to a zone. A destination in a worldspace that does not exist
+  creates the worldspace when it is gone through.
+- **A destination is bound by having been gone through.** Going through an unbound destination generates the zone's content if it
+  has none, places the arriving actor at the named access point or at an unbound access point of the same type
+  whose destination leads back, and binds both ends, so the binding is the connection from then on. A zone template's
+  destinations are all unbound.
+- **The destination's notation is the extended name grammar** (`world_structure_plan.md`, `## Extended names`).
 
 ### Doors between zones
 
@@ -157,8 +156,8 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
 - **A zone's position in its worldspace is its `Position`,** from the zone file's `layout.components.position` or
   the `ZoneSpec`.
 - **An access point is the `AccessPoint` component** of a staircase, a door facing, a portal, or a waypoint, and its
-  position is the site of that entity, on a wall or a flat cell (`access_point_plan.md`). The type each type arrives at
-  is its `Arrival`.
+  position is the site of that entity, on a wall or a flat cell (`access_point_plan.md`). An actor arrives at an access
+  point of the type it went through.
 - **A door between zones has its access point on one door facing.** Its `Access` determines whether an actor gets
   through, and a staircase's `Access` is always open, from its type. A crypt door's two doors each have one door facing
   on a wall of its own zone, since a wall placement means something only in its own zone. Keeping their `Access` equal is
@@ -174,12 +173,12 @@ The first pass puts the structures in place with these simplified forms, each to
   names replace the suffix: a name that is taken is then generated again.
 - **Each worldspace has only its top-level region,** whose extent is the worldspace's. Subregions and their extents
   come later.
-- **A target is an `AccessPointDestination`:** a region spec name, a zone extended name with an optional position
-  (`world_structure_plan.md`, `## Extended names`), or both.
+- **A destination is an `AccessPoint::destination_type`:** an access point's persistent id, a region spec name, or a zone extended
+  name with an optional position (`world_structure_plan.md`, `## Extended names`).
 
 ## Open questions
 
-- **What is the target's notation?**
+- **What is the destination's notation?**
 - **What forms does an extent take besides boxes?** A diagonal boundary takes one box for each row, so a list of
   positions or a predicate, such as a half-plane, may be needed too (`world_generation_plan.md`, `### Extents`).
 

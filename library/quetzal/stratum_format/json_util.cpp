@@ -70,16 +70,26 @@ namespace
     //--------------------------------------------------------------------------
     std::string access_point_text(const AccessPoint& access_point)
     {
-        std::vector<std::string> members{std::format("\"type\": {}", string_text(access_point.type))};
+        std::vector<std::string> members;
 
-        if (access_point.target.has_value())
+        if (access_point.destination.has_value())
         {
-            const auto* unbound = std::get_if<AccessPointDestination>(&*access_point.target);
-            members.push_back(std::format("\"target\": {}", unbound != nullptr ? string_text(format_access_point_destination(*unbound))
-                : reference_text(std::get<stored_entity_id_type>(*access_point.target))));
+            const auto* bound = std::get_if<stored_entity_id_type>(&*access_point.destination);
+            members.push_back(std::format("\"destination\": {}", bound != nullptr ? reference_text(*bound)
+                : string_text(format_access_point_destination(*access_point.destination))));
         }
 
         members.push_back(std::format("\"order\": {}", access_point.order));
+
+        if (!access_point.egress.zero())
+        {
+            members.push_back(std::format("\"egress\": {:/s, /b[]}", access_point.egress));
+        }
+
+        if (access_point.automatic_entry)
+        {
+            members.push_back("\"automatic_entry\": true");
+        }
 
         return object_text(members);
     }

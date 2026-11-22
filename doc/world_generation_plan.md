@@ -237,7 +237,7 @@ based on the registered `crypt` spec. The barrow's levels outside the crypt are 
 ]
 ```
 
-A target of `-1` from `(0, 0, -6)` resolves to the zone at `(0, 0, -7)`, which is in the barrow: regions play no part
+A destination of `-1` from `(0, 0, -6)` resolves to the zone at `(0, 0, -7)`, which is in the barrow: regions play no part
 in it. A second zone on a level, such as an east wing, is at another position, `(1, 0, -5)`, and the worldspace's
 extent spans `"x": [0, 1]`.
 
@@ -313,15 +313,15 @@ void World::generate(flecs::entity zone)
   way.
 - **The generator writes the zone's position into the `ZoneDocument`.**
 
-## Targets
+## Destinations
 
-- **Every zone a target refers to exists before play starts,** so an unbound target resolves to a zone of the
-  structure, by its extended name or by its position (`zone_plan.md`, `### Targets`).
-- **Going through an unbound target generates the zone's content if it has none,** places the arriving actor at the
-  named access point or at an unbound access point of the arrival type whose target leads back, and binds both ends.
+- **Every zone a destination refers to exists before play starts,** so an unbound destination resolves to a zone of the
+  structure, by its extended name or by its position (`zone_plan.md`, `### Destinations`).
+- **Going through an unbound destination generates the zone's content if it has none,** places the arriving actor at the
+  named access point or at an unbound access point of the same type whose destination leads back, and binds both ends.
 - **An entrance into another worldspace,** such as a dungeon entrance in a fields zone, has the extended name of a zone
-  in that worldspace as its target: a pattern in the region spec's `zone.parameters.` keys puts it into the zone's parameters, and the generator writes it into
-  the access point's target.
+  in that worldspace as its destination: a pattern in the region spec's `zone.parameters.` keys puts it into the zone's parameters, and the generator writes it into
+  the access point's destination.
 
 A new game, from the host's call through the structure, the first zone, and a descent into a dungeon:
 
@@ -340,7 +340,7 @@ character walks east into the adjacent zone
 World          generate(the adjacent zone)                           -> template town, as the opening has it
 
 character goes down the staircase in the first zone
-World          resolve the target barrow_dungeon/level_1             -> the zone of that extended name
+World          resolve the destination barrow_dungeon/level_1             -> the zone of that extended name
 World            generate(barrow_dungeon/level_1)                    -> the zone generator, with a staircase +1 and one -1
 World          the two staircases bound to each other
 ```

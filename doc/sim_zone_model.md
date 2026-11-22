@@ -52,7 +52,7 @@ vertical correspondence between them.
 staircase between them is an entity with an access point.
 
 Within a `Zone` there is one coordinate system, so what lies above or below a point is a geometric
-question. Between `Zone`s that are not adjacent there are access points with explicit targets. **No partner ever
+question. Between `Zone`s that are not adjacent there are access points with explicit destinations. **No partner ever
 crosses a `Zone` boundary**, so a partner is always resolvable once its own `Zone` is loaded.
 
 **Future: a `Zone` spanning several levels.** One coordinate space over stacked levels, with a staircase as ordinary
@@ -64,8 +64,8 @@ region is a named, hierarchical subdivision of a worldspace's zones with no part
 design, and the open items are in `work_plan.md` (`## Zones and regions`).
 
 **Access points and adjacency are the only cross-`Zone` links, and access points are components of entities rather
-than structure.** An access point is what a staircase, a portal or a waypoint has: it refers to a target, a zone not
-yet bound or the access point arrived at by its persistent id (`zone_plan.md`, `### Targets`), and its traversal
+than structure.** An access point is what a staircase, a portal or a waypoint has: it refers to a destination, a zone not
+yet bound or the access point arrived at by its persistent id (`zone_plan.md`, `### Destinations`), and its traversal
 behavior, whether walking, falling, levitating, or blinking, is script over an engine default. Being on entities they
 are enumerable, which is how `World` determines which `Zone`s are reachable from where.
 

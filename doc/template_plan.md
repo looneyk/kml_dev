@@ -17,7 +17,7 @@ and `## Zones and regions`).
   `## File structure`).
 - **A template's entity ids are local,** and loading it assigns each entity a new persistent id, so one template can be
   made into several zones (`archived/addressing.md`, `### Ids`; `archived/addressing_plan.md`, `### Loading a template`;
-  `decision_rationale.md`). Every target in a template is unbound (`discrete_layout.md`, `### An access point's target`).
+  `decision_rationale.md`). Every destination in a template is unbound (`discrete_layout.md`, `### An access point's destination`).
 - **A `ZoneSpec` may accompany a zone template file** for making a zone from it.
 - **A zone's population strategy comes from the template it was loaded from,** or from the guidance it was generated
   with (`session_plan.md`, `## World`).
@@ -73,9 +73,9 @@ template = zone_counter < opening.size() ? draw from opening[zone_counter]
 - **The index lists each zone's and region's extended name** with its zone data file and the names of the access
   points in it.
 - **A `ZoneSpec`'s template is read from the index.**
-- **A target in pregenerated content refers to a zone by its extended name,** as in `town/market@fountain`, the zone
+- **A destination in pregenerated content refers to a zone by its extended name,** as in `town/market@fountain`, the zone
   `market` in the region `town` at the position `fountain` (`zone_plan.md`, `### Identity`; `discrete_layout.md`,
-  `### An access point's target`).
+  `### An access point's destination`).
 - **A pregenerated zone's name is its `layout.components.name`** (`zone_plan.md`, `## Implementation`).
 
 ## Region templates

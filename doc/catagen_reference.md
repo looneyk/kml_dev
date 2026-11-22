@@ -36,11 +36,13 @@ An edge between two solid cells has no wall. A stair cell is a block: the rows w
 and floor, even where the generated wall is open, and none on its other edges. catagen writes no rooms.
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
-glyph: the two sides of its edge. Each staircase is a `staircase` entity sited on the wall that the cell it opens onto
---- floor or a door --- has toward its block. Its `access_point` has the `type` `staircase`; a `target` of `../[-1]` or
-`../[+1]`; and an `order` that counts from 0 among all the staircases, in the order they are written. With a
-`staircase_down_region_spec`, each staircase leading down has the target `<region spec>/../[-1]`, so it leads to level -1 of
-a worldspace of its own, which the world creates from that region spec.
+glyph: the two sides of its edge. Each staircase is a `staircase` entity sited on the floor of its block, with an orientation
+toward the block from the cell it opens onto --- floor or a door. Its `access_point` has an `egress` toward that cell, a
+`destination` of `../[-1]` or
+`../[+1]`; and an `order` that counts from 0 among all the staircases, in the order they are written. Its
+`directionality` is `Down` or `Up`. With a
+`staircase_down_region_spec`, each staircase leading down has the region spec's name as its destination, so it leads to the
+entry zone of a worldspace of its own, which the world creates from that region spec.
 `layout.components.access_points` refers to every staircase. Local
 ids are assigned in the order the entities are written --- each door, then its door facings, and the staircases last,
 in the order they were placed --- so the same parameters give the same ids.

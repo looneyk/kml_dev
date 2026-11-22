@@ -125,9 +125,9 @@ none; it is a bit test. The id encodes the cell's slot and the direction, which 
 and otherwise returns the result of `is_wall_crossable` for the wall. Both read only the one cell, so a cell on the
 boundary returns the wall that closes the layout.
 
-`arrival_placement(site)` returns the placement of an actor arriving at an access point with that site. On a wall, the
-actor is in the wall's cell, facing away from the wall. On a floor or ceiling cell, the actor is on the floor of that
-cell, facing in the site's orientation.
+`destination_placement(site, egress)` returns the placement of an actor arriving at an access point with that site and
+egress. The actor is on the floor of the cell of the wall or the flat cell plus the egress, facing in the cardinal
+direction nearest the egress, or if it is zero, away from the wall or in the site's orientation.
 
 `set_flats(height_floor, height_ceiling)` creates the two flats, once; `floor_id` and `ceiling_id` identify them.
 `height(flat_id, cell_position)` returns the cell's own height if it has one, otherwise its room's, and otherwise the
@@ -190,8 +190,8 @@ the file's persistent id in a saved zone --- before anything refers to it. A typ
 components, so the entity keeps its type. The second sets each entity's parent; its site, with the address resolved to
 layout ids and the position and orientation to a placement, and a site in a cell of the zone made a placement at that
 cell with no address. A door is the file's `door` entity, and its door facings are the `door_facing` children sited on the
-walls of its doorway. Each entity that `layout.components.access_points` refers to is made an access point, with the
-registered access point type of its `access_point`'s `type`, its `order`, and its `target`.
+walls of its doorway. Each entity that `layout.components.access_points` refers to is made an access point, with its
+`access_point`'s `order`, `egress`, and `destination`.
 
 Last, it decodes each component object --- of the layout, of each room, wall, flat and flat override, and of each
 entity --- into the component registered under its name (`register_file_component`), and sets it on the zone's
@@ -206,8 +206,7 @@ refer to, which `World::load_zone` adds to the world index. The decoding is `dec
 `decode_components.hpp`, which the character's loading shares.
 
 `check_buildable(world, document)` checks, before anything is built, that the world can build a zone from a document,
-and returns the first reason it cannot, with the path to it. The reason is an access point type that is not registered,
-or a component object that has no component registered under its name, has a field the component does not have, or has
+and returns the first reason it cannot, with the path to it. The reason is a component object that has no component registered under its name, has a field the component does not have, or has
 a value its field cannot take, which `check_decodable` finds by decoding every component object into a value that it
 then discards. Flecs' own error logging is silenced meanwhile, so `World::load_zone` checks a file completely before
 making anything. `load_layout` asserts the conditions that `check_buildable` checks.
@@ -219,7 +218,7 @@ The `check_buildable` overload for a `CharacterDocument` checks that each compon
 inventory's entities has a component registered under its name, and fits it.
 
 `register_file_component(entities, name, component)`, or `register_file_component<T>(entities, name)`, registers a
-component, with its reflection as a struct or an opaque type, as the one that a component object of that name decodes
+component, with its reflection as a struct, an enumeration, or an opaque type, as the one that a component object of that name decodes
 into. A tag is registered too, and a file writes it as an empty object. The name is an entity under `components`.
 `file_component(entities, name)` returns that component, or 0 if none is registered; `file_components(entities)`
 returns every registered one with its name, in name order; and `is_tag` returns true for a component with no value.
@@ -231,7 +230,9 @@ name, and `display_name` as `DisplayName`, what an entity is called for a player
 registers an observer that, when an entity's `Name` is set and it has no `DisplayName`, sets a placeholder
 `DisplayName`: the name in capitals. `World` also registers the state of an entity that a saved zone writes back.
 `register_actor_components`, in `actors.hpp`, registers `speed` (`Speed`) and the tags `blocking` (`Blocking`) and `dead`
-(`Dead`), and the `ControlledActor` tag. `register_attachment_components`, in `attachments.hpp`, registers `access`
+(`Dead`), and the `ControlledActor` tag. `register_access_point_components`, in `access_points.hpp`, registers
+`directionality` (`stratum_format::Directionality`), `Up` or `Down`, the direction in which the access point on an
+entity leads. `register_attachment_components`, in `attachments.hpp`, registers `access`
 (`Access`) and `detection` (`Detection`), and `register_ai_components`, in `ai.hpp`, registers `pursue` (`Pursue`).
 
 `make_document(zone)` returns a loaded zone as a saved zone's `ZoneDocument`, the reverse of `load_layout`. The geometry is
@@ -243,7 +244,7 @@ subtree. An entity's file components are those it owns, so one it reads from its
 Each value is encoded through flecs reflection: an unset optional field is left out, an `EntityReference` is written as a
 reference to its persistent id, and a struct field by field. A site with no address on an entity in the zone is written
 in a cell of the zone, at the cell its placement is in. An access point is written as its `access_point`, and a bound
-target as the persistent id of the access point it is bound to. `rebuild_document(zone)`, which would rebuild the geometry from the layout as well, for a zone that has
+destination as the persistent id of the access point it is bound to. `rebuild_document(zone)`, which would rebuild the geometry from the layout as well, for a zone that has
 no `Document`, is a skeleton with an empty body.
 
 `make_character_document(character)` returns the character as a character file's `CharacterDocument`: its persistent id,
@@ -401,51 +402,50 @@ discards a zone, its contents and its layout.
 
 `World` takes the game's `Generation` by reference in its constructor (`### Generation`). `world_seed()` and
 `set_world_seed(seed)` access the world seed, which is 0 until it is set. `World::create` seeds a random engine from it,
-whose first draw is the starting worldspace's seed. A worldspace created for an access point's target, by
-`resolve_target` or `create_target_worldspaces`, has the seed that `target_seed(access_point)` derives from the world
+whose first draw is the starting worldspace's seed. A worldspace created for an access point's destination, by
+`resolve_destination` or `create_destination_worldspaces`, has the seed that `destination_seed(access_point)` derives from the world
 seed and the access point's persistent id, a placeholder until a zone draws a seed pool.
 
 `load_zone_at(worldspace_id, position)` returns the zone at the position in the worldspace, reading it back with
 `load_saved_zone` if it has unloaded. If the zone is empty, it fills it from the `ZoneDocument` that `generate_zone(zone_spec)`
 returns for its `zone_spec`: the game's zone generator's, unpopulated. Filling a zone keeps its position and its name,
-checks the document with `check_buildable`, has `load_layout` fill the zone, creates the target worldspace of each
-access point whose unbound target has a region spec name (`create_target_worldspaces`), and populates it if the document is unpopulated. A worldspace with no zone at the position throws `std::runtime_error`, and an exception from the zone
+checks the document with `check_buildable`, has `load_layout` fill the zone, creates the destination worldspace of each
+access point whose unbound destination has a region spec name (`create_destination_worldspaces`), and populates it if the document is unpopulated. A worldspace with no zone at the position throws `std::runtime_error`, and an exception from the zone
 generator passes on, with nothing filled. `load_template(worldspace_id, position, filepath, zone_spec)` fills the empty zone at
 the position from a zone template file in the same way, and throws `std::runtime_error` for a saved zone's file or a zone
 at the position that is not empty.
 
-A zone's level, a `level_type` (`std::int32_t`), is the z of its `Position`. Access point targets in the zone
-data state levels, and `resolve_target` matches zones by them. The loader sets a zone's `Position` from the
+A zone's level, a `level_type` (`std::int32_t`), is the z of its `Position`. Access point destinations in the zone
+data state levels, and `resolve_destination` matches zones by them. The loader sets a zone's `Position` from the
 file's `position`, and a zone whose file has none has no `Position`; `make_document` writes the position back. A
 zone built from a document whose position is outside its worldspace's extent, or is another zone's position in its
 worldspace, throws `std::runtime_error` before anything is built.
 
-`resolve_target(access_point)` returns the access point at which an actor arrives through an access point whose
-unbound target has the zone extended name `../[`*k*`]`. The access point's zone must have a level, *L*. A target with no
-zone extended name throws `std::runtime_error`. The target level is *L* + *k*.
+`resolve_destination(access_point)` returns the access point at which an actor arrives through an access point whose destination
+is unbound. The access point's zone must have a level, *L*. For the zone extended name `../[`*k*`]`, the zone is the one
+that `load_relative_zone(access_point)` returns: at `new_zone_position(worldspace_id, L + k)` in the access point's
+worldspace, a placeholder that returns `(0, 0, level)` until the world's layout is designed. Any other zone extended
+name throws `std::runtime_error`. For a region spec name, the zone is the one that `load_entry_zone(worldspace_id)`
+returns for the access point's destination worldspace. `destination_worldspace(access_point)` returns that worldspace: the one
+named `<region spec name>_<persistent id>` for the access point's persistent id, created from a tree of the one
+registered region spec of that name if the world has none. A region spec that is not registered throws
+`std::runtime_error`. The entry zone is the zone of the worldspace whose name is its root region spec's `entry_zone`,
+and a spec with no `entry_zone`, or a worldspace with no zone of that name, throws `std::runtime_error`.
 
-The target's position is `new_zone_position(worldspace_id, level)` for the target level, a placeholder that returns
-`(0, 0, level)` until the world's layout is designed. A target with a region spec name is in the access point's target
-worldspace, which `target_worldspace(access_point)` returns: the worldspace named
-`<region spec name>_<persistent id>` for the access point's persistent id, created from a tree of the one registered
-region spec of that name if the world has none, and the zone is the one at the position there. With no region spec name,
-the zone is the one at the position in the access point's worldspace. A region spec that is not registered throws
-`std::runtime_error`.
-
-The zone is `load_zone_at`'s, read back if it has unloaded and with its content generated if it is empty, and it
-returns the zone's `entry_point` for the type at which the access point's type arrives and the offset -*k*: the
-lowest-ordered access point of the type that accepts the arrival (`accepts_arrival`), one with no target, which is
-arrival only, or an unbound one that leads back, whose target is level *L*, -*k* levels from its own zone
-(`targets_level`). A zone with no such access point throws `std::runtime_error`. It binds nothing.
+The zone is read back if it has unloaded and has its content generated if it is empty, and `resolve_destination` returns the
+zone's `entry_point` for the access point's type and the offset from that zone's level to *L*: the lowest-ordered
+access point of the type that accepts the arrival (`accepts_arrival`), one with no destination, which is arrival only, or an
+unbound one that leads back to level *L* (`targets_level`). A zone with no such access point throws
+`std::runtime_error`. It binds nothing.
 
 `relocate_through(actor, access_point)` moves the actor through the access point and returns the access point it
-arrives at. A bound target is resolved to the access point it refers to; if that access point's zone has unloaded, the
+arrives at. A bound destination is resolved to the access point it refers to; if that access point's zone has unloaded, the
 zone is read back first with `load_saved_zone`, the world index having the zone of every entity something refers to. A
-world with no game directory cannot read it back and throws `std::runtime_error`. An unbound target is resolved by
-`resolve_target`, and the access point gone through and the access point arrived at are then bound to each other, each
-target becoming an `EntityReference` to the other, so going back arrives at the access point gone through, and
-`entry_point` no longer chooses either. An arrival-only access point arrived at keeps no target, so it is never bound
-and receives every actor that comes through the access points bound to it. The actor is relocated to the access point's zone, at its `arrival_placement`. Whatever it throws, it
+world with no game directory cannot read it back and throws `std::runtime_error`. An unbound destination is resolved by
+`resolve_destination`, and the access point gone through and the access point arrived at are then bound to each other, each
+destination becoming the persistent id of the other, which the world index then has, so going back arrives at the access point gone through, and
+`entry_point` no longer chooses either. An arrival-only access point arrived at keeps no destination, so it is never bound
+and receives every actor that comes through the access points bound to it. The actor is relocated to the access point's zone, at its `destination_placement`. Whatever it throws, it
 moves nothing.
 
 `random_type` is `math::Random<math::portable_random_engine_type>`, xoshiro256** seeded through splitmix64, with
@@ -551,7 +551,8 @@ type reads each component that inherits --- one with optional fields --- from th
 `register_file_component` registers such a component with flecs' `(OnInstantiate, Inherit)` through
 `register_inheritance`. Flecs copies any other component onto the entity when it becomes an instance, so each door has
 its own `Access`. `register_game_types(world)`, declared beside `Game`, which calls it, registers the game's
-types until they load from data: `door`, with a closed `Access`. The tests call it too.
+types until they load from data: `door`, with a closed `Access`, and `staircase`, `portal`, and `waypoint`. The tests
+call it too.
 
 A layout entity is the entity of a room, a wall, a flat, a flat's override for a room, or a flat cell. Its key is
 its component, and it is found by that key: a `RoomId`, `WallId`, `FlatId` or `FlatCellPosition`, the four types that
@@ -660,24 +661,24 @@ has one and the general state otherwise. A null actor gets the general state, an
 chain is visible. One side of a secret door is concealed by a `Detection` on that door facing.
 
 An access point is an entity at which a zone is entered or left, sited `On` a surface --- a wall, or a floor or ceiling
-cell --- with an `AccessPoint`. The `AccessPoint` has its `order` among the zone's access points of its type, counting
-from 0, and an optional `target`, to which going through it moves an actor: a `stratum_format::AccessPointDestination`,
-unbound, or an `EntityReference` to the access point it is bound to. An access point with no target is arrival only. Its type is a relationship, `(AccessType, <type>)`, so the access points of one type are found by a query.
-`arrival_placement(access_point)` returns the placement given to an arriving actor, computed by the zone's
-`DiscreteLayout` from the access point's site.
+cell --- with a `stratum_format::AccessPoint`, the component that the zone file's `access_point` decodes to. The
+`AccessPoint` has its `order` among the zone's access points of its type, counting from 0, `automatic_entry`, its
+`egress`, and an optional `destination`, to which going through it moves an actor: an `AccessPoint::destination_type`,
+unbound, or the persistent id of the access point it is bound to. An access point with no destination is arrival only. Its type is its entity's type, the prefab it `IsA`, so the access
+points of one type are found by a query on `(IsA, <type>)`.
+`destination_placement(access_point)` returns the placement given to an arriving actor, computed by the zone's
+`DiscreteLayout` from the access point's site and egress. A staircase in the wall notation is sited on the floor of its
+stair block, with the egress toward the floor it opens onto.
 
-An access point type is an entity registered once in the world, under `access_types`, with an `Arrival` that refers
-to the type at which an actor arrives through an access point of this type. `World` registers `staircase`, `door`,
-`portal`, and `waypoint`, each arriving at its own type. The type is what the access point is; whether it goes up,
-down, or across is in its target. A mod registers more types with `create_access_type`. `access_type(entities, name)` finds one by name, returning a null
-entity if there is none.
+An actor arrives through an access point at an access point of the same type. The type is what the access point is,
+and its destination determines whether it goes up, down, or across.
 
-`set_access_point(e, type, order, target)` makes an entity sited on a surface an access point, and
-`create_access_point(zone, type, site, order, target)` creates one; the target is optional.
-`targets_level(e, offset)` returns true if the entity's access point target is unbound and is the level
-`offset` levels from the entity's zone: a relative target with that offset, or an absolute target at the zone's level
+`set_access_point(e, access_point)` makes an entity of a type, sited on a surface, an access point, and
+`create_access_point(zone, type, site, access_point)` creates one of the type.
+`targets_level(e, offset)` returns true if the entity's access point destination is unbound and is the level
+`offset` levels from the entity's zone: a relative destination with that offset, or an absolute destination at the zone's level
 plus the offset, which only a zone with a level matches. `accepts_arrival(e, offset)` returns true if an actor coming
-from the level `offset` levels away can arrive at the entity's access point: it has no target, or `targets_level(e,
+from the level `offset` levels away can arrive at the entity's access point: it has no destination, or `targets_level(e,
 offset)`. `entry_point(zone, type, offset)` returns the zone's lowest-ordered access point of the type that accepts an
 arrival from the level `offset` levels away, or a null entity if the zone has none. A staircase leading up is `entry_point(zone, staircase, 1)`, and an actor arriving from another level
 passes the offset that leads back. A door facing may be an access point.
@@ -689,14 +690,18 @@ no such entity is solid. `World::move`, `neighbors` and `visible` bind it to the
 actor crosses a wall as it perceives the entities on it.
 
 `Interact` opens the access of the way through on the wall ahead if it is closed, or closes it if it is open, and
-reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the wall ahead has an
-access point on it that the controlled actor `can_enter`, `Interact` goes through it instead. `Interacted` has the entity acted
-on, the way through, and `access_type_name(e)` returns the name of an access point's type, such as
+reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the controlled actor
+`can_enter` the access point that `find_entered_access_point` returns for the wall ahead, `Interact` goes through it
+instead, and an access point beyond the wall that has access is the way through that it opens or closes. `Interacted` has the entity acted
+on, the way through, and `entity_type_name(e)` returns the name of an entity's type, such as
 `staircase`, for the hosts' messages.
 
 `find_access_point(zone, address)` returns an access point sited on a wall or a flat cell, found through the layout
-entity's attached entities, or a null entity if there is none. `can_enter(access_point, actor)` returns true if the
-actor can go through the access point: it has a target, its access, if it has any, is open, and the actor does not find
+entity's attached entities, or a null entity if there is none. `find_entered_access_point(zone, wall)` returns the
+access point that an actor facing the wall enters: one sited on the wall, or one on the floor of the cell beyond it
+whose egress leads back through the wall. Moving into a wall and the hosts' messages about a blocked move use
+it too. `can_enter(access_point, actor)` returns true if the
+actor can go through the access point: it has a destination, its access, if it has any, is open, and the actor does not find
 it concealed. A staircase has no `Access`, so it can always be entered, and a door facing that is an access point only
 while the door is open.
 
@@ -959,8 +964,7 @@ tree that is not one of the trees, or a `region_spec` that is not registered.
 `Game::clear` clears the session, the character and the world, in that order, in place. `Session::clear` ends play:
 no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
 `Character::clear` deletes the character's entity, with what it carries and its pending command. `World::clear` unloads
-every worldspace, empties the world index and the `ZoneEntryIndex`, and resets the worldspace name counter, and keeps the registrations: the entity types, the
-access point types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
+every worldspace, empties the world index and the `ZoneEntryIndex`, and resets the worldspace name counter, and keeps the registrations: the entity types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
 `menu_close` resumes it, and `quit` clears the game. `remove(save_name)` deletes a save, named as `saved_games`
 names it, after checking that the name is of a directory directly in the saves directory, with no separator and not
 `.` or `..`, that has a character file; it throws `std::runtime_error`, deleting nothing, otherwise. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
@@ -1077,7 +1081,7 @@ The controlled actor enters an access point on the wall ahead with `Interact`, a
 `Enter`, through `World::relocate_through`; any other actor does not enter an access point. A `Step` into a wall with
 an access point on it is `Blocked`, so a held movement key never takes the stairs. Entering by
 moving into the wall is kept in `commands.cpp` behind `enter_access_point_by_moving`, which is off. An access point on
-the floor does not impede movement. `Relocated` has the actor, the departure access point, and the arrival access
+the floor does not impede movement. `Relocated` has the actor, the departure access point, and the destination access
 point.
 
 The clock builds `Step` and `TurnTo` from an actor's `Intent`. A one-shot command, such as `Interact`, waits on the
@@ -1107,24 +1111,23 @@ components in the order written, and `translate_references` replaces each with t
 runs; the barriers; each room's perimeter or `RoomLocator`; wall placements; and each flat's heights. So are each
 entity's `site`, `parent` and `access_point` file components, which the reader validates. A `Site`'s address is a
 `WallPlacement`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
-relation `in` and an orientation required. A `stratum_format::AccessPoint` has its type, its order, an optional
-target, which is a `AccessPointDestination` or the id of the access point it is bound to. The layout's `access_points` are `ZoneDocument::access_points`, a list of entity
+relation `in` and an orientation required. An entity's `access_point` is a `stratum_format::AccessPoint`
+(`AccessPoint.hpp`), which the world sets on the entity as it is. The layout's `access_points` are `ZoneDocument::access_points`, a list of entity
 ids, its optional `position` is `ZoneDocument::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
 coordinates), and its `unpopulated` flag is `ZoneDocument::is_unpopulated`, false if
 absent. The `generator` section is `ZoneDocument::generator`, an optional `Generator` with its name and its parameters'
 tokens, a `KeyValueStore`. Every other file component is `raw_values_type`, nlohmann's `ordered_json`, as
 the file wrote it. A room is kept as the file identified it.
 
-A `AccessPointDestination` is an unbound target: an optional region spec name and an optional zone extended name, at least
-one of which it has, written `<region spec name>/<zone extended name>` with either omitted. The zone extended name is
-`../[`*k*`]`, a signed number of zone levels from the access point's zone, and `relative_zone_extended_name(k)` and
-`relative_zone_level(zone_extended_name)` convert between the two. `parse_access_point_destination(text)` returns the target,
-or nothing if the text does not match the grammar, and `format_access_point_destination(target)` writes it back as the same
-text. A `TransitEndpoint` (`TransitEndpoint.hpp`) is one end of a transit between zones: an id,
+An `AccessPoint::destination_type` is where going through an access point leads: a `std::variant` of the persistent
+id of the access point it is bound to, a `RegionSpecName`, and a `ZoneExtendedName` (`ZoneExtendedName.hpp`), each of
+the last two having its text as its `value`. The zone extended name is `../[`*k*`]`, a signed number of zone levels from
+the access point's zone, and `relative_zone_extended_name(k)` and `relative_zone_level(zone_extended_name)` convert
+between the two. `parse_access_point_destination(text)` returns a region spec name for a name and a zone extended name
+for `../[`*k*`]`, or nothing for any other text, and `format_access_point_destination(destination)` writes either back
+as the same text. A `TransitEndpoint` (`TransitEndpoint.hpp`) is one end of a transit between zones: an id,
 an optional name, its entity type, its cell position, its orientation, its egress direction, and an optional `Directionality`
-(`Directionality.hpp`), up or down, with `name` and `to_directionality`. They and `level_type` are
-in `AccessPointDestination.hpp`. That header and `Notation.hpp`, which has `Notation` and its names, are the only format
-headers that `stratum_sim`'s headers include, so nlohmann reaches only the files that read or write a document. A saved zone's `zone.id` is `ZoneDocument::zone_id`, which makes every id in the file persistent; it is
+(`Directionality.hpp`), up or down, with `name` and `to_directionality`. A saved zone's `zone.id` is `ZoneDocument::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.
 
 `read_zone` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
@@ -1141,11 +1144,11 @@ zone's references may refer to another zone and are not checked. Each door glyph
 sited on each wall of its doorway and on no other wall. `layout.components.access_points` must refer to at least one
 entity with an `access_point` sited on a surface, one on the floor or the ceiling with its site's `orientation`, and
 each access point must have a `type` and an `order` counting from 0 among the access points of its type, and place an
-arriving actor in a cell an actor can stand in: the wall's cell, or the flat cell. Every entity with an `access_point`
-must be listed in `access_points`. An access point's target is optional, and must be a reference or a string that
-matches `[region/]zone[@position]`. The stair glyphs are visual aids, so a stair glyph with no access point on its
-floor in the block notation or on the walls around it in the wall notation, or with a second one, and an access point on a wall that is neither a stair cell's open side nor a
-door's wall, are warnings. So is an access point whose type is neither its entity's type nor its parent's, the parent being a door facing's door, and so is `unpopulated` in a file with a `zone` section.
+arriving actor in a cell an actor can stand in: the cell of the wall or the flat cell, plus its egress. Every entity with an `access_point`
+must be listed in `access_points`. An access point's destination is optional, and must be a reference, a region spec name, or
+a zone extended name. The stair glyphs are visual aids, so a stair glyph with no access point on its
+floor, or with a second one, and an access point on a wall that is not a door's wall, are warnings. So is `unpopulated`
+in a file with a `zone` section.
 `read_zone` writes them to the process-wide log as warnings in the category `stratum_format`
 (`log_plan.md`). Keys the format does not define are not tracked.
 
@@ -1231,12 +1234,14 @@ slot, and each `RegionSpecNode` has its `RegionSpec`, its parent's id, `nullid` 
 It throws `std::runtime_error` for a tree without exactly one root spec, a spec with no `name`, a `parent` that is not
 the name of exactly one spec of the tree, two specs with the same parent and name, a spec that is not below the root, a
 root spec with the name of another tree's root, or a starting region that is not a tree's root.
-`resolve_region_spec_tree(tree, region_specs, random, world_seed, script_limits)` returns the tree with each spec resolved and
+`resolve_region_spec_tree(tree, root_region_name, region_specs, random, world_seed, script_limits)` returns the tree with each spec resolved and
 composed, parents first. `composed_region_spec(region_spec, region_specs)`, in `RegionSpec.hpp`, layers a spec's members
 and keys over those of the registered spec its `region_spec` refers to, without `region_spec` and `parent`, and
 `resolve_region_spec` resolves the result with a resolver seeded by the spec's `seed`, or else by the seed that the
-random engine draws for it, one for each spec in tree order. The resolver's symbols for a subregion are the parent's `name`, `display_name`, and store entries other than the
-`zone.` keys, each under `parent.`. A subregion's resolved store is then layered over its parent's resolved store, less
+random engine draws for it, one for each spec in tree order. The resolver's symbols are `region_name`, the root
+region's name for the root spec and the spec's `name` for a subregion spec, and for a subregion the parent's `name`,
+`display_name`, and store entries other than the `zone.` keys, each under `parent.`. A spec's `entry_zone`, such as the
+dungeon's `&region_name .. '_1'`, is the name of the zone at which a worldspace created from it is entered. A subregion's resolved store is then layered over its parent's resolved store, less
 the keys whose patterns resolved to nil, since a subregion does not inherit the typed members. A parent's values are
 resolved once, so an inherited literal that starts with `&` stays literal. The game's file is
 `assets/data/world_definition.json`, starting in `surface`, with two trees of one spec each, `surface` and `dungeon`,
@@ -1282,9 +1287,8 @@ cell. A wall or door on the edge between two cells has no position there, so
 it reduces to `Floor` on both sides.
 
 In both reductions, stairs are drawn on a floor cell with an access point on it, and on the closed cell beyond a wall
-with an access point on it, which is a stair block. They are `StairsDown` if the access point's target is known to be
-below the zone, and `StairsUp` otherwise: an unbound relative target below zero or absolute target below the zone's
-level, or a bound target whose access point is loaded in a zone at a lower level. The site's orientation is not drawn. The glyph
+with an access point on it, which is a stair block. They are `StairsDown` if the entity's `Directionality` is `Down`, and
+`StairsUp` otherwise. The site's orientation is not drawn. The glyph
 sets draw `StairsUp` as `<`, the entrance glyph, and `StairsDown` as `>`, and `read_glyphs` names them `stairs_up`
 and `stairs_down`.
 
@@ -1503,8 +1507,8 @@ an open doorway.
 Over another sweep with ranges of staircases each way, both check the written zone. Neither count may exceed its
 maximum, and a count leading up may fall short of its minimum only if no staircase leads down. Every floor cell must be
 reachable from every other, except in maze1, which can leave corridor that no door reaches, and every staircase must
-have the target `../[-1]` or `../[+1]` as its glyph indicates, or `<region spec>/../[-1]` for a staircase down with a region
-spec. `access_points` must refer to every staircase. In `dungen_test`, every staircase must be on the floor of its cell,
+have the destination `../[-1]` or `../[+1]` as its glyph indicates, or the region spec's name for a staircase down with a
+region spec. `access_points` must refer to every staircase. In `dungen_test`, every staircase must be on the floor of its cell,
 with an orientation in a cardinal direction, and neither on a doorway nor beside one. In `catagen_test`, with the stair blocks in place, no
 staircase may block a doorway if a cell beside it would not, and every staircase must be sited on exactly one of the
 walls around its block and open onto a side with floor beyond, or a door if there is none. Both take what the written

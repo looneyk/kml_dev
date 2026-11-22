@@ -13,7 +13,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
-#include "quetzal/stratum_format/AccessPointDestination.hpp"
+#include "quetzal/stratum_format/AccessPoint.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/reference_files.hpp"
 #include <doctest/doctest.h>
@@ -403,32 +403,32 @@ namespace
 
                 for (const stratum_format::Entity& entity : document.entities)
                 {
-                    // Whatever its type, the staircase's entity is the access point on a wall that a neighbor presents to this
-                    // cell
-                    const auto* placement = wall_placement(entity);
-                    if (placement == nullptr || !entity.access_point.has_value() || placement->cell_position - placement->normal != cell_position)
+                    // Whatever its type, the staircase's entity is the access point on this cell's floor, and its egress is the
+                    // open side
+                    const auto* flat_cell = entity.site.has_value() && entity.site->address.has_value()
+                        ? get_if<stratum_format::FlatCell>(&*entity.site->address) : nullptr;
+                    if (flat_cell == nullptr || !entity.access_point.has_value() || flat_cell->cell_position != cell_position)
                     {
                         continue;
                     }
 
-                    open_sides.push_back(placement->normal);
+                    open_sides.push_back(entity.access_point->egress);
 
                     const bool leads_down = cell_glyph(cell_position) == '>';
-                    const stratum_format::AccessPointDestination target{leads_down ? parameters.staircase_down_region_spec : nullopt,
-                        stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
-                    const auto& access_point_target = entity.access_point->target;
-                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::AccessPointDestination>(&*access_point_target) : nullptr;
+                    const stratum_format::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
+                        ? stratum_format::AccessPoint::destination_type{stratum_format::RegionSpecName{*parameters.staircase_down_region_spec}}
+                        : stratum_format::AccessPoint::destination_type{stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
 
-                    if (unbound == nullptr || *unbound != target)
+                    if (entity.access_point->destination != destination)
                     {
-                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_access_point_destination(target));
+                        detail = format("staircase at {}, {} does not have the destination {}", i, j, stratum_format::format_access_point_destination(destination));
                         return false;
                     }
                 }
 
                 if (open_sides.size() != 1)
                 {
-                    detail = format("staircase at {}, {} is attached to {} of the walls around it", i, j, open_sides.size());
+                    detail = format("staircase at {}, {} has {} access points on its floor", i, j, open_sides.size());
                     return false;
                 }
 
@@ -459,11 +459,12 @@ namespace
         for (stratum_format::stored_entity_id_type id : document.access_points)
         {
             auto entity = find_if(document.entities.begin(), document.entities.end(), [id](const stratum_format::Entity& e) { return e.id == id; });
-            const auto* placement = entity != document.entities.end() ? wall_placement(*entity) : nullptr;
+            const auto* flat_cell = entity != document.entities.end() && entity->site.has_value() && entity->site->address.has_value()
+                ? get_if<stratum_format::FlatCell>(&*entity->site->address) : nullptr;
 
-            if (placement != nullptr)
+            if (flat_cell != nullptr)
             {
-                access_point_cells.insert(placement->cell_position - placement->normal);
+                access_point_cells.insert(flat_cell->cell_position);
             }
         }
 
@@ -709,20 +710,20 @@ TEST_SUITE("parameter validation")
         REQUIRE(surface1.name == "surface1");
         stratum_format::ZoneDocument document = document_of(zone_text(surface1.parameters, surface1.zone_name));
 
-        vector<string> targets;
+        vector<string> destinations;
         for (const auto& entity : document.entities)
         {
             if (entity.access_point.has_value())
             {
-                const auto* target = get_if<stratum_format::AccessPointDestination>(&*entity.access_point->target);
-                targets.push_back(target != nullptr ? stratum_format::format_access_point_destination(*target) : string());
+                const auto& destination = entity.access_point->destination;
+                destinations.push_back(destination.has_value() && !holds_alternative<uint64_t>(*destination) ? stratum_format::format_access_point_destination(*destination) : string());
             }
         }
 
-        const bool two_to_four = targets.size() >= 2 && targets.size() <= 4;
+        const bool two_to_four = destinations.size() >= 2 && destinations.size() <= 4;
         CHECK_MESSAGE(two_to_four, "surface1 places from two to four staircases");
-        const bool all_to_dungeon = ranges::all_of(targets, [](const string& target) { return target == "dungeon/../[-1]"; });
-        CHECK_MESSAGE(all_to_dungeon, "each to level -1 of a worldspace created from the dungeon region spec");
+        const bool all_to_dungeon = ranges::all_of(destinations, [](const string& destination) { return destination == "dungeon"; });
+        CHECK_MESSAGE(all_to_dungeon, "each to a worldspace created from the dungeon region spec");
         return;
     }
 

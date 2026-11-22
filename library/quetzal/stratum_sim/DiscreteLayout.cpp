@@ -254,18 +254,21 @@ const quetzal::stratum_sim::discrete_vector_type& quetzal::stratum_sim::Discrete
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::arrival_placement(const Site& site) const
+quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::destination_placement(const Site& site, const discrete_vector_type& egress) const
 {
     assert(site.relation == Relation::On && site.address.has_value());
 
-    if (const auto* wall = std::get_if<WallId>(&*site.address))
+    auto direction = [](const discrete_vector_type& v)
     {
-        const discrete_vector_type& toward_wall = wall_direction(wall->wall_id);
-        return placement_type(position(wall_cell_position(wall->wall_id)),
-            vector_type(static_cast<value_type>(-toward_wall.x()), static_cast<value_type>(-toward_wall.y()), value_type(0)));
-    }
+        return vector_type(static_cast<value_type>(v.x()), static_cast<value_type>(v.y()), value_type(0));
+    };
 
-    return placement_type(position(std::get<FlatCellPosition>(*site.address).cell_position), site.placement.direction());
+    const auto* wall = std::get_if<WallId>(&*site.address);
+    const discrete_point_type cell_position = wall != nullptr ? wall_cell_position(wall->wall_id)
+        : std::get<FlatCellPosition>(*site.address).cell_position;
+    const vector_type orientation = wall != nullptr ? direction(-wall_direction(wall->wall_id)) : site.placement.direction();
+
+    return placement_type(position(cell_position + egress), egress.zero() ? orientation : direction(grid_step(direction(egress))));
 }
 
 //------------------------------------------------------------------------------

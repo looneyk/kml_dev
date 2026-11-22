@@ -221,17 +221,23 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
 
     for (const auto& endpoint : zone.transit_endpoints())
     {
-        // The staircase's cell is a block, and it is sited on the wall its open neighbor presents to that block
-        const stratum_format::WallPlacement wall{endpoint.cell_position + endpoint.egress_direction, endpoint.egress_direction};
+        const stratum_format::FlatCell floor_cell{stratum_format::FlatRole::Floor, endpoint.cell_position};
 
         const bool leads_down = endpoint.directionality == stratum_format::Directionality::Down;
-        const stratum_format::AccessPointDestination target{leads_down ? parameters.staircase_down_region_spec : std::nullopt,
-            stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
-        stratum_format::AccessPoint access_point{endpoint.type, staircase_count++, target};
+        const stratum_format::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
+            ? stratum_format::AccessPoint::destination_type{stratum_format::RegionSpecName{*parameters.staircase_down_region_spec}}
+            : stratum_format::AccessPoint::destination_type{stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
+        stratum_format::AccessPoint access_point{.order = staircase_count++, .egress = endpoint.egress_direction, .destination = destination};
+
+        stratum_format::raw_values_type components = stratum_format::raw_values_type::object();
+        if (endpoint.directionality.has_value())
+        {
+            components["directionality"] = std::string(stratum_format::name(*endpoint.directionality));
+        }
 
         document.access_points.push_back(++id);
-        document.entities.push_back({id, endpoint.type, stratum_format::Site{stratum_format::Relation::On, wall, nullopt, nullopt}, nullopt,
-            std::move(access_point), {}});
+        document.entities.push_back({id, endpoint.type, stratum_format::Site{stratum_format::Relation::On, floor_cell, nullopt, endpoint.orientation},
+            nullopt, std::move(access_point), std::move(components)});
     }
 
     return document;

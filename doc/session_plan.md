@@ -83,7 +83,7 @@ void World::trim_zones(flecs::entity zone_entered);
 ```
 
 - **`clear()`** unloads every region, which deletes its zones, and empties the world index and the `ZoneEntryIndex`.
-  The registrations remain: the file components, the entity types, the access point types, and the registries that
+  The registrations remain: the file components, the entity types, and the registries that
   `World` takes from `Game`, which are the program's and, later, its mods'.
 - **`create(region_spec, start_zone, game_directory)`** creates a new game's starting region from a `RegionSpec`, and
   returns its zone at `start_zone`, generated. Each game has its own starting region.
@@ -128,7 +128,7 @@ void Session::clear();
 void Session::start(flecs::entity access_point);
 void Session::pause();
 void Session::resume();
-void Session::enter(flecs::entity zone, flecs::entity access_type, level_type offset);
+void Session::enter(flecs::entity zone, flecs::entity type, level_type offset);
 void Session::set_driver(Driver driver, double units_per_second = Clock::units_per_second_default);
 bool Session::loaded() const;
 bool Session::over() const;
@@ -145,7 +145,7 @@ bool Session::over() const;
 - **A host starts at its menu,** and opens it with Escape during play. Quitting is chosen from the menu; no key quits
   during play.
 - **The session makes no zone.** `World` creates every zone, and the session enters them.
-- **`enter(zone, access_type, offset)`** moves the character into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
+- **`enter(zone, type, offset)`** moves the character into the zone, at its entry point, then has the world `trim_zones`, so no unload can take
   the character with it. It clears the pending command and rebuilds the turn order from the zone's actors, the character
   included.
 - **The driver is set separately,** not passed to every load.
@@ -337,12 +337,12 @@ Character& Game::character();
 - **No zone file names an entry point.** It is chosen from among the access points.
 - **An access point is a component of an entity sited on a surface:** a wall, the floor or the ceiling. Its type is
   a registered entity --- staircase, door, portal, waypoint, or a type that a mod adds --- and the cell and orientation
-  at which an arriving actor is placed are derived from the entity's site (`access_point_plan.md`). Its target
+  at which an arriving actor is placed are derived from the entity's site (`access_point_plan.md`). Its destination
   determines where it leads. The JSON is the source of truth; the stair glyphs are visual aids, and a discrepancy between them is a warning.
 - **Each access point has an `order`,** given when it is created, counting from 0 within its type, so each type has its
   own 0.
 - **The entry point is the available access point with the lowest `order` among those of the desired type whose
-  targets have the desired offset,** and any type is allowed. An actor arriving from another zone needs the target
+  destinations have the desired offset,** and any type is allowed. An actor arriving from another zone needs the destination
   that leads back. Available means not already bound to an access point elsewhere. With
   two staircases leading up, where the lower-ordered one was bound to the level above by an earlier arrival, an actor
   arriving from a different staircase leading down above enters at the other.
@@ -361,8 +361,8 @@ Character& Game::character();
   blocked, so a held movement key never takes the stairs. Its orientation is the wall's normal.
 - **An access point on the floor does not impede movement.** Its orientation, which is its site's, is used only for
   drawing, and a keystroke by an actor on its cell enters it.
-- **Entering an access point relocates the actor** to the zone that its target resolves to, at that zone's entry
-  point of the type at which the access point's type arrives that leads back.
+- **Entering an access point relocates the actor** to the zone that its destination resolves to, at that zone's entry
+  point of the access point's type that leads back.
 - **In the wall notation every staircase is sited on a wall,** for the 3D view, and **in the block notation every
   staircase is on the floor of its cell,** entered from any side (`discrete_layout.md`, `### Staircases and access
   points`).

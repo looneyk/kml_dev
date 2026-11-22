@@ -806,7 +806,6 @@ namespace
         object(v, path);
 
         AccessPoint access_point;
-        access_point.type = string_value(required_member(v, path, "type"), member_path(path, "type"));
 
         std::string order_path = member_path(path, "order");
         const raw_values_type& order = required_member(v, path, "order");
@@ -817,30 +816,42 @@ namespace
 
         access_point.order = order.get<std::uint64_t>();
 
-        const raw_values_type* target = member(v, "target");
-        if (target == nullptr)
+        if (const raw_values_type* egress = member(v, "egress"); egress != nullptr)
+        {
+            const std::string egress_path = member_path(path, "egress");
+            const raw_values_type& a = fixed_array(*egress, egress_path, 2);
+            access_point.egress = discrete_vector_type{coord_value(a[0], element_path(egress_path, 0)), coord_value(a[1], element_path(egress_path, 1))};
+        }
+
+        if (const raw_values_type* automatic_entry = member(v, "automatic_entry"); automatic_entry != nullptr)
+        {
+            access_point.automatic_entry = boolean_value(*automatic_entry, member_path(path, "automatic_entry"));
+        }
+
+        const raw_values_type* destination = member(v, "destination");
+        if (destination == nullptr)
         {
             return access_point;
         }
 
-        std::string target_path = member_path(path, "target");
-        if (target->is_string())
+        std::string destination_path = member_path(path, "destination");
+        if (destination->is_string())
         {
-            std::optional<AccessPointDestination> parsed = parse_access_point_destination(target->get<std::string>());
+            std::optional<AccessPoint::destination_type> parsed = parse_access_point_destination(destination->get<std::string>());
             if (!parsed.has_value())
             {
-                fail(target_path, "not an access point target");
+                fail(destination_path, "not an access point destination");
             }
 
-            access_point.target = *parsed;
+            access_point.destination = *parsed;
         }
-        else if (std::optional<stored_entity_id_type> id = reference_id(*target); id.has_value())
+        else if (std::optional<stored_entity_id_type> id = reference_id(*destination); id.has_value())
         {
-            access_point.target = *id;
+            access_point.destination = *id;
         }
         else
         {
-            fail(target_path, "neither a target nor a reference to an entity");
+            fail(destination_path, "neither a destination nor a reference to an entity");
         }
 
         return access_point;
@@ -1128,10 +1139,10 @@ namespace
                 check(*entity.parent_id, member_path(member_path(path, "components"), "parent"));
             }
 
-            if (entity.access_point.has_value() && entity.access_point->target.has_value()
-                && std::holds_alternative<stored_entity_id_type>(*entity.access_point->target))
+            if (entity.access_point.has_value() && entity.access_point->destination.has_value()
+                && std::holds_alternative<stored_entity_id_type>(*entity.access_point->destination))
             {
-                fail(member_path(member_path(member_path(path, "components"), "access_point"), "target"),
+                fail(member_path(member_path(member_path(path, "components"), "access_point"), "destination"),
                     "bound, which an access point is only in a saved zone");
             }
         }
@@ -1207,33 +1218,18 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The walls the open neighbors of each stair cell present to it, one of which is the staircase's open side
-    std::map<discrete_point_type, std::vector<WallPlacement>> stair_cell_walls(const Cells& cells)
+    std::vector<discrete_point_type> stair_cell_positions(const Cells& cells)
     {
-        std::map<discrete_point_type, std::vector<WallPlacement>> result;
+        std::vector<discrete_point_type> result;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position{i, j};
-                if (!stair_cell(cells, cell_position))
+                if (discrete_point_type cell_position{i, j}; stair_cell(cells, cell_position))
                 {
-                    continue;
+                    result.push_back(cell_position);
                 }
-
-                std::vector<WallPlacement> walls;
-
-                for (const auto& direction : quetzal::math::cardinal_directions<coord_type, 2>)
-                {
-                    discrete_point_type neighbor = cell_position + direction;
-                    if (on_grid(cells, neighbor) && floor_door_cell(cells, neighbor) && has_wall(cells, neighbor, -direction))
-                    {
-                        walls.push_back({neighbor, direction});
-                    }
-                }
-
-                result.emplace(cell_position, std::move(walls));
             }
         }
 
@@ -1245,13 +1241,10 @@ namespace
     using warn_type = std::function<void(const std::string& path, std::string_view what)>;
 
     //--------------------------------------------------------------------------
-    // Each stair glyph is one access point: in the block notation sited on the floor of its cell, and in the wall notation
-    // on the wall on its open side. The glyphs are visual aids, so a discrepancy is a warning
-    void check_stair_glyphs(const ZoneDocument& document, const EntityIndex& index,
-        const std::map<discrete_point_type, std::vector<WallPlacement>>& stair_walls, const warn_type& warn)
+    // Each stair glyph is one access point sited on the floor of its cell. The glyphs are visual aids, so a discrepancy is
+    // a warning
+    void check_stair_glyphs(const ZoneDocument& document, const std::vector<discrete_point_type>& stair_cells, const warn_type& warn)
     {
-        const bool block_notation = document.cells.value().notation == Notation::Block;
-
         // <cell position, slots of the access points sited on its floor>
         std::map<discrete_point_type, std::vector<size_t>> floor_access_points;
         for (size_t slot = 0; slot < document.entities.size(); ++slot)
@@ -1264,46 +1257,17 @@ namespace
             }
         }
 
-        for (const auto& [cell_position, walls] : stair_walls)
+        for (const discrete_point_type& cell_position : stair_cells)
         {
-            std::vector<size_t> access_points;
+            auto i = floor_access_points.find(cell_position);
 
-            if (block_notation)
+            if (i == floor_access_points.end())
             {
-                if (auto i = floor_access_points.find(cell_position); i != floor_access_points.end())
-                {
-                    access_points = i->second;
-                }
+                warn("entities", std::format("the stair cell at [{}, {}] has no access point sited on its floor", cell_position.i(), cell_position.j()));
             }
-
-            for (const WallPlacement& placement : walls)
+            else if (i->second.size() > 1)
             {
-                auto i = index.slots_by_wall.find(wall_key(placement));
-                if (i == index.slots_by_wall.end())
-                {
-                    continue;
-                }
-
-                for (size_t slot : i->second)
-                {
-                    if (document.entities[slot].access_point.has_value())
-                    {
-                        access_points.push_back(slot);
-                    }
-                }
-            }
-
-            const std::string_view sited = block_notation ? "on its floor" : "on a wall its open neighbors present to it";
-
-            if (access_points.empty())
-            {
-                warn("entities", std::format("the stair cell at [{}, {}] has no access point sited {}", cell_position.i(), cell_position.j(), sited));
-            }
-
-            if (access_points.size() > 1)
-            {
-                const std::string_view second = block_notation ? "on the floor of" : "on the walls around";
-                warn(element_path("entities", access_points[1]), std::format("a second access point {} the stair cell at [{}, {}]", second,
+                warn(element_path("entities", i->second[1]), std::format("a second access point on the floor of the stair cell at [{}, {}]",
                     cell_position.i(), cell_position.j()));
             }
         }
@@ -1312,36 +1276,22 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The cell in which an actor arriving at an access point with the site is placed: the wall's cell, or the flat cell
-    discrete_point_type arrival_cell_position(const Site& site)
+    // The cell in which an actor arriving at an access point is placed: the cell of the wall or the flat cell that it is
+    // sited on, plus its egress
+    discrete_point_type destination_cell_position(const Site& site, const AccessPoint& access_point)
     {
-        if (const auto* wall = std::get_if<WallPlacement>(&*site.address))
-        {
-            return wall->cell_position;
-        }
-
-        return std::get<FlatCell>(*site.address).cell_position;
+        const auto* wall = std::get_if<WallPlacement>(&*site.address);
+        return (wall != nullptr ? wall->cell_position : std::get<FlatCell>(*site.address).cell_position) + access_point.egress;
     }
 
     //--------------------------------------------------------------------------
     // A zone has at least one access point. Each is an entity with an access_point, sited on a wall, or on the floor or
     // the ceiling with an orientation, whose order counts from 0 without gaps among the access points of its type. An
-    // actor arriving at it is placed in the cell its site determines, which must be one an actor can stand in. An access
-    // point on a wall that is not the open side of a cell written '<' or '>' is a warning, since the glyphs are visual
-    // aids, and so is an access point type that is neither the entity's type nor its parent's
-    void check_access_points(const ZoneDocument& document, const EntityIndex& index,
-        const std::map<discrete_point_type, std::vector<WallPlacement>>& stair_walls, const warn_type& warn)
+    // actor arriving at it is placed in the cell of its site plus its egress direction, which must be one an actor can
+    // stand in. An access point on a wall that is not a door's wall is a warning
+    void check_access_points(const ZoneDocument& document, const EntityIndex& index, const warn_type& warn)
     {
         const std::string path = "layout.components.access_points";
-
-        std::set<wall_key_type> open_sides;
-        for (const auto& [cell_position, walls] : stair_walls)
-        {
-            for (const WallPlacement& placement : walls)
-            {
-                open_sides.insert(wall_key(placement));
-            }
-        }
 
         std::set<wall_key_type> door_sides;
         for (const auto& walls : door_walls(document.cells.value()))
@@ -1386,31 +1336,21 @@ namespace
                 fail(member_path(components_path, "site"), "an access point on the floor or the ceiling with no orientation");
             }
 
-            if (placement != nullptr && !open_sides.contains(wall_key(*placement)) && !door_sides.contains(wall_key(*placement)))
+            if (placement != nullptr && !door_sides.contains(wall_key(*placement)))
             {
-                warn(point_path, "an entity sited on a wall that is neither the open side of a cell written '<' or '>' nor a door's wall");
+                warn(point_path, "an entity sited on a wall that is not a door's wall");
             }
 
-            if (!floor_door_cell(document.cells.value(), arrival_cell_position(*entity.site)))
+            const discrete_point_type destination = destination_cell_position(*entity.site, access_point);
+            if (!on_grid(document.cells.value(), destination) || !floor_door_cell(document.cells.value(), destination))
             {
                 fail(member_path(components_path, "site"), "an access point at which an arriving actor is placed in a cell it cannot stand in");
             }
 
-            std::string access_point_path = member_path(components_path, "access_point");
-
-            // A door's access point is one of its door facings, so the access point's type may be the parent's
-            auto parent_slot = entity.parent_id.has_value() ? index.slots_by_id.find(*entity.parent_id) : index.slots_by_id.end();
-            bool parent_type_matches = parent_slot != index.slots_by_id.end() && document.entities[parent_slot->second].type == access_point.type;
-            if (access_point.type != entity.type && !parent_type_matches)
+            if (!orders[entity.type].emplace(access_point.order, i).second)
             {
-                warn(member_path(access_point_path, "type"), std::format("the type '{}' is neither its entity's type '{}' nor its parent's",
-                    access_point.type, entity.type));
-            }
-
-            if (!orders[access_point.type].emplace(access_point.order, i).second)
-            {
-                fail(member_path(access_point_path, "order"), std::format("order {} is another access point's of the type '{}'",
-                    access_point.order, access_point.type));
+                fail(member_path(member_path(components_path, "access_point"), "order"),
+                    std::format("order {} is another access point's of the type '{}'", access_point.order, entity.type));
             }
         }
 
@@ -1605,10 +1545,9 @@ namespace
         check_entities_acyclic(document.entities, index);
         check_references(document, index);
 
-        std::map<discrete_point_type, std::vector<WallPlacement>> stair_walls = stair_cell_walls(cells);
         check_door_glyphs(document, index);
-        check_stair_glyphs(document, index, stair_walls, warn);
-        check_access_points(document, index, stair_walls, warn);
+        check_stair_glyphs(document, stair_cell_positions(cells), warn);
+        check_access_points(document, index, warn);
 
         return document;
     }

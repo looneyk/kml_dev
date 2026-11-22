@@ -135,7 +135,7 @@ namespace stratum_sim_test
     flecs::entity load_zone_unpopulated_at(quetzal::stratum_sim::World& world, quetzal::stratum_sim::PersistentId worldspace_id,
         const quetzal::stratum_sim::Position& position, const std::string& filepath);
 
-    // The access point type the test cases enter zones at, and the level offset its relocator targets: a staircase leading up
+    // The access point type the test cases enter zones at, and the level offset its access point targets: a staircase leading up
     flecs::entity test_entry_type(const quetzal::stratum_sim::Session& session);
 
     inline constexpr quetzal::stratum_sim::level_type test_entry_offset = 1;

@@ -26,7 +26,7 @@
 #include "quetzal/stratum_sim/ai.hpp"
 #include "quetzal/stratum_sim/PersistentSettings.hpp"
 #include "quetzal/stratum_sim/setting_definitions.hpp"
-#include "quetzal/stratum_sim/AccessPoint.hpp"
+#include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/file_components.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
@@ -90,7 +90,7 @@ namespace
             && world.entities().count<stratum_sim::Zone>() == 0 && world.zone_count() == 0);
         CHECK_CASE("leaving no entity with a persistent id", world.entities().count<stratum_sim::PersistentId>() == 0);
         CHECK_CASE("and keeps the registrations", stratum_sim::entity_type(world.entities(), "door")
-            && stratum_sim::access_type(world.entities(), "staircase") && stratum_sim::file_component(world.entities(), "name") != 0
+            && stratum_sim::entity_type(world.entities(), "staircase") && stratum_sim::file_component(world.entities(), "name") != 0
             && played.generation().m_region_specs.contains("door"));
 
         // One game after another, each created from specs. The games' directories are made afresh on every run
@@ -101,7 +101,7 @@ namespace
         stratum_sim::World& sequence_world = sequence.world();
         sequence.generation() = test_generation();
         sequence.generation().m_zone_generator = nullptr;
-        flecs::entity staircase_type = stratum_sim::access_type(sequence_world.entities(), "staircase");
+        flecs::entity staircase_type = stratum_sim::entity_type(sequence_world.entities(), "staircase");
 
         const string region_spec_name = "dungeon";
 

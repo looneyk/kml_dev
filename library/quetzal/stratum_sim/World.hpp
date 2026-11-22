@@ -138,20 +138,16 @@ namespace quetzal::stratum_sim
         // and stays that way, located in the zone through InZone. Any other entity becomes a child of the zone
         void relocate(flecs::entity e, flecs::entity zone, const placement_type& placement);
 
-        // Returns the access point at which an actor arrives through the access point, whose target is unbound. It is the
-        // entry point of the arrival type that leads back, in the zone at the target level's position, read back if it has
-        // unloaded and with its content generated if it is empty. That zone is in the access point's worldspace if the target
-        // has no region spec name, and otherwise in the access point's target worldspace. Throws std::runtime_error if the
-        // region spec is not registered, if the worldspace has no zone at the position, if that zone cannot be read back, or
-        // if it has no such entry point
-        flecs::entity resolve_target(flecs::entity access_point);
+        // Returns the access point at the terminal end of an access point transit
+        // Throws std::runtime_error if the region spec is not registered, as those functions do, or if the zone has no such entry point
+        flecs::entity resolve_destination(flecs::entity access_point);
 
-        // Moves the actor through the access point to the arrival placement of the access point its target refers to, and
-        // returns that access point. An unbound target is resolved by resolve_target, and the access point gone through is
+        // Moves the actor through the access point to the destination placement of the access point its destination refers to,
+        // and returns that access point. An unbound destination is resolved by resolve_destination, and the access point gone through is
         // then bound to the one arrived at, which is bound back to it unless it is arrival only, so going back arrives at
-        // the access point gone through. A bound target's access point in a
+        // the access point gone through. A bound destination's access point in a
         // zone that has unloaded is read back with its zone. Throws std::runtime_error, and moves nothing, if that zone
-        // cannot be read back because the world has no game directory, or as resolve_target and load_saved_zone do
+        // cannot be read back because the world has no game directory, or as resolve_destination and load_saved_zone do
         flecs::entity relocate_through(flecs::entity actor, flecs::entity access_point);
 
         // Marks zone_entered as the most recently entered zone, then unloads the zones entered longest ago until the world
@@ -238,18 +234,26 @@ namespace quetzal::stratum_sim
         // cannot build it
         void fill_zone(flecs::entity zone, const stratum_format::ZoneDocument& document, std::string_view source);
 
-        // Creates the target worldspace of each of the zone's access points whose unbound target has a region spec name
+        // Creates the destination worldspace of each of the zone's access points whose unbound destination has a region spec name
         // Throws std::runtime_error if a region spec is not registered
-        void create_target_worldspaces(flecs::entity zone);
+        void create_destination_worldspaces(flecs::entity zone);
 
-        // Returns the id of the worldspace named for the region spec of the access point's unbound target and the access
+        // Returns the id of the worldspace named for the region spec of the access point's unbound destination and the access
         // point's persistent id, created from the registered region spec if the world has none
         // Throws std::runtime_error if it is created and the region spec is not registered
-        PersistentId target_worldspace(flecs::entity access_point);
+        PersistentId destination_worldspace(flecs::entity access_point);
+
+        // Returns the worldspace's entry zone, the entry_zone of the worldspace's root region spec
+        // Throws std::runtime_error if the root region spec has no entry_zone or the worldspace has no zone of that name
+        flecs::entity load_entry_zone(PersistentId worldspace_id);
+
+        // Returns the zone of an access point's destination
+        // Throws std::runtime_error if the destination is not a relative zone level
+        flecs::entity load_relative_zone(flecs::entity access_point);
 
         // Temporary, until a zone's seed pool is drawn: returns the seed of a worldspace created for the access point,
         // derived from the world seed and the access point's persistent id
-        seed_type target_seed(flecs::entity access_point) const;
+        seed_type destination_seed(flecs::entity access_point) const;
 
         // Returns the ZoneDocument that the game's zone generator creates for the resolved spec, unpopulated, and passes on what
         // the zone generator throws
@@ -345,6 +349,8 @@ namespace quetzal::stratum_sim
 
     // Returns a null entity if no type with that name is loaded
     flecs::entity entity_type(const flecs::world& entities, std::string_view name);
+
+    std::string entity_type_name(flecs::entity e);
 
 } // namespace quetzal::stratum_sim
 

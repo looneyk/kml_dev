@@ -13,7 +13,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
-#include "quetzal/stratum_format/AccessPointDestination.hpp"
+#include "quetzal/stratum_format/AccessPoint.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include "quetzal/testing/reference_files.hpp"
@@ -396,19 +396,19 @@ namespace
         REQUIRE(surface1.name == "surface1");
         stratum_format::ZoneDocument document = document_of(zone_text(surface1.parameters, surface1.zone_name));
 
-        vector<string> targets;
+        vector<string> destinations;
         for (const auto& entity : document.entities)
         {
             if (entity.access_point.has_value())
             {
-                const auto* target = get_if<stratum_format::AccessPointDestination>(&*entity.access_point->target);
-                targets.push_back(target != nullptr ? stratum_format::format_access_point_destination(*target) : string());
+                const auto& destination = entity.access_point->destination;
+                destinations.push_back(destination.has_value() && !holds_alternative<uint64_t>(*destination) ? stratum_format::format_access_point_destination(*destination) : string());
             }
         }
 
-        CHECK_CASE("surface1 places from two to four staircases, all leading down", targets.size() >= 2 && targets.size() <= 4);
-        CHECK_CASE("each to level -1 of a worldspace created from the dungeon region spec",
-            ranges::all_of(targets, [](const string& target) { return target == "dungeon/../[-1]"; }));
+        CHECK_CASE("surface1 places from two to four staircases, all leading down", destinations.size() >= 2 && destinations.size() <= 4);
+        CHECK_CASE("each to a worldspace created from the dungeon region spec",
+            ranges::all_of(destinations, [](const string& destination) { return destination == "dungeon"; }));
         return;
     }
 
@@ -973,14 +973,13 @@ namespace
                     }
 
                     const bool leads_down = glyph(cell_position) == '>';
-                    const stratum_format::AccessPointDestination target{leads_down ? parameters.staircase_down_region_spec : nullopt,
-                        stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
-                    const auto& access_point_target = entity.access_point->target;
-                    const auto* unbound = access_point_target.has_value() ? get_if<stratum_format::AccessPointDestination>(&*access_point_target) : nullptr;
+                    const stratum_format::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
+                        ? stratum_format::AccessPoint::destination_type{stratum_format::RegionSpecName{*parameters.staircase_down_region_spec}}
+                        : stratum_format::AccessPoint::destination_type{stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
 
-                    if (unbound == nullptr || *unbound != target)
+                    if (entity.access_point->destination != destination)
                     {
-                        detail = format("staircase at {}, {} does not have the target {}", i, j, stratum_format::format_access_point_destination(target));
+                        detail = format("staircase at {}, {} does not have the destination {}", i, j, stratum_format::format_access_point_destination(destination));
                         return false;
                     }
                 }

@@ -42,9 +42,9 @@
     ]
   },
   "entities": [
-    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [17, 0], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "dungeon/../[-1]", "order": 0 } } },
-    { "id": 2, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [11, 1], "normal": [-1, 0] } }, "access_point": { "type": "staircase", "target": "dungeon/../[-1]", "order": 1 } } },
-    { "id": 3, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [4, 2], "normal": [0, 1] } }, "access_point": { "type": "staircase", "target": "dungeon/../[-1]", "order": 2 } } },
-    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [11, 9], "normal": [0, -1] } }, "access_point": { "type": "staircase", "target": "dungeon/../[-1]", "order": 3 } } }
+    { "id": 1, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [17, 1], "orientation": [0, 1] }, "access_point": { "destination": "dungeon", "order": 0, "egress": [0, -1] }, "directionality": "Down" } },
+    { "id": 2, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [12, 1], "orientation": [1, 0] }, "access_point": { "destination": "dungeon", "order": 1, "egress": [-1, 0] }, "directionality": "Down" } },
+    { "id": 3, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [4, 1], "orientation": [0, -1] }, "access_point": { "destination": "dungeon", "order": 2, "egress": [0, 1] }, "directionality": "Down" } },
+    { "id": 4, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [11, 10], "orientation": [0, 1] }, "access_point": { "destination": "dungeon", "order": 3, "egress": [0, -1] }, "directionality": "Down" } }
   ]
 }

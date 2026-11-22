@@ -1,5 +1,5 @@
 add_library(quetzal_stratum_sim STATIC
-    AccessPoint.cpp
+    access_points.cpp
     actors.cpp
     ai.cpp
     attachments.cpp
@@ -41,7 +41,7 @@ add_library(quetzal_stratum_sim STATIC
     Worldspace.cpp
     ZoneEntryIndex.cpp
     ZoneSpec.cpp
-    AccessPoint.hpp
+    access_points.hpp
     actors.hpp
     ai.hpp
     attachments.hpp

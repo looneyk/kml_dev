@@ -132,6 +132,11 @@ void quetzal::stratum_sim::register_game_types(World& world)
 
     create_entity_type(entities, "door").set<Access>(Access{AccessState::Closed});
 
+    for (std::string_view name : {"staircase", "portal", "waypoint"})
+    {
+        create_entity_type(entities, name);
+    }
+
     return;
 }
 

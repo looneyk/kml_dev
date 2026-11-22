@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "load_layout.hpp"
-#include "AccessPoint.hpp"
+#include "access_points.hpp"
 #include "decode_components.hpp"
 #include "DiscreteLayout.hpp"
 #include "file_components.hpp"
@@ -87,30 +87,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A bound target, which only a saved zone has, is the persistent id of an access point in this zone or another
-    std::optional<quetzal::stratum_sim::AccessPoint::target_type> access_point_target(
-        const std::optional<quetzal::stratum_format::AccessPoint::target_type>& target,
-        const std::unordered_map<quetzal::stratum_format::stored_entity_id_type, flecs::entity>& entities)
-    {
-        using namespace quetzal::stratum_sim;
-
-        if (!target.has_value())
-        {
-            return std::nullopt;
-        }
-
-        if (const auto* unbound = std::get_if<quetzal::stratum_format::AccessPointDestination>(&*target))
-        {
-            return *unbound;
-        }
-
-        quetzal::stratum_format::stored_entity_id_type id = std::get<quetzal::stratum_format::stored_entity_id_type>(*target);
-
-        auto i = entities.find(id);
-        return EntityReference{PersistentId{id}, i != entities.end() ? i->second : flecs::entity()};
-    }
-
-    //--------------------------------------------------------------------------
     // The same paths the reader writes in its errors
     std::string flat_room_path(const std::string& flat_path, quetzal::id_type room_id)
     {
@@ -164,15 +140,6 @@ namespace
 //------------------------------------------------------------------------------
 std::optional<std::string> quetzal::stratum_sim::check_buildable(const flecs::world& world, const stratum_format::ZoneDocument& document)
 {
-    for (stratum_format::stored_entity_id_type id : document.access_points)
-    {
-        const std::string& type_name = access_point_entity(document, id).access_point->type;
-        if (!access_type(world, type_name))
-        {
-            return std::format("access point type '{}' is not registered", type_name);
-        }
-    }
-
     // Flecs' error logging is silenced, since the returned error is the report
     int log_level = ecs_log_set_level(-4); // Errors log at -3
     std::optional<std::string> error;
@@ -351,10 +318,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     for (stratum_format::stored_entity_id_type id : document.access_points)
     {
         const stratum_format::Entity& entity = access_point_entity(document, id);
-        const stratum_format::AccessPoint& access_point = *entity.access_point;
-
-        flecs::entity e = entities.at(entity.id);
-        set_access_point(e, access_type(world, access_point.type), access_point.order, access_point_target(access_point.target, entities));
+        set_access_point(entities.at(entity.id), *entity.access_point);
     }
 
     decode_components(zone, document.components, "layout", resolve);

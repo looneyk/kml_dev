@@ -7,7 +7,7 @@
 #include "quetzal/settings/Settings.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_sim/AccessPoint.hpp"
+#include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/load_layout.hpp"
 #include "quetzal/stratum_sim/PersistentId.hpp"
@@ -91,6 +91,9 @@ stratum_sim::RegionSpec stratum_sim_test::test_region_spec(const string& test_zo
     stratum_sim::RegionSpec region_spec;
     region_spec.extent = box_extent(range_type(0, 0), range_type(0, 0), range_type(-10, 10));
     region_spec.store.insert(format("{}{}", stratum_sim::zone_prefix, zone_file_key), zone_files.at(test_zone));
+
+    // The zone at level 0, whose zone counter is 10
+    region_spec.store.insert(string(stratum_sim::entry_zone_key), "&region_name .. '_10'");
     return region_spec;
 }
 
@@ -228,7 +231,7 @@ flecs::entity stratum_sim_test::load_zone_unpopulated_at(stratum_sim::World& wor
 //------------------------------------------------------------------------------
 flecs::entity stratum_sim_test::test_entry_type(const stratum_sim::Session& session)
 {
-    return stratum_sim::access_type(session.world().entities(), "staircase");
+    return stratum_sim::entity_type(session.world().entities(), "staircase");
 }
 
 //------------------------------------------------------------------------------

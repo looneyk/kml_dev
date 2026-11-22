@@ -16,8 +16,8 @@ namespace
 
     constexpr std::array<std::pair<Directionality, std::string_view>, 2> directionality_names
     {{
-        {Directionality::Up, "up"},
-        {Directionality::Down, "down"}
+        {Directionality::Up, "Up"},
+        {Directionality::Down, "Down"}
     }};
 
 } // namespace

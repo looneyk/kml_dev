@@ -4,7 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "make_document.hpp"
-#include "AccessPoint.hpp"
+#include "access_points.hpp"
 #include "DiscreteLayout.hpp"
 #include "Name.hpp"
 #include "file_components.hpp"
@@ -172,29 +172,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The access point as a zone file writes it: a bound target is the persistent id of the access point it is bound to
-    stratum_format::AccessPoint encoded_access_point(flecs::entity e, const AccessPoint& access_point)
-    {
-        stratum_format::AccessPoint result{access_type_name(e), access_point.order, std::nullopt};
-
-        if (!access_point.target.has_value())
-        {
-            return result;
-        }
-
-        if (const auto* unbound = std::get_if<stratum_format::AccessPointDestination>(&*access_point.target))
-        {
-            result.target = *unbound;
-        }
-        else
-        {
-            result.target = std::get<EntityReference>(*access_point.target).persistent_id.id;
-        }
-
-        return result;
-    }
-
-    //--------------------------------------------------------------------------
     // Appends each entity below the parent, depth first, leaving out the layout entities, whose components the layout's
     // sections have
     void collect_entities(flecs::entity parent, std::vector<flecs::entity>& entities)
@@ -231,10 +208,7 @@ namespace
         stratum_format::Entity entity;
         entity.id = e.get<PersistentId>().id;
 
-        if (flecs::entity type = e.target(flecs::IsA))
-        {
-            entity.type = type.name().c_str();
-        }
+        entity.type = entity_type_name(e);
 
         flecs::entity parent = e.parent();
         if (parent != zone)
@@ -247,9 +221,9 @@ namespace
             entity.site = encoded_site(*site, layout, parent == zone);
         }
 
-        if (const AccessPoint* access_point = e.try_get<AccessPoint>())
+        if (const auto* access_point = e.try_get<stratum_format::AccessPoint>())
         {
-            entity.access_point = encoded_access_point(e, *access_point);
+            entity.access_point = *access_point;
         }
 
         entity.components = encoded_components(e, file_components);
@@ -387,7 +361,7 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
 
     for (flecs::entity e : subtree_by_persistent_id(zone))
     {
-        if (e.has<AccessPoint>())
+        if (e.has<stratum_format::AccessPoint>())
         {
             document.access_points.push_back(e.get<PersistentId>().id);
         }

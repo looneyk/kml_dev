@@ -42,8 +42,8 @@ namespace quetzal::stratum_sim
     // Throws std::runtime_error if a spec is based on a region spec that is not registered, or for a pattern that does not
     // compile, fails, or has a table or a function as its value
     WorldDefinition::region_spec_tree_type resolve_region_spec_tree(const WorldDefinition::region_spec_tree_type& tree,
-        const std::map<std::string, RegionSpec>& region_specs, PatternResolver::random_type& random, seed_type world_seed,
-        const ScriptLimits& script_limits);
+        std::string_view root_region_name, const std::map<std::string, RegionSpec>& region_specs, PatternResolver::random_type& random,
+        seed_type world_seed, const ScriptLimits& script_limits);
 
 } // namespace quetzal::stratum_sim
 

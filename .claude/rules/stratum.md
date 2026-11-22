@@ -24,6 +24,8 @@ describes what is built, and `doc/game_system_principles.md` the principles.
   a query, `crossable()`, and perception is per actor: the view draws the player's, and each denizen acts on its own perception.
 - **Scale is several orders of magnitude beyond the tree.** The checked-in zones, references, and tests are test-stage
   data, so performance, memory, and data structures are judged against far larger worlds, with costs per operation.
+- **An access point's destination is not checked against its `Directionality`.** Agreement is the designer's
+  responsibility, and leaving it unchecked allows non-Euclidean layouts.
 - **A new game is wholly generated.** The host calls `Game::create` with the starting specs. A host loading a zone file
   is scaffolding until generation is complete, not a design case, and loading saved zones is a separate flow.
 - **`ContinuousLayout` is separate from `DiscreteLayout`** because the two will work differently. Nothing done to
@@ -61,16 +63,16 @@ describes what is built, and `doc/game_system_principles.md` the principles.
 - **Denizens** are a zone's population. "Monster" is only a specifically hostile creature used as an example.
 - **Staircase,** in code names, comments, and docs. "Stairs" stays in command-line option tags (`--stairs-down`) and
   their zone file parameter tokens (`stairs_down`).
-- **Relocator** is the component that moves an actor to a target, not an entity type. A staircase, a portal, and a
-  waypoint are entities with a relocator, and entity `type` values are prefabs in `World`. "Portal" is only the
-  non-ordinary or instantaneous type. Checks look for the relocator component, not for a staircase.
-- **Access point,** not entry. Every zone has at least one, listed in `layout.components.access_points`. An access point's
-  relocator has its type, an order counting from 0 among the access points of that type, and a placement, the cell
-  position and orientation at which an arriving actor is put. A staircase down can be a tower's entrance, entered from
-  below.
-- **A staircase is sited on a floor cell** with an orientation, **or on the wall** that a floor cell presents to a stair
-  block, a closed cell written `<` or `>`. The generators write stair blocks. `check_access_points` in
-  `stratum_format/read_zone.cpp` and the generators' `write_zone.cpp` are the source of truth.
+- **Access point,** not entry or relocator. An access point is the component that moves an actor to its destination, not an
+  entity type. A staircase, a portal, and a waypoint are entities with an access point, and entity `type` values are
+  prefabs in `World`. "Portal" is only the non-ordinary or instantaneous type. Checks look for the access point
+  component, not for a staircase. Every zone has at least one, listed in `layout.components.access_points`. An access
+  point has its type, an order counting from 0 among the access points of that type, an egress, and an
+  optional destination. A staircase down can be a tower's entrance, entered from below.
+- **A staircase is sited on the floor of its cell** with an orientation: a floor cell in the block notation, or in the
+  wall notation a stair block, a closed cell written `<` or `>`, with an egress toward the floor it opens
+  onto. `check_access_points` in `stratum_format/read_zone.cpp` and the generators' `write_zone.cpp` are the source of
+  truth.
 - **Edge and wall.** An edge is the zone file's one glyph for both sides, and a wall is one side. An actor interacts with
   the wall on its side, and the wall on the other side is separate.
 - **Doors** are an entity list in the zone with the shared state (open, locked, ...). A door has two door facings as

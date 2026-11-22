@@ -37,10 +37,10 @@ cell in no room, is a barrier. A staircase cell is floor, part of the room it wa
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
 glyph. Each staircase is a `staircase` entity sited on the floor of its cell, with the orientation it was placed with,
-so an actor enters it from any side. Its `access_point` has the `type` `staircase`; a `target` of `../[-1]` or `../[+1]`; and an `order` that counts from 0 among all the
-staircases, in the order they are written. With a `staircase_down_region_spec`, each staircase leading down has the
-target `<region spec>/../[-1]`, so it leads to level -1 of a worldspace of its own, which the world creates from that region
-spec.
+so an actor enters it from any side. Its `access_point` has a `destination` of `../[-1]` or `../[+1]`; and an `order` that counts from 0 among all the
+staircases, in the order they are written. Its `directionality` is `Down` or `Up`. With a `staircase_down_region_spec`, each staircase leading down has the
+region spec's name as its destination, so it leads to the entry zone of a worldspace of its own, which the world creates from
+that region spec.
 `layout.components.access_points` refers to every staircase. Local ids are assigned in the order the entities are
 written --- each door, then its door facings, and the staircases last --- so the same parameters give the same ids.
 

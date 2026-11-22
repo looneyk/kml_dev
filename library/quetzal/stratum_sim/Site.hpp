@@ -67,7 +67,6 @@ namespace quetzal::stratum_sim
     std::optional<id_type> wall_id_of(const Site& site);
 
     //--------------------------------------------------------------------------
-    // set_placement leaves the rest of the site unchanged
     const placement_type& placement_of(flecs::entity e);
     void set_placement(flecs::entity e, const placement_type& placement);
 

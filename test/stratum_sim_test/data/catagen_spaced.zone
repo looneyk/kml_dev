@@ -108,7 +108,7 @@
     { "id": 52, "type": "door" },
     { "id": 53, "type": "door_facing", "components": { "parent": { "entity": 52 }, "site": { "relation": "on", "wall": { "cell_position": [8, 16], "normal": [-1, 0] } } } },
     { "id": 54, "type": "door_facing", "components": { "parent": { "entity": 52 }, "site": { "relation": "on", "wall": { "cell_position": [9, 16], "normal": [1, 0] } } } },
-    { "id": 55, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [29, 14], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "../[+1]", "order": 0 } } },
-    { "id": 56, "type": "staircase", "components": { "site": { "relation": "on", "wall": { "cell_position": [3, 16], "normal": [1, 0] } }, "access_point": { "type": "staircase", "target": "../[-1]", "order": 1 } } }
+    { "id": 55, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [28, 14], "orientation": [-1, 0] }, "access_point": { "destination": "../[+1]", "order": 0, "egress": [1, 0] }, "directionality": "Up" } },
+    { "id": 56, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [2, 16], "orientation": [-1, 0] }, "access_point": { "destination": "../[-1]", "order": 1, "egress": [1, 0] }, "directionality": "Down" } }
   ]
 }

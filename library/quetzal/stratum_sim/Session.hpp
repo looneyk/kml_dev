@@ -46,9 +46,9 @@ namespace quetzal::stratum_sim
         void resume();
         bool paused() const;
 
-        // Moves the character to the placement of the zone's entry_point for the access point type and level offset, and makes
-        // it the zone being played. Throws std::runtime_error when the zone has no such entry point
-        void enter(flecs::entity zone, flecs::entity access_type, level_type offset);
+        // Moves the character to the placement of the zone's entry_point for the type and level offset, and makes it the zone
+        // being played. Throws std::runtime_error when the zone has no such entry point
+        void enter(flecs::entity zone, flecs::entity type, level_type offset);
 
         void set_driver(Driver driver, double units_per_second = Clock::units_per_second_default);
 
