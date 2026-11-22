@@ -4,34 +4,19 @@
 //------------------------------------------------------------------------------
 
 #include "AccessPoint.hpp"
-#include <algorithm>
 #include <cassert>
-#include <cctype>
-
-namespace
-{
-
-    //--------------------------------------------------------------------------
-    // A letter followed by letters, digits, and underscores
-    bool is_name(std::string_view text)
-    {
-        return !text.empty() && std::isalpha(static_cast<unsigned char>(text.front()))
-            && std::ranges::all_of(text, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; });
-    }
-
-} // namespace
 
 //------------------------------------------------------------------------------
 std::optional<quetzal::stratum_format::AccessPoint::destination_type> quetzal::stratum_format::parse_access_point_destination(std::string_view text)
 {
-    if (is_name(text))
+    if (valid_segment_name(text))
     {
         return RegionSpecName{std::string(text)};
     }
 
-    if (relative_zone_level(text).has_value())
+    if (std::optional<ZoneExtendedName> zone_extended_name = parse_zone_extended_name(text); zone_extended_name.has_value())
     {
-        return ZoneExtendedName{std::string(text)};
+        return *zone_extended_name;
     }
 
     return std::nullopt;

@@ -994,7 +994,21 @@ namespace
             {"../[-1]", ZoneExtendedName{"../[-1]"}},
             {"../[+2]", ZoneExtendedName{"../[+2]"}},
             {"../[+0]", ZoneExtendedName{"../[+0]"}},
-            {"sewers", RegionSpecName{"sewers"}}
+            {"../[1]", ZoneExtendedName{"../[1]"}},
+            {"../[=-3]", ZoneExtendedName{"../[=-3]"}},
+            {"../[=4]", ZoneExtendedName{"../[=4]"}},
+            {"../../crypt/[-1]", ZoneExtendedName{"../../crypt/[-1]"}},
+            {"[-1]", ZoneExtendedName{"[-1]"}},
+            {"town/market", ZoneExtendedName{"town/market"}},
+            {"/surface/surface_3_4", ZoneExtendedName{"/surface/surface_3_4"}},
+            {"/town/market@(12,7)", ZoneExtendedName{"/town/market@(12,7)"}},
+            {"../[-1]@(-1.5,+2)", ZoneExtendedName{"../[-1]@(-1.5,+2)"}},
+            {"#812", ZoneExtendedName{"#812"}},
+            {"#40/market", ZoneExtendedName{"#40/market"}},
+            {"#40/../[=0]", ZoneExtendedName{"#40/../[=0]"}},
+            {"sewers", RegionSpecName{"sewers"}},
+            {"_sewers", RegionSpecName{"_sewers"}},
+            {"_town/__market", ZoneExtendedName{"_town/__market"}}
         };
 
         for (const auto& [text, expected] : destinations)
@@ -1004,8 +1018,10 @@ namespace
                 && stratum_format::format_access_point_destination(*parsed) == text);
         }
 
-        for (const string& text : {"", "-1", "+1", "../[1]", "../[-]", "../[+-1]", "../[+1.5]", "../[=0]", "../[-1", "../-1]", "./[-1]", "[-1]",
-            "sewers/", "sewers/-1", "sewers/../[-1]", "1a", "a/b/../[-1]", "../[-1]@3,5", "../[-99999999999]", "town/market"})
+        for (const string& text : {"", "-1", "+1", "../[-]", "../[+-1]", "../[+1.5]", "../[=]", "../[==1]", "../[-1", "../-1]", "./[-1]", "sewers/",
+            "sewers/-1", "1a", "../[-1]@3,5", "../[-99999999999]", "/", "//town", "town//market", "town/", "/#12", "town/#12", "#", "#x", "#-1",
+            "#99999999999999999999", "[-1]/market", "../[-1]/[+1]", "market@", "market@(1)", "market@(1,2", "market@(1,2)x", "market@(1.,2)",
+            "market@(.5,2)", "market@(1,2)@(3,4)", "@(1,2)", "town/mar-ket"})
         {
             CHECK_CASE(format("\"{}\" is not a destination", text), !stratum_format::parse_access_point_destination(text).has_value());
         }

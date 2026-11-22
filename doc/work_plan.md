@@ -29,6 +29,8 @@ The design behind the items is in these documents, which the items refer to by s
 - `region_spec_plan.md` defines the form of a `RegionSpec` and a `ZoneSpec`, patterns included, so that a designer can
   write one by hand and the game can generate one.
 - `sim_zone_model.md` has the model beneath the code.
+- `stratum_core_plan.md` moves the data types that `stratum_format` and `stratum_sim` share into a library of their
+  own.
 - `site_plan.md` replaces `Site` with a placement component and in and on relationships.
 - `template_plan.md` covers templates, the data a zone's content is made from, and pregenerated content.
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
@@ -74,6 +76,12 @@ boxes are removed at the start of the next piece of work, since the reference do
   renamed, and a flat's room overrides kept in the flat's map.
 - [ ] **Site replacement** (`site_plan.md`, `## Steps`): `Site` replaced by a placement, an `AttachedTo` relationship,
   and a position on the surface, and the `site` file component by `attachment` and `placement`.
+- [ ] **Zone construction and loading paths:** the functions that create, generate, read, and build zones
+  (`World`'s `create_zone`, `build_zone`, `fill_zone`, `zone_at`, and `load_*` functions, and `load_layout`) analyzed and
+  remediated, so that each name tells building from a document, reading a saved zone, and generating an empty zone's
+  content apart, every zone document is built by one path, and an empty zone is created without a zone document.
+- [ ] **stratum_core** (`stratum_core_plan.md`, `## Steps`): the data types that `stratum_format` and `stratum_sim`
+  share, the world's records among them, in a library of their own, which `WorldDocument` contains directly.
 
 - [x] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
       flecs parent of its zones, with its coordinate system from its top-level region's spec, and each zone's
@@ -86,8 +94,6 @@ boxes are removed at the start of the next piece of work, since the reference do
       worldspace and its top-level region named for the region spec, and a zone's `DisplayName` separate from both.
 - [ ] **Region specs defined** (`region_spec_plan.md`): the keys of a `RegionSpec` and a `ZoneSpec`, the form of their
       patterns, and the open questions there answered, before the structure is created from them.
-- [ ] **Listed zones** (`region_spec_plan.md`, `### Listed zones`): a region spec's `zones` member, each zone's position
-      and the keys that override the `zone.` keys for it, read with the other typed members.
 - [ ] **The world's structure created whole** (`world_structure_plan.md`): each worldspace created whole from a region
       spec tree, with its region tree and an empty zone at every position of its extent, the starting worldspace with
       the game and each other worldspace when the zone of an access point that leads to it is generated.
@@ -224,6 +230,10 @@ These are the open questions.
 
 ### Zones and regions
 
+- **How are a region's components stored in stratum_core?** `WorldDocument::Region` has them as raw values, which
+  stratum_core cannot contain (`stratum_core_plan.md`).
+- **Is a worldspace's record of the zones it created, and of the links set between worldspaces, a structure of its own
+  apart from the root region spec?** (`stratum_core_plan.md`)
 - **Can a `RegionSpec`'s `extent` and `zone_size` be patterns?** Their values are not text
   (`archived/pattern_resolution_plan.md`).
 - **What type does a store entry have as a pattern's symbol?** The stub makes it a number when its text parses as

@@ -20,6 +20,10 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
   abstraction from an earlier step that no longer fits the next one is refactored or replaced cleanly, not worked
   around. A proposed change is answered with the better design and what it would take to get there. A real cost is
   given as a cost for the user to weigh, not as a reason the change cannot be made.
+- **Survey before building.** Before implementing a step, write out the code paths, data structures, and algorithms it
+  touches, and check them for fit: a function that repeats most of another, an object built only to reuse a path, a
+  branch or parameter that works around an existing assumption, two structures or paths for one purpose, and a name
+  the change makes inaccurate. What does not fit is reshaped in the same step, or raised before the step is written.
 - **Remove code that adds no value.** A nicety the output does not need, such as `number_text` forcing a `.0` on JSON
   reals, and a wrapper around one call, such as `skip_bracket` over `skip_delimiter`, are removed, not kept as an
   option. If the output changes, the references are regenerated and the docs updated.

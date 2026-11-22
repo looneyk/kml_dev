@@ -41,11 +41,20 @@ test, and are the work of **The world's structure created whole** in `work_plan.
   worldspaces its access points lead to do not depend on the rest of the generation.
 - **An access point's destination is an `AccessPoint::destination_type`:** the persistent id of the access point it is bound to, a
   region spec name, or a zone's extended name with an optional position (`## Extended names`).
-- **The generators select a destination zone by its level,** with `[`*k*`]` or `[=`*n*`]` (`## Extended names`), since
-  they do not have the zone ids. Loading the zone replaces each such destination with `#<zone id>` of the zone it refers to,
-  and a destination with no zone there is an error.
-- **A destination in another region or worldspace is chosen from the zone's region spec,** which has a list of destinations
-  and the criteria for choosing one. Both are the designer's, and the generators write no such destination.
+- **A zone's staircase destinations are in its `ZoneSpec`,** resolved from its region spec's `zone.` keys with the rest
+  of the spec: `parameters.stairs_up_destinations` and `parameters.stairs_down_destinations`, each a comma-separated
+  list of destinations. The generators write each staircase's destination from the list for its direction, in order with the
+  last repeated, and create no staircase in a direction whose list is empty.
+- **Every zone id is known when the `ZoneSpec`s are resolved,** since a worldspace's empty zones are created first. The
+  symbols `zone_above` and `zone_below` are `#<zone id>` of the zones above and below the zone, at its x and y, or nil
+  where the worldspace has none, and the default lists are made from them. The bottom zone of a dungeon has no
+  staircase leading down.
+- **A worldspace created through an access point has a listed zone for its entry zone** (`region_spec_plan.md`,
+  `### Listed zones`), whose destinations in the direction leading back, opposite the access point's
+  `Directionality`, are the departing zone.
+- **A destination in another region or worldspace is the designer's,** written in the region spec's staircase
+  destinations, such as the surface spec's `dungeon`. `[`*k*`]` and `[=`*n*`]` are for the designer's destinations, and
+  the generators write none.
 - **A destination in a worldspace that does not exist is a region spec name or an absolute extended name,** which its
   designer knows from the designed worldspace in the assets. An absolute extended name that does not fully specify its
   zone is an error.
@@ -109,7 +118,7 @@ coordinate    := signed_numeric_value
 
 | Symbol | Meaning | Details |
 | --- | --- | --- |
-| *name* | Name | A letter followed by letters, digits, and underscores |
+| *name* | Name | A letter or underscore followed by letters, digits, and underscores |
 | `/` | Separator | Separates the segments |
 | Initial `/` | Root | The first name is a root region's name, which is its worldspace's name: `/<root region name>/.../<zone name>` |
 | No initial `/` | Relative | Starts at the current zone, the zone that contains the reference, such as the zone of an access point whose destination it is |
@@ -174,19 +183,22 @@ coordinate    := signed_numeric_value
     stored id of that access point in a file. The `EntityReference` destination goes. A region spec name destination arrives at
     the zone whose name is the region spec's `entry_zone`, a pattern such as `&region_name .. '_1'`, and every region
     spec's resolution has the symbol `region_name`.
-  - [ ] f. **The extended name grammar.** `stratum_format` reads and writes a zone extended name in the whole grammar of
-    `## Extended names`, and the reader rejects a destination that does not parse.
-  - [ ] g. **Level destinations replaced on load.** `load_layout` replaces each destination that selects a zone by its level, with
-    `[`*k*`]` or `[=`*n*`]`, with `#<zone id>` of the zone it refers to, and a destination with no zone there is an error.
-  - [ ] h. **Destinations resolved when gone through.** Going through an unbound destination resolves it to a zone, by its zone
-    extended name or its region spec name, and creates the zone's content, and its worldspace as needed, then.
-    `create_destination_worldspaces` goes. `entry_point` takes the lowest-ordered access point of the departure's type that
-    has no destination or an unbound destination to the zone the actor came from, in place of `targets_level` and
-    `accepts_arrival`.
-  - [ ] i. **Destinations from the region spec.** Until the form of a region spec's destinations is designed, the
-    surface spec in `region_specs.json` has a placeholder key, `zone.destinations`, a list of absolute extended names
-    that the zone's access points leading down take in order when it is loaded. The generators'
-    `stairs_down_region_spec` goes.
+  - [x] f. **The extended name grammar.** `stratum_format` reads and writes a zone extended name in the whole grammar of
+    `## Extended names`, and the reader rejects a destination that does not parse. A destination that is a name is a
+    region spec name.
+  - [ ] g. **Listed zones** (`region_spec_plan.md`, `### Listed zones`). A region spec's `zones` list is read with the
+    other typed members, and each listed zone's keys override the `zone.` keys when its `ZoneSpec` is resolved.
+  - [ ] h. **Staircase destinations from the region spec.** Each zone's `ZoneSpec` has its staircase destinations, from
+    the symbols `zone_above` and `zone_below` by default, and a worldspace created through an access point has the
+    departing zone in its entry zone's listed zone, as `## Design` describes. The surface spec's
+    `zone.parameters.stairs_down_destinations` is `dungeon`. dungen and catagen write the destinations from the
+    lists. `entry_point` takes the lowest-ordered access point of the departure's type that has no destination or an
+    unbound destination to the zone the actor came from, in place of `targets_level` and `accepts_arrival`, and going
+    through a `#<zone id>` destination arrives in that zone. `stairs_down_region_spec`, `relative_zone_extended_name`,
+    `relative_zone_level`, `load_relative_zone`, and `new_zone_position` go.
+  - [ ] i. **Destinations resolved when gone through.** Going through an unbound destination resolves it to a zone, by
+    its zone extended name or its region spec name, and creates the zone's content, and its worldspace as needed, then.
+    `create_destination_worldspaces` goes.
   - [ ] j. **Interaction through attachments.** `Interact` and a move blocked by a wall act on the entities attached to
     the wall and to the floor of the cell beyond it, and `Enter` and a move onto a cell act on those attached to the
     cell's floor, each by the components the entity has: an `AccessPoint` is entered, and an `Access` is opened or
@@ -202,10 +214,8 @@ coordinate    := signed_numeric_value
 
 - **Do a registered spec's `subregion.<name>` entries (`region_spec_plan.md`, `### subregion.`), with their counts and
   weighted choices, remain beside a tree's parent links?**
-- **What form do a region spec's list of destinations and its criteria for choosing one take?**
+- **What criteria choose a zone's destinations from those its region spec offers?**
 - **How are a region spec name destination and a zone extended name destination used?**
-- **How does a zone file tell a region spec name destination from a relative zone extended name?** A bare name, such as
-  `dungeon`, reads as either.
 
 ## Documents revised on approval
 

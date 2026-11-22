@@ -1121,11 +1121,13 @@ the file wrote it. A room is kept as the file identified it.
 
 An `AccessPoint::destination_type` is where going through an access point leads: a `std::variant` of the persistent
 id of the access point it is bound to, a `RegionSpecName`, and a `ZoneExtendedName` (`ZoneExtendedName.hpp`), each of
-the last two having its text as its `value`. The zone extended name is `../[`*k*`]`, a signed number of zone levels from
-the access point's zone, and `relative_zone_extended_name(k)` and `relative_zone_level(zone_extended_name)` convert
-between the two. `parse_access_point_destination(text)` returns a region spec name for a name and a zone extended name
-for `../[`*k*`]`, or nothing for any other text, and `format_access_point_destination(destination)` writes either back
-as the same text. A `TransitEndpoint` (`TransitEndpoint.hpp`) is one end of a transit between zones: an id,
+the last two having its text as its `value`. `parse_zone_extended_name(text)` returns a zone extended name for text
+that matches the whole extended name grammar (`discrete_layout.md`, `### An access point's destination`), or nothing.
+`relative_zone_extended_name(k)` returns `../[`*k*`]`, *k* zone levels from the access point's zone, with *k* signed,
+and `relative_zone_level(zone_extended_name)` returns *k* for a name of that form. `valid_segment_name(text)` returns true for a
+letter or underscore followed by letters, digits, and underscores. `parse_access_point_destination(text)` returns a region spec name
+for a name and a zone extended name for any other text that `parse_zone_extended_name` accepts, or nothing, and
+`format_access_point_destination(destination)` writes either back as the same text. A `TransitEndpoint` (`TransitEndpoint.hpp`) is one end of a transit between zones: an id,
 an optional name, its entity type, its cell position, its orientation, its egress direction, and an optional `Directionality`
 (`Directionality.hpp`), up or down, with `name` and `to_directionality`. A saved zone's `zone.id` is `ZoneDocument::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.

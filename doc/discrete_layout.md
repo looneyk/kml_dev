@@ -661,20 +661,32 @@ are all unbound; a bound destination is written only in a saved zone, `"destinat
 ```
 destination        = region_spec_name | zone_extended_name
 region_spec_name   = name
-zone_extended_name = "../[" ("+" | "-") digits "]"
-name               = letter {letter | digit | "_"}
+zone_extended_name = [ "/" ] segment { "/" segment } [ "@" position ]
+segment            = name | ".." | "#" digits | "[" [ "=" ] integer "]"
+position           = "(" coordinate "," coordinate ")"
+coordinate         = [ "+" | "-" ] digits [ "." digits ]
+integer            = [ "+" | "-" ] digits
+name               = ( letter | "_" ) { letter | digit | "_" }
 ```
+
+A destination that is a name is a region spec name. A zone extended name is an extended name (`world_structure_plan.md`,
+`## Extended names`) of a zone: absolute with an initial `/`, beginning with a persistent id `#`*id* as its first
+segment and with no initial `/`, or relative to the access point's zone. A zone level segment, `[`*k*`]` relative or
+`[=`*n*`]` absolute, is the last segment, and the position follows the last segment.
 
 | Destination | Where it leads |
 | --- | --- |
 | `../[-1]` | One zone level down, from the access point's region |
 | `../[+2]` | Two zone levels up |
 | `../[+0]` | Another zone at the same zone level |
+| `../[=-3]` | The zone at zone level -3, in the access point's region |
+| `/town/market@(12,7)` | The zone `market` in the root region `town`, at the cell position [12, 7] |
+| `#812` | The zone with the persistent id 812 |
 | `sewers` | The entry zone of a new worldspace for this access point, created from the region spec `sewers` |
 
-The zone extended name is the subset of extended names (`world_structure_plan.md`, `## Extended names`) that selects
-the zone a number of zone levels from the access point's zone (`## layout`), in the access point's own worldspace, and
-its number always has its sign. A region spec's `entry_zone` is the name of the zone at which its worldspace is entered.
+`../[`*k*`]` selects the zone *k* zone levels from the access point's zone (`## layout`), in the worldspace of the
+access point's zone, and the writers give *k* its sign. Going through an unbound zone extended name of any other form is an
+error. A region spec's `entry_zone` is the name of the zone at which its worldspace is entered.
 
 Resolving one finds a zone or makes one. Traversal passes the destination to whatever manages the zones, which
 returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it
@@ -775,7 +787,8 @@ section, are warnings, not errors.
   its type is its entity's `type`. An access point with no destination is arrival only.
 - A staircase in the wall notation is sited on the floor of its stair block.
 - An entity with an access point may have a `directionality`, `Up` or `Down`.
-- An unbound destination is a region spec name or a zone extended name, and no longer both.
+- An unbound destination is a region spec name or a zone extended name, and no longer both. A zone extended name is in
+  the whole extended name grammar.
 - An access point has no `placement`. An arriving actor is placed by the access point's site, and the reader checks
   that cell instead.
 - An `access_point` on an entity that `layout.components.access_points` does not list is an error.
