@@ -5,6 +5,7 @@
 // types.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/geometry/CardinalDirection.hpp"
 #include "quetzal/geometry/DirectedPoint.hpp"
 #include "quetzal/geometry/DiscretePoint.hpp"
 #include "quetzal/geometry/MinProjection.hpp"
@@ -43,13 +44,13 @@ namespace quetzal::stratum_sim
     using random_type = math::Random<math::portable_random_engine_type>;
     using seed_type = random_type::seed_type;
 
-    using math::CardinalDirection;
+    using geometry::CardinalDirection;
 
-    inline const auto& cardinal_directions = math::cardinal_directions<coord_type, 2>;
+    inline const auto& cardinal_directions = geometry::cardinal_directions<coord_type, 2>;
 
     inline const discrete_vector_type& cardinal_direction(CardinalDirection direction)
     {
-        return math::cardinal_direction<coord_type, 2>(direction);
+        return geometry::cardinal_direction<coord_type, 2>(direction);
     }
 
     // The cardinal direction nearest the given direction

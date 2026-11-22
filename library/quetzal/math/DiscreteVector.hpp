@@ -17,7 +17,6 @@
 #include <span>
 #include <tuple>
 #include <type_traits>
-#include <utility>
 #include <cstdlib>
 #include <cassert>
 
@@ -164,38 +163,6 @@ namespace quetzal::math
     // Undefined for null vectors
     template<typename V, typename Traits> requires (Traits::dimension == V::dimension)
     V direction(const Vector<Traits>& v);
-
-    // Cardinal directions
-    // Unit vectors along the 4 axes in conventional CCW order
-
-    //--------------------------------------------------------------------------
-    enum class CardinalDirection
-    {
-        East,
-        North,
-        West,
-        South
-    };
-
-    template<std::signed_integral T, size_t N = 2>
-    using cardinal_direction_type = DiscreteVector<T, N>;
-
-    template<std::signed_integral T, size_t N = 2>
-    using cardinal_directions_type = std::array<cardinal_direction_type<T, N>, 4>;
-
-    template<std::signed_integral T, size_t N = 2>
-    const cardinal_directions_type<T, N> cardinal_directions
-    {
-        cardinal_direction_type<T, N>{1, 0},   // East
-        cardinal_direction_type<T, N>{0, 1},   // North
-        cardinal_direction_type<T, N>{-1, 0},  // West
-        cardinal_direction_type<T, N>{0, -1}   // South
-    };
-
-    template<std::signed_integral T, size_t N = 2>
-    const cardinal_direction_type<T, N>& cardinal_direction(CardinalDirection direction);
-
-    CardinalDirection opposite(CardinalDirection direction);
 
 } // namespace quetzal::math
 
@@ -748,19 +715,6 @@ V quetzal::math::direction(const Vector<Traits>& v)
     result[axis] = v[axis] > component_type(0) ? value_type(1) : value_type(-1);
 
     return result;
-}
-
-//------------------------------------------------------------------------------
-template<std::signed_integral T, size_t N>
-const quetzal::math::cardinal_direction_type<T, N>& quetzal::math::cardinal_direction(CardinalDirection direction)
-{
-    return cardinal_directions<T, N>[std::to_underlying(direction)];
-}
-
-//------------------------------------------------------------------------------
-inline quetzal::math::CardinalDirection quetzal::math::opposite(CardinalDirection direction)
-{
-    return static_cast<CardinalDirection>((std::to_underlying(direction) + 2) % 4);
 }
 
 //------------------------------------------------------------------------------

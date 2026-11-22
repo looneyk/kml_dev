@@ -8,6 +8,7 @@
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/place_staircases.hpp"
 #include "quetzal/dungen/write_zone.hpp"
+#include "quetzal/geometry/CardinalDirection.hpp"
 #include "quetzal/log/Log.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/grid.hpp"
@@ -821,7 +822,7 @@ namespace
         }
 
         const stratum_format::Cells& cells = document.cells.value();
-        const auto& directions = math::cardinal_directions<coord_type, 2>;
+        const auto& directions = geometry::cardinal_directions<coord_type, 2>;
 
         map<discrete_point_type, size_t> room_of;
         vector<set<discrete_point_type>> rooms = stratum_format::room_cells(document);

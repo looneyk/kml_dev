@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "grid.hpp"
+#include "quetzal/geometry/CardinalDirection.hpp"
 #include <algorithm>
 #include <variant>
 #include <cassert>
@@ -91,7 +92,7 @@ namespace
             discrete_point_type cell_position = pending.back();
             pending.pop_back();
 
-            for (const auto& direction : quetzal::math::cardinal_directions<coord_type, 2>)
+            for (const auto& direction : quetzal::geometry::cardinal_directions<coord_type, 2>)
             {
                 discrete_point_type neighbor = cell_position + direction;
 
@@ -230,7 +231,7 @@ std::vector<std::set<quetzal::stratum_format::discrete_point_type>> quetzal::str
 //------------------------------------------------------------------------------
 std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratum_format::door_walls(const Cells& cells)
 {
-    const auto& directions = quetzal::math::cardinal_directions<coord_type, 2>;
+    const auto& directions = quetzal::geometry::cardinal_directions<coord_type, 2>;
     auto floor_on_grid = [&](const discrete_point_type& cell_position) { return on_grid(cells, cell_position) && floor_cell(cells, cell_position); };
 
     std::vector<std::vector<WallPlacement>> result;

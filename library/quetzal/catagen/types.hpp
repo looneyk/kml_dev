@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/id.hpp"
+#include "quetzal/geometry/CardinalDirection.hpp"
 #include "quetzal/geometry/DiscreteBox.hpp"
 #include "quetzal/geometry/DiscreteDirectedPoint.hpp"
 #include "quetzal/geometry/DiscretePoint.hpp"
@@ -25,13 +26,13 @@ namespace quetzal::catagen
     // A zone's position in its region
     using zone_position_type = geometry::DiscretePoint<coord_type, 3>;
 
-    using math::CardinalDirection;
+    using geometry::CardinalDirection;
 
-    inline const auto& cardinal_directions = math::cardinal_directions<coord_type, 2>;
+    inline const auto& cardinal_directions = geometry::cardinal_directions<coord_type, 2>;
 
     inline const vector_type& cardinal_direction(CardinalDirection direction)
     {
-        return math::cardinal_direction<coord_type, 2>(direction);
+        return geometry::cardinal_direction<coord_type, 2>(direction);
     }
 
     //--------------------------------------------------------------------------

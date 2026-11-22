@@ -8,6 +8,7 @@
 #include "quetzal/common/file_util.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/common/string_util.hpp"
+#include "quetzal/geometry/CardinalDirection.hpp"
 #include "quetzal/math/Interval.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/grid.hpp"
@@ -285,7 +286,7 @@ namespace
         }
 
         const stratum_format::Cells& cells = document.cells.value();
-        const auto& directions = math::cardinal_directions<coord_type, 2>;
+        const auto& directions = geometry::cardinal_directions<coord_type, 2>;
 
         // In the written grid, a cell is at its odd position and the edge on each side one position from it
         auto glyph_at = [&cells](coord_type x, coord_type y) { return cells.rows[cells.rows.size() - 1 - static_cast<size_t>(y)][static_cast<size_t>(x)]; };
@@ -360,7 +361,7 @@ namespace
         auto open_to_floor = [&](const discrete_point_type& cell_position, const discrete_vector_type& direction)
         {
             size_t index = static_cast<size_t>(find(directions.begin(), directions.end(), direction) - directions.begin());
-            return generated.wall(cell_position, static_cast<math::CardinalDirection>(index)) == catagen::WallType::Open
+            return generated.wall(cell_position, static_cast<geometry::CardinalDirection>(index)) == catagen::WallType::Open
                 && cell_glyph(cell_position + direction) == '.';
         };
 

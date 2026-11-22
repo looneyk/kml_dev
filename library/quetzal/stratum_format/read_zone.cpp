@@ -7,6 +7,7 @@
 #include "grid.hpp"
 #include "checked_values.hpp"
 #include "references.hpp"
+#include "quetzal/geometry/CardinalDirection.hpp"
 #include "quetzal/geometry/DiscreteBox.hpp"
 #include "quetzal/log/Log.hpp"
 #include <algorithm>
@@ -158,7 +159,7 @@ namespace
                     continue;
                 }
 
-                for (const auto& direction : quetzal::math::cardinal_directions<coord_type, 2>)
+                for (const auto& direction : quetzal::geometry::cardinal_directions<coord_type, 2>)
                 {
                     discrete_point_type neighbor = cell_position + direction;
                     bool neighbor_on_grid = on_grid(cells, neighbor);
