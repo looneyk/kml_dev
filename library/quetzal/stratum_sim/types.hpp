@@ -7,22 +7,28 @@
 
 #include "quetzal/geometry/CardinalDirection.hpp"
 #include "quetzal/geometry/DirectedPoint.hpp"
-#include "quetzal/geometry/DiscretePoint.hpp"
 #include "quetzal/geometry/MinProjection.hpp"
-#include "quetzal/geometry/Point.hpp"
 #include "quetzal/geometry/Polygon.hpp"
-#include "quetzal/math/CartesianTraits.hpp"
-#include "quetzal/math/DiscreteVector.hpp"
 #include "quetzal/math/Random.hpp"
+#include "quetzal/stratum_core/PersistentId.hpp"
+#include "quetzal/stratum_core/types.hpp"
 #include <vector>
 #include <cstdint>
 
 namespace quetzal::stratum_sim
 {
 
-    using value_type = float;
-    using traits_type = math::CartesianTraits<value_type, 3>;
-    using point_type = geometry::Point<traits_type>;
+    using stratum_core::PersistentId;
+
+    using stratum_core::value_type;
+    using stratum_core::traits_type;
+    using stratum_core::point_type;
+    using stratum_core::coord_type;
+    using stratum_core::discrete_vector_type;
+    using stratum_core::discrete_point_type;
+    using stratum_core::seed_type;
+    using stratum_core::zone_position_type;
+
     using vector_type = point_type::vector_type;
     using points_type = std::vector<point_type>;
     using polygon_type = geometry::Polygon<traits_type>;
@@ -34,15 +40,10 @@ namespace quetzal::stratum_sim
     using point_projection_type = geometry::MinProjection<point_type>;
     using vector_projection_type = geometry::MinProjection<vector_type>;
 
-    using coord_type = std::int32_t;
-    using discrete_vector_type = math::DiscreteVector<coord_type, 2>;
-    using discrete_point_type = geometry::DiscretePoint<coord_type, 2>;
-
     // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
     using level_type = std::int32_t;
 
     using random_type = math::Random<math::portable_random_engine_type>;
-    using seed_type = random_type::seed_type;
 
     using geometry::CardinalDirection;
 

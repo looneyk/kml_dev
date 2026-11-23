@@ -71,7 +71,7 @@ character of the name that cannot be in a directory name is replaced by `_`.
 | --- | --- |
 | `game.json` | The game's own state --- the random engines' state, the seeds, and the next persistent id --- its settings' values, its setting groups' selected presets among them, and its modifiable presets' values |
 | `character.json` | The player's character: its description, its skills and other properties, its inventory, and where it is |
-| `world.json` | The worldspaces and their regions, and a reference to the file of each of their zones |
+| `world.json` | The worldspaces and their regions, and a reference to each of their zones |
 | `zones/<persistent id>.zone` | One zone, in the zone file format |
 
 Every id in a saved game is persistent: the id the entity, zone, region or worldspace has in the game, unique across all of its
@@ -133,27 +133,26 @@ character named Ailis in it carrying a torch, would have the following structure
   "format": "quetzal.stratum_game",
   "version": "0.4",
   "world": {
-    "name_counter": 0,
     "worldspaces": [
       { "id": 6, "name": "surface", "seed": "9764263508413069351",
         "regions": [
-          { "id": 2, "name": "surface", "name_counter": 0, "components": { "type": "surface" },
-            "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": 0 } ] }, "zone_size": [40, 30], "service_level": "basic", "type": "surface" },
+          { "id": 2, "name": "surface", "components": { "type": "surface" },
+            "spec": { "extent": { "boxes": [ { "x": 0, "y": 0, "z": 0 } ] }, "zone_size": [40, 30], "service_level": "basic", "type": "surface" },
             "zones": [
-              { "id": 5, "name": "surface_0_0", "file": "zones/5.zone", "position": [0, 0, 0] }
+              { "id": 5, "name": "surface_0", "position": [0, 0, 0] }
             ] }
         ] },
       { "id": 7, "name": "cistern", "seed": "418720375216904712",
         "regions": [
-          { "id": 4, "name": "cistern", "name_counter": 0, "components": { "type": "dungeon", "difficulty": 3 },
-            "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "x": 0, "y": 0, "z": [-10, -1] } ] }, "difficulty": "3", "type": "dungeon", "zone.name": "Level {z}" },
+          { "id": 4, "name": "cistern", "components": { "type": "dungeon", "difficulty": "3" },
+            "spec": { "extent": { "boxes": [ { "x": 0, "y": 0, "z": [-10, -1] } ] }, "difficulty": "3", "entry_zone_id": "3", "type": "dungeon", "zone.name": "Level {z}" },
             "zones": [
-              { "id": 3, "name": "Level -1", "file": "zones/3.zone", "position": [0, 0, -1] }
+              { "id": 3, "name": "Level -1", "position": [0, 0, -1] }
             ] },
-          { "id": 9, "parent": 4, "name": "vault", "display_name": "The Vault", "name_counter": 0,
-            "spec": { "extent": { "arrangement": "ranges", "boxes": [ { "z": -2 } ] }, "difficulty": "4", "type": "dungeon", "zone.name": "Level {z}" },
+          { "id": 9, "parent": 4, "name": "vault", "display_name": "The Vault",
+            "spec": { "extent": { "boxes": [ { "z": -2 } ] }, "difficulty": "4", "type": "dungeon", "zone.name": "Level {z}" },
             "zones": [
-              { "id": 10, "name": "Level -2", "file": "zones/10.zone", "position": [0, 0, -2] }
+              { "id": 10, "name": "Level -2", "position": [0, 0, -2] }
             ] }
         ] }
     ],
@@ -236,7 +235,6 @@ The world's worldspaces, and the world index:
 
 | Key | |
 | --- | --- |
-| `name_counter` | The last suffix given to a worldspace's name that another worldspace had (`zone_plan.md`, `## Implementation`) |
 | `worldspaces` | Every worldspace, with its regions |
 | `entity_zones` | The world index: for each entity that something refers to, its persistent id and its zone's, as a pair |
 
@@ -251,12 +249,12 @@ A worldspace is the coordinate system of its zones: the surface, a dungeon, a ca
 | Key | |
 | --- | --- |
 | `id` | The worldspace's persistent id |
-| `name` | Its name, unique in the game: the name of the region spec its region was created from, with a suffix if another worldspace had it |
+| `name` | Its name: the name of the root region spec its top-level region was created from, or `worldspace_<count>` if the spec has none |
 | `seed` | Its seed, as text, from which the seeds of its zones and region specs were drawn |
 | `regions` | Its regions: the top-level region first, and each region before its subregions |
 
 A worldspace's coordinate system is not written separately: its top-level region's `spec` has it in its `extent` and
-`zone_size`, and reading the world sets it from them. A worldspace has at least one region, its top-level region, which
+`zone_size`, and reading the world sets it from them, so the extent is one box with an interval on every axis. A worldspace has at least one region, its top-level region, which
 has no parent, and the parent of each later region is an earlier region of the worldspace.
 
 ### Regions
@@ -269,30 +267,31 @@ A region groups zones of one worldspace: a surface area, a dungeon, a crypt, a t
 | `parent` | Its parent region's persistent id, which a top-level region does not have |
 | `name` | Its name; a top-level region's is its worldspace's |
 | `display_name` | Its name as the player sees it, if its spec has one |
-| `name_counter` | The last suffix given to a name of its zones that another of its zones had |
-| `components` | Its type and, for a dungeon, its difficulty and the other properties a whole dungeon has |
+| `components` | Its type and, for a dungeon, its difficulty and the other properties a whole dungeon has, each a string |
 | `spec` | The `RegionSpec` it was created from, in the form of a region spec file's specs, from which its later zones are created (`world_generation_plan.md`) |
 | `zones` | A reference to each of its zones |
 
 A region's zones are every zone the world has made in it. A region refers to no region but its parent; the bound access
 points in their zones connect worldspaces.
 
-A region's list of zone ids, whose number is the zone count its patterns read (`world_generation_plan.md`), is
-not written separately: it is its `zones`, and reading the world sets it from them.
+The number of a region's `zones` is the zone count its patterns read (`world_generation_plan.md`).
+
+A top-level region's spec has `entry_zone_id`, the persistent id of the zone at which the worldspace is entered, in place
+of the `entry_zone` name it was created with.
 
 ### Zones
 
-A zone reference is the zone's persistent id, its name, its file, relative to the directory of the world file, and its
-position in its worldspace if it has one:
+A zone reference is the zone's persistent id, its name, and its position in its worldspace if it has one:
 
 ```json
-{ "id": 3, "name": "Level -1", "file": "zones/3.zone", "position": [0, 0, -1] }
+{ "id": 3, "name": "Level -1", "position": [0, 0, -1] }
 ```
 
-A zone's file is a saved zone in the zone file format, with its `zone` section. The zone's region is the region whose
-`zones` refers to it, and its worldspace that region's. No two zones of a region have one name, and no two zones of a
-worldspace one position. The name and the position are the zone file's `layout.components.name` and
-`layout.components.position`, written here so the zone of a name or a position is found without reading its file. Its level is the position's z. Unloading a zone writes its file into the game
+A zone's file is `zones/<persistent id>.zone`, relative to the directory of the world file, a saved zone in the zone
+file format with its `zone` section. The zone's region is the region whose
+`zones` refers to it, and its worldspace that region's. No two zones of a worldspace have one position. The position is
+the zone file's `layout.components.position`, and the name its `layout.components.name`, written here so the zone at a
+position or with an extended name is found without reading its file. Its level is the position's z. Unloading a zone writes its file into the game
 directory, which frees its resources, so a zone that is not loaded is in the game only in its file.
 
 ## Templates
@@ -305,9 +304,9 @@ persistent ids when the template is made into a zone.
 A writer emits two-space indentation. In the game file, `game`, `settings` and `presets` are each on one line, and so
 are `settings` and `presets` in the user settings file. In the character
 file, `name` is on the line after `version`, each key of `character` is on a line of its own, and each entity of the inventory is on a line of its own, as a
-zone's entities are. In the world file, `name_counter` is on the line before `worldspaces`; a worldspace's `id`, `name`
+zone's entities are. In the world file, a worldspace's `id`, `name`
 and `seed` are on the line that opens it and its `regions` follow, each region on the lines of its own entry; a region's
-`id`, `parent`, `name`, `display_name`, `name_counter` and `components` are on the line that opens it, its `spec` is on the next line, its `zones`
+`id`, `parent`, `name`, `display_name` and `components` are on the line that opens it, its `spec` is on the next line, its `zones`
 follow, and each zone reference is on a line of its own, as each pair of the world index is, in entity id order. A zone file has the
 form that `discrete_layout.md` (`### The written form`) specifies. In the config file, each key that is set is on a line
 of its own.

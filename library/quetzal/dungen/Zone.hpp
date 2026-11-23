@@ -11,7 +11,7 @@
 #include "Room.hpp"
 #include "Door.hpp"
 #include "types.hpp"
-#include "quetzal/stratum_format/TransitEndpoint.hpp"
+#include "quetzal/stratum_core/TransitEndpoint.hpp"
 #include <array>
 #include <iosfwd>
 #include <string>
@@ -27,7 +27,7 @@ namespace quetzal::dungen
 
         using rooms_type = std::vector<Room>;
         using doors_type = std::vector<Door>;
-        using transit_endpoints_type = std::vector<stratum_format::TransitEndpoint>;
+        using transit_endpoints_type = std::vector<stratum_core::TransitEndpoint>;
 
         Zone(id_type id, const std::string& name, vector_type extent, CellType cell_type = CellType::Null);
         Zone(const Zone&) = default;
@@ -69,7 +69,7 @@ namespace quetzal::dungen
 
         const transit_endpoints_type& transit_endpoints() const;
 
-        void create_staircase(const directed_point_type& placement, stratum_format::Directionality directionality);
+        void create_staircase(const directed_point_type& placement, stratum_core::Directionality directionality);
 
         void render(std::ostream& os) const;
         void print(std::ostream& os) const;

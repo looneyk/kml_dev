@@ -5,7 +5,7 @@
 // RegionSpecsDocument.hpp
 //------------------------------------------------------------------------------
 
-#include "RegionSpec.hpp"
+#include "quetzal/stratum_core/RegionSpec.hpp"
 #include <filesystem>
 #include <iosfwd>
 #include <map>
@@ -26,7 +26,7 @@ namespace quetzal::stratum_format
 
         std::string version;
 
-        std::map<std::string, RegionSpec> region_specs; // <name, region spec>
+        std::map<std::string, stratum_core::RegionSpec> region_specs; // <name, region spec>
     };
 
     // Throws std::runtime_error on error or an unsupported key, stream_name used in error messages

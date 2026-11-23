@@ -1,10 +1,11 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_ACCESSPOINT_HPP)
-#define QUETZAL_STRATUM_FORMAT_ACCESSPOINT_HPP
+#if !defined(QUETZAL_STRATUM_CORE_ACCESSPOINT_HPP)
+#define QUETZAL_STRATUM_CORE_ACCESSPOINT_HPP
 //------------------------------------------------------------------------------
-// stratum_format
+// stratum_core
 // AccessPoint.hpp
 //------------------------------------------------------------------------------
 
+#include "PersistentId.hpp"
 #include "types.hpp"
 #include "ZoneExtendedName.hpp"
 #include <cstdint>
@@ -13,7 +14,7 @@
 #include <string_view>
 #include <variant>
 
-namespace quetzal::stratum_format
+namespace quetzal::stratum_core
 {
 
     //--------------------------------------------------------------------------
@@ -27,8 +28,7 @@ namespace quetzal::stratum_format
     //--------------------------------------------------------------------------
     struct AccessPoint
     {
-        // The first variant value is a persistent id
-        using destination_type = std::variant<std::uint64_t, RegionSpecName, ZoneExtendedName>;
+        using destination_type = std::variant<PersistentId, RegionSpecName, ZoneExtendedName>;
 
         std::uint64_t order = 0; // count from 0 among the zone's access points of the same type // probably deprecated ...
         bool automatic_entry = false; // The acces point is activated by an actor's presence in its cell rather than by explicit interaction
@@ -42,6 +42,6 @@ namespace quetzal::stratum_format
 
     std::string format_access_point_destination(const AccessPoint::destination_type& destination);
 
-} // namespace quetzal::stratum_format
+} // namespace quetzal::stratum_core
 
-#endif // QUETZAL_STRATUM_FORMAT_ACCESSPOINT_HPP
+#endif // QUETZAL_STRATUM_CORE_ACCESSPOINT_HPP

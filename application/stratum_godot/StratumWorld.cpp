@@ -6,6 +6,7 @@
 #include "StratumWorld.hpp"
 #include "register_types.hpp"
 #include "quetzal/settings/Settings.hpp"
+#include "quetzal/stratum_core/spec_keys.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
@@ -57,19 +58,18 @@ namespace
     // Temporary, until region specs' zone keys set every zone's extent: a zone without one has the game's zone size
     quetzal::stratum_gen::ZoneRequest make_zone_request(const sim::ZoneSpec& zone_spec)
     {
-        std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.store.value<quetzal::stratum_gen::seed_type>(sim::seed_key);
+        std::optional<quetzal::stratum_gen::seed_type> seed = zone_spec.store.value<quetzal::stratum_gen::seed_type>(quetzal::stratum_core::seed_key);
         assert(seed.has_value());
-        const sim::Position position = zone_spec.position();
 
-        quetzal::KeyValueStore parameters = sim::select_prefixed(zone_spec.store, sim::parameters_prefix);
+        quetzal::KeyValueStore parameters = sim::select_prefixed(zone_spec.store, quetzal::stratum_core::parameters_prefix);
         if (!parameters.contains("extent"))
         {
             parameters.insert("extent", std::format("{},{}", quetzal::settings::store().value<int64_t>("world.zone_size.x"),
                 quetzal::settings::store().value<int64_t>("world.zone_size.y")));
         }
 
-        return quetzal::stratum_gen::ZoneRequest{zone_spec.store.value_or(sim::name_key, std::string()),
-            quetzal::stratum_gen::zone_position_type{position.x, position.y, position.z}, *seed, parameters};
+        return quetzal::stratum_gen::ZoneRequest{zone_spec.store.value_or(quetzal::stratum_core::name_key, std::string()), zone_spec.position(),
+            *seed, parameters};
     }
 
     //--------------------------------------------------------------------------
@@ -108,7 +108,7 @@ StratumWorld::StratumWorld() :
     m_notation(m_game.manifest().notation)
 {
     const auto generators = quetzal::stratum_gen::generators();
-    for (const auto& notation : {quetzal::stratum_format::Notation::Block, quetzal::stratum_format::Notation::Wall})
+    for (const auto& notation : {quetzal::stratum_core::Notation::Block, quetzal::stratum_core::Notation::Wall})
     {
         const quetzal::stratum_gen::generator_function_type& generate = generators.at(std::string(quetzal::stratum_gen::generator_name(notation)));
         m_game.generation().m_zone_generators[notation] = [generate](const sim::ZoneSpec& zone_spec)
@@ -314,15 +314,15 @@ void StratumWorld::cycle_view()
 //------------------------------------------------------------------------------
 godot::String StratumWorld::notation() const
 {
-    const std::string_view name = quetzal::stratum_format::name(m_notation);
+    const std::string_view name = quetzal::stratum_core::name(m_notation);
     return godot::String::utf8(name.data(), static_cast<int64_t>(name.size()));
 }
 
 //------------------------------------------------------------------------------
 void StratumWorld::cycle_notation()
 {
-    m_notation = m_notation == quetzal::stratum_format::Notation::Block ? quetzal::stratum_format::Notation::Wall
-        : quetzal::stratum_format::Notation::Block;
+    m_notation = m_notation == quetzal::stratum_core::Notation::Block ? quetzal::stratum_core::Notation::Wall
+        : quetzal::stratum_core::Notation::Block;
     return;
 }
 
@@ -350,7 +350,7 @@ godot::Vector2i StratumWorld::cell() const
     const sim::placement_type& placement = sim::placement_of(m_session.character().entity());
     sim::discrete_point_type cell_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
-    return godot::Vector2i(cell_position.i(), cell_position.j());
+    return godot::Vector2i(cell_position.x(), cell_position.y());
 }
 
 //------------------------------------------------------------------------------
@@ -514,7 +514,7 @@ void StratumWorld::advance()
         else if (event.is<sim::Relocated>())
         {
             // A level is shown as its distance from the surface
-            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<sim::Position>().z));
+            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<quetzal::stratum_core::zone_position_type>().z()));
         }
         else if (event.is<sim::Died>())
         {

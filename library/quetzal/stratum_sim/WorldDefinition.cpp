@@ -9,6 +9,7 @@
 #include "stratum_sim_util.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/log/Log.hpp"
+#include "quetzal/stratum_core/spec_keys.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
 #include <algorithm>
 #include <format>
@@ -38,7 +39,7 @@ namespace
 
         for (const auto& [key, value] : parent.store)
         {
-            if (!key.starts_with(quetzal::stratum_sim::zone_prefix))
+            if (!key.starts_with(quetzal::stratum_core::zone_prefix))
             {
                 symbols.insert(std::format("parent.{}", key), value);
             }

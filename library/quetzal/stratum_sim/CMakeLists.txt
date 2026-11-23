@@ -26,7 +26,6 @@ add_library(quetzal_stratum_sim STATIC
     properties.cpp
     RandomStream.cpp
     RegionSpec.cpp
-    RegionTree.cpp
     SavedGameDetails.cpp
     seeds.cpp
     Scheduler.cpp
@@ -38,7 +37,6 @@ add_library(quetzal_stratum_sim STATIC
     specs.cpp
     World.cpp
     WorldDefinition.cpp
-    Worldspace.cpp
     ZoneEntryIndex.cpp
     ZoneSpec.cpp
     access_points.hpp
@@ -57,6 +55,7 @@ add_library(quetzal_stratum_sim STATIC
     DirectionMask.hpp
     DiscreteLayout.hpp
     DiscreteProximityIndex.hpp
+    EntityReference.hpp
     Event.hpp
     EventQueue.hpp
     file_components.hpp
@@ -74,14 +73,11 @@ add_library(quetzal_stratum_sim STATIC
     make_document.hpp
     Name.hpp
     PatternResolver.hpp
-    PersistentId.hpp
     ProximityIndexBase.hpp
     properties.hpp
     RandomStream.hpp
-    Region.hpp
     RegionSpec.hpp
     RegionSpecNode.hpp
-    RegionTree.hpp
     SavedGameDetails.hpp
     seeds.hpp
     Scheduler.hpp
@@ -96,7 +92,6 @@ add_library(quetzal_stratum_sim STATIC
     types.hpp
     World.hpp
     WorldDefinition.hpp
-    Worldspace.hpp
     Zone.hpp
     ZoneEntryIndex.hpp
     ZoneSpec.hpp
@@ -109,5 +104,5 @@ target_include_directories(quetzal_stratum_sim PUBLIC
 )
 
 # Not flecs::flecs_static, as library3 is added after library/ and a namespaced target must already exist
-target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_settings quetzal_stratum_format flecs_static)
+target_link_libraries(quetzal_stratum_sim PUBLIC quetzal_common quetzal_settings quetzal_stratum_core quetzal_stratum_format flecs_static)
 target_link_libraries(quetzal_stratum_sim PRIVATE lua_static quetzal_log)

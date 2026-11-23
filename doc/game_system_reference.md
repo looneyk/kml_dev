@@ -5,7 +5,7 @@ larger decisions is in `decision_rationale.md`.
 
 The system has three layers, and none of them uses an engine. `quetzal::stratum_sim` simulates, `quetzal::stratum_view`
 turns a simulation state into characters or place codes, and a host puts those on a device. `stratum_sim` links
-`quetzal_common`, `quetzal_settings`, `quetzal_stratum_format` and flecs; `stratum_view` links `stratum_sim`; each host links
+`quetzal_common`, `quetzal_settings`, `quetzal_stratum_core`, `quetzal_stratum_format` and flecs; `stratum_view` links `stratum_sim`; each host links
 `stratum_view`. `quetzal::stratum_gen` puts the generators behind one signature, independent of `stratum_sim`, and each
 host registers them in `stratum_sim`'s registries, so neither links the other.
 
@@ -17,6 +17,7 @@ ceiling.
 | `assets/` | shared data, used by every host |
 | `library/quetzal/stratum_sim/` | `quetzal_stratum_sim` |
 | `library/quetzal/stratum_view/` | `quetzal_stratum_view` |
+| `library/quetzal/stratum_core/` | `quetzal_stratum_core` --- the data types that the format, the simulation and the generators share (`## Core types`) |
 | `library/quetzal/stratum_format/` | `quetzal_stratum_format` --- the zone file format and the game files |
 | `library/quetzal/stratum_gen/` | `quetzal_stratum_gen` --- the generators by name, behind one signature |
 | `library/quetzal/log/` | `quetzal_log` --- the process-wide log, which every library writes its warnings to (`log_plan.md`) |
@@ -26,7 +27,7 @@ ceiling.
 | `application/stratum_godot/` | `stratum_godot` |
 | `library/quetzal/godot/` | `quetzal_godot` |
 | `tool/dungen/`, `tool/catagen/` | `dungen`, `catagen` --- the generator drivers |
-| `test/stratum_sim_test/`, `test/stratum_view_test/`, `test/stratum_format_test/`, `test/dungen_test/`, `test/catagen_test/`, `test/flecs_test/`, `test/settings_test/` | test executables |
+| `test/stratum_core_test/`, `test/stratum_sim_test/`, `test/stratum_view_test/`, `test/stratum_format_test/`, `test/dungen_test/`, `test/catagen_test/`, `test/flecs_test/`, `test/settings_test/` | test executables |
 
 ## Simulation
 
@@ -50,6 +51,11 @@ adding two does not compile. `cardinal_directions` are the four unit vectors `Ea
 
 `point_projection_type` and `vector_projection_type` are `geometry::MinProjection` along the z axis onto the xy plane.
 `grid_step(vector)` returns the cardinal direction nearest a direction.
+
+`value_type`, `traits_type`, `point_type`, `coord_type`, `discrete_vector_type`, `discrete_point_type`, `seed_type`,
+`zone_position_type` and `PersistentId` are `stratum_core`'s (`## Core types`), and `types.hpp` declares them in
+`stratum_sim` with using-declarations. `World.hpp` does the same for
+`Region`, `RegionTree` and `Worldspace`, `RegionSpec.hpp` for `RegionSpec`, and `ZoneSpec.hpp` for `ZoneSpec`.
 
 ### LayoutBase
 
@@ -231,7 +237,7 @@ registers an observer that, when an entity's `Name` is set and it has no `Displa
 `DisplayName`: the name in capitals. `World` also registers the state of an entity that a saved zone writes back.
 `register_actor_components`, in `actors.hpp`, registers `speed` (`Speed`) and the tags `blocking` (`Blocking`) and `dead`
 (`Dead`), and the `ControlledActor` tag. `register_access_point_components`, in `access_points.hpp`, registers
-`directionality` (`stratum_format::Directionality`), `Up` or `Down`, the direction in which the access point on an
+`directionality` (`stratum_core::Directionality`), `Up` or `Down`, the direction in which the access point on an
 entity leads. `register_attachment_components`, in `attachments.hpp`, registers `access`
 (`Access`) and `detection` (`Detection`), and `register_ai_components`, in `ai.hpp`, registers `pursue` (`Pursue`).
 
@@ -257,19 +263,19 @@ its subtree, in persistent id order, as its inventory, each encoded as an `Entit
 `m_region_specs`, a map from a name, `m_world_definition`, the `WorldDefinition` a new game's world is created from, and
 `m_zone_generators`, a zone generator for each notation. A game has one zone generator: when a game is created or opened, `Game` sets `m_zone_generator` to the
 one for the game's notation, so nothing after that reads the notation.
-`RegionSpec` (`RegionSpec.hpp`)
-and `ZoneSpec` (`ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `store` of each, a `KeyValueStore`,
+`stratum_core::RegionSpec` (`stratum_core/RegionSpec.hpp`)
+and `stratum_core::ZoneSpec` (`stratum_core/ZoneSpec.hpp`) are the types of a region spec and a zone spec, and the `store` of each, a `KeyValueStore`,
 contain the spec's keys. A `RegionSpec` also has members with a type of their own, each optional: `name`,
-`display_name`, `parent`, `region_spec`, `seed`, `extent`, and a top-level spec's `zone_size`. It is
-`stratum_format::RegionSpec`, which `stratum_sim` uses as it is read. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
+`display_name`, `parent`, `region_spec`, `seed`, `extent`, and a top-level spec's `zone_size`. `stratum_sim` uses it as
+it is read. The keys that `stratum_sim` reads are in `stratum_core/spec_keys.hpp`. A `ZoneSpec`'s `position.x`, `position.y` and `position.z`, `position_x_key`, `position_y_key` and
 `position_z_key`, are the zone's position in its worldspace.
 
-A top-level `RegionSpec`'s `extent` and `zone_size` define its worldspace's coordinate system. An extent is a `stratum_format::RegionExtent` (`RegionExtent.hpp`): its `arrangement`, `Ranges` or `Positions`, and its
+A top-level `RegionSpec`'s `extent` and `zone_size` define its worldspace's coordinate system. An extent is a `stratum_core::RegionExtent` (`stratum_core/RegionExtent.hpp`): its `arrangement`, `Boxes` or `Positions`, and its
 `boxes` or its `positions`. A box has an inclusive `math::Interval` on each axis, and an absent axis spans the parent's
-whole range. A worldspace's extent is `Ranges` with a single box with every axis, and a worldspace with no zone size is
+whole range. A worldspace's extent is `Boxes` with a single box with every axis, and a worldspace with no zone size is
 not a grid.
 
-`ZoneSpec::position()` returns a spec's position, each coordinate it does not have 0, and throws `std::runtime_error`
+`ZoneSpec::position()` returns a spec's position, a `zone_position_type`, each coordinate it does not have 0, and throws `std::runtime_error`
 for one that is not an integer; `ZoneSpec::set_position` writes one. The zone file, the generators' parameters and
 `ZoneRequest` state a position.
 
@@ -295,29 +301,29 @@ id. A zone is an entity with the `Zone` tag, a `Layout` component that owns its 
 game, owned by `Game`, and it cannot be copied or moved.
 
 A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`).
-`Worldspace` (`Worldspace.hpp`) is a value, not an entity: its `worldspace_id`, a `PersistentId`, its name, its `seed`, its `extent`,
-an `extent_type`, a half-open `geometry::DiscreteBox<coord_type, 3>`, its `zone_size` if it is a grid, `zone_ids`, the
-persistent id of each zone that has a position, by its position, loaded or not, and `regions`, its `RegionTree`.
+`stratum_core::Worldspace` (`stratum_core/Worldspace.hpp`) is a value, not an entity: its `worldspace_id`, a `PersistentId`, its name, its `seed`, its `extent`,
+an `extent_type`, a half-open `geometry::DiscreteBox<coord_type, 3>`, its `zone_size` if it is a grid, and `regions`, its `RegionTree`.
 `contains(position)` returns true if the extent contains a zone position. `Worldspace::create(worldspace_id, name, seed,
 region_spec, root_region)` returns a worldspace with the seed, the region spec's worldspace extent and zone size, each
 inclusive range converted to the box's half-open range, the top-level region, and no zones. It throws
-`std::runtime_error` for a spec with no worldspace extent, or one that is not `Ranges` with a single box with a range on
+`std::runtime_error` for a spec with no worldspace extent, or one that is not `Boxes` with a single box with a range on
 every axis. `World` has its worldspaces in a vector,
 `worldspaces()`, in the order they were created, which is id order. `worldspace(worldspace_id)` and `region(region_id)`
-return one, each a linear search, and a reference to either is valid until a worldspace is created or unloaded. An
-observer of `Position` lists a zone at its position when the position is set, so no two zones of a worldspace have
-one position; zones of different worldspaces may.
+return one, each a linear search, and a reference to either is valid until a worldspace is created or unloaded. A zone's
+position is its `zone_position_type` component. `zone_ids(worldspace_id)` returns a `zone_ids_type`, the persistent id of
+each zone of the worldspace that has a position, by its position, loaded or not. `World` builds it, and it is never
+written. An observer of the position lists a zone at its position when the position is set, so no two zones of a
+worldspace have one position; zones of different worldspaces may.
 
-A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. `Region` (`Region.hpp`) is a value too:
-its `region_id`, its `parent_id` if it is a subregion, its `subregion_ids`, its name, its `display_name` if its spec has
-one, its resolved `RegionSpec`, `zone_ids`, the
-persistent id of each zone created in it, in the order they were created, loaded or not, so its size is the region's
-zone count, `named_zone_ids`, the persistent id of each of its zones by its name, and `name_counter`, the last suffix
-given to a name of its zones that was taken. A zone is listed when it is generated, loaded from a template, or created
+A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. `stratum_core::Region`
+(`stratum_core/Region.hpp`) is a value too: its `region_id`, its `parent_id` if it is a subregion, its `subregion_ids`,
+its name, its `display_name` if its spec has one, its `components`, a `KeyValueStore`, its resolved `RegionSpec`, and
+`zones`, a `stratum_core::Zone` for each zone created in it, in the order they were created, loaded or not, so its size
+is the region's zone count. A `Zone` has the zone's persistent id, its position when it was listed, if it has one, and its name. A zone is listed when it is generated, loaded from a template, or created
 with a layout. A saved zone read back was listed when it was created, so it is not listed again, and it is how `World`
 finds the region to read an unloaded zone back into.
 
-`RegionTree` (`RegionTree.hpp`) contains a worldspace's regions, rooted in its top-level region, which it is constructed
+`stratum_core::RegionTree` (`stratum_core/RegionTree.hpp`) contains a worldspace's regions, rooted in its top-level region, which it is constructed
 with. `regions()` has the top-level region first and each region before its subregions; `root()`,
 `region(region_id)` and `contains(region_id)` find one; `add_subregion(parent_id, subregion)` adds one, setting its
 parent and listing it in the parent's `subregion_ids`; and `extended_name(region_id)` returns the name of each region
@@ -326,12 +332,12 @@ from the top-level region down to the region, each preceded by `/`, such as `/su
 A zone has no parent. Its `WorldspaceId` and `RegionId` components have the ids of the worldspace and the region it
 is in, which `worldspace_of(zone)` and `region_of(zone)` return.
 
-A name has a numeric suffix only if it is taken (`zone_plan.md`, `## Implementation`): `untaken_name(name, counter,
-taken)` returns the name, or else `<name>_<counter>` for the first counter after the given one whose name is not taken,
-and keeps that counter. `create_worldspace(name, tree, seed)` makes a worldspace from a region spec tree and a seed, in
-four passes, with a random engine seeded from the seed:
+A worldspace and its top-level region have the root region spec's name, used as it is, or `worldspace_<count>` if the spec
+has none, from the world's worldspace count, which rises with each worldspace created (`zone_plan.md`, `## Implementation`).
+`create_worldspace(tree, seed)` makes a worldspace from a region spec tree and a seed, in five passes, with a random
+engine seeded from the seed:
 
-1. The worldspace, with the name, suffixed from the world's counter if another worldspace has it, the seed, and the
+1. The worldspace, with that name, the seed, and the
    coordinate system of the root spec composed with its template by `composed_region_spec`, and its top-level region
    with the same name.
 2. An empty zone in the top-level region at each position of the worldspace's extent, in worldspace position order:
@@ -344,22 +350,25 @@ four passes, with a random engine seeded from the seed:
    whose extent contains its position.
 4. Each zone, in worldspace position order, with its spec and its name replaced by those resolved from its region's
    spec, and listed in its region.
+5. The root region spec's `entry_zone`, if it has one, replaced by `entry_zone_id`, the persistent id of the zone with
+   that name, by `set_entry_zone_id`.
 
 It returns the worldspace's id. It throws `std::runtime_error`, after unloading what it created, for a subregion spec
 with no extent, or a subregion whose extent's bounding box reaches outside the worldspace's extent, or that claims a zone
-that is not in its parent region, which is outside its parent's extent or in a sibling's.
+that is not in its parent region, which is outside its parent's extent or in a sibling's, or for an `entry_zone` that
+no zone, or more than one zone, has as its name.
 
 A zone's spec is the one that `resolved_zone_spec(region_id, empty_zone_spec, zone_counter)` returns: the region spec's
 `zone.` keys, with the empty zone's position, and its seed unless the `zone.` keys have one, its patterns resolved. The
 zone counter counts the zones of the worldspace from 0 in worldspace position order. The name is the region spec's
 `zone.name`, or else `&region_name .. '_' .. zone_counter`, as in `dungeon_9`. `resolve_zone_spec(zone_spec, resolver)`,
-in `ZoneSpec.hpp`, resolves the spec's store
+in `stratum_sim`'s `ZoneSpec.hpp`, resolves the spec's store
 with a `PatternResolver` seeded with the zone's seed and the symbols `x`, `y`, `z`, `zone_counter`, `region_name`, and `region.<key>` for each of the region spec's
 other store entries. With the surface's `zone.name`, `&region_name .. '_' .. x .. '_' .. y`, the zone at (3, 4, 0) is named
 `surface_3_4`. A zone keeps its name when its content is generated or loaded from a template. Any other zone that
-`World` builds or creates with a layout has a name unique in its region, suffixed from the region's counter if another
-zone in the region has it: the file's name, or else, if it has a position, the region's name and its x and y in a grid
-worldspace and all three coordinates otherwise, or else the region's name.
+`World` builds or creates with a layout has the file's name, or else, if it has a position, the region's name and its x
+and y in a grid worldspace and all three coordinates otherwise, or else the region's name. Zones of a region can share
+a name, since a zone is identified by its persistent id.
 
 `PatternResolver`, in `PatternResolver.hpp`, is a function object that resolves a key's value or a store. It is
 constructed with its symbols, a `KeyValueStore`, its random engine, the world seed, and the `ScriptLimits` that `World`
@@ -396,7 +405,7 @@ empty zone's document, with the zone's position, its name and its resolved `Zone
 `create_zone(region_id, position, name)` creates an empty zone with that name and a new id, the name also its spec's
 `name` for the zone generator, and throws
 `std::runtime_error` if the position is outside the worldspace's extent or is another zone's position. `create_zone(region_id, layout)` makes one with a new id,
-that layout and nothing else, and asserts that it is given a layout. Each zone is identified by its persistent id, and its name is unique in its region. `zone_count` and `layout` access the zones, with
+that layout and nothing else, and asserts that it is given a layout. Each zone is identified by its persistent id. `zone_count` and `layout` access the zones, with
 `layout` returning the interface; `create_entity`, `move` and `relocate` operate on their contents; and `unload_zone`
 discards a zone, its contents and its layout.
 
@@ -415,9 +424,9 @@ generator passes on, with nothing filled. `load_template(worldspace_id, position
 the position from a zone template file in the same way, and throws `std::runtime_error` for a saved zone's file or a zone
 at the position that is not empty.
 
-A zone's level, a `level_type` (`std::int32_t`), is the z of its `Position`. Access point destinations in the zone
-data state levels, and `resolve_destination` matches zones by them. The loader sets a zone's `Position` from the
-file's `position`, and a zone whose file has none has no `Position`; `make_document` writes the position back. A
+A zone's level, a `level_type` (`std::int32_t`), is the z of its `zone_position_type`. Access point destinations in the zone
+data state levels, and `resolve_destination` matches zones by them. The loader sets a zone's `zone_position_type` from the
+file's `position`, and a zone whose file has none has no `zone_position_type`; `make_document` writes the position back. A
 zone built from a document whose position is outside its worldspace's extent, or is another zone's position in its
 worldspace, throws `std::runtime_error` before anything is built.
 
@@ -427,10 +436,10 @@ that `load_relative_zone(access_point)` returns: at `new_zone_position(worldspac
 worldspace, a placeholder that returns `(0, 0, level)` until the world's layout is designed. Any other zone extended
 name throws `std::runtime_error`. For a region spec name, the zone is the one that `load_entry_zone(worldspace_id)`
 returns for the access point's destination worldspace. `destination_worldspace(access_point)` returns that worldspace: the one
-named `<region spec name>_<persistent id>` for the access point's persistent id, created from a tree of the one
-registered region spec of that name if the world has none. A region spec that is not registered throws
-`std::runtime_error`. The entry zone is the zone of the worldspace whose name is its root region spec's `entry_zone`,
-and a spec with no `entry_zone`, or a worldspace with no zone of that name, throws `std::runtime_error`.
+with the region spec's name, or the region spec name if the spec has none, created from a tree of the one registered
+region spec of that name if the world has none, so the access points with one region spec name lead to one worldspace. A region spec that is not registered throws
+`std::runtime_error`. The entry zone is the zone whose persistent id is the root region spec's `entry_zone_id`, and a
+spec with none throws `std::runtime_error`.
 
 The zone is read back if it has unloaded and has its content generated if it is empty, and `resolve_destination` returns the
 zone's `entry_point` for the access point's type and the offset from that zone's level to *L*: the lowest-ordered
@@ -465,7 +474,7 @@ document is unpopulated. It throws `std::runtime_error`, having made nothing, if
 rejects the file, `check_buildable` finds a reason, or the file is a saved zone that is already loaded; a template makes a
 new zone each time it is loaded. An empty zone's file, which has no `cells`, is read as an empty zone with the file's
 id, position, name and `zone_spec`. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
-game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` lists it, and throws
+game directory's `zones/<persistent id>.zone`, into the region whose `zones` lists it, and throws
 `std::runtime_error` if the world has no game directory or no region lists it. `World` handles no doors itself, and neither function unloads anything.
 
 `populate(zone)` places the zone's denizens: one denizen at the last open cell in reverse row order, facing west,
@@ -489,15 +498,9 @@ zone's `make_document` to `zones/<persistent id>.zone` in the game directory, cr
 requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_worldspace`, which discard what they unload, as clearing a
 game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
-`world.json` into the game directory: the worldspace name counter; each worldspace in persistent id order, with its id,
-its name, its seed and its regions in the order of `regions()`, each with its id, its parent's id if it is a subregion, its name,
-its display name if it has one, its name counter, its region spec, and a reference to each zone its `zone_ids` lists,
-whose file is `zones/<persistent id>.zone`, with the zone's name and position if it has them, whether or not the zone
-is loaded; and the world index. `open(game_directory)`, on a cleared world, reads `world.json` back: the worldspace name
-counter; each worldspace, made with its persistent id, its name, its seed and its top-level region, each later region added as a
-subregion of its parent, each region with its persistent id, its name, its display name, its name counter, its region
-spec and its zone ids, the worldspace listing each zone that has a position and the region each zone that has a name;
-and the world index. It loads no zone; each loads when it is entered.
+`world.json` into the game directory: the worldspaces as they are, in persistent id order,
+and the world index. `open(game_directory)`, on a cleared world, reads `world.json` back: the worldspaces, from
+which it builds each worldspace's `zone_ids` and sets the worldspace count, and the world index. It loads no zone; each loads when it is entered.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if the deletion is queued on a stage, as it is in readonly mode, it runs
@@ -661,7 +664,7 @@ has one and the general state otherwise. A null actor gets the general state, an
 chain is visible. One side of a secret door is concealed by a `Detection` on that door facing.
 
 An access point is an entity at which a zone is entered or left, sited `On` a surface --- a wall, or a floor or ceiling
-cell --- with a `stratum_format::AccessPoint`, the component that the zone file's `access_point` decodes to. The
+cell --- with a `stratum_core::AccessPoint`, the component that the zone file's `access_point` decodes to. The
 `AccessPoint` has its `order` among the zone's access points of its type, counting from 0, `automatic_entry`, its
 `egress`, and an optional `destination`, to which going through it moves an actor: an `AccessPoint::destination_type`,
 unbound, or the persistent id of the access point it is bound to. An access point with no destination is arrival only. Its type is its entity's type, the prefab it `IsA`, so the access
@@ -964,7 +967,7 @@ tree that is not one of the trees, or a `region_spec` that is not registered.
 `Game::clear` clears the session, the character and the world, in that order, in place. `Session::clear` ends play:
 no zone is played, and the turn order and the clock's fraction of a unit are emptied, while the driver remains.
 `Character::clear` deletes the character's entity, with what it carries and its pending command. `World::clear` unloads
-every worldspace, empties the world index and the `ZoneEntryIndex`, and resets the worldspace name counter, and keeps the registrations: the entity types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
+every worldspace, empties the world index and the `ZoneEntryIndex`, and resets the worldspace count, and keeps the registrations: the entity types, the file components, and the `Generation` it was given. `menu_open` pauses the session and
 `menu_close` resumes it, and `quit` clears the game. `remove(save_name)` deletes a save, named as `saved_games`
 names it, after checking that the name is of a directory directly in the saves directory, with no separator and not
 `.` or `..`, that has a character file; it throws `std::runtime_error`, deleting nothing, otherwise. `CharacterSpec`, which `create` takes, is the choices a new game makes: a `name`; `stats`, a map
@@ -1094,10 +1097,25 @@ is charged for the distance reached and a fraction of a cell costs a fraction of
 cost one action; a `TurnTo` to the current facing direction and an `Interact` with no wall ahead cost nothing. Going
 through an access point costs one action, and an `Enter` with nothing to enter costs nothing.
 
+## Core types
+
+`quetzal::stratum_core` contains the data types that `stratum_format`, `stratum_sim` and the generators share, with
+their operations, and has no file format and no ECS. It links `quetzal_common` and `quetzal_math`, and `quetzal_log`
+privately, and includes the `quetzal/geometry` headers.
+
+- `types.hpp`: `log_category`, `value_type`, `traits_type`, `point_type`, `coord_type`, `discrete_vector_type`,
+  `discrete_point_type`, `zone_position_type`, a `geometry::DiscretePoint<coord_type, 3>` that is a position in its
+  worldspace, and `seed_type`.
+- `PersistentId`, an entity's identity in a world, with its `std::hash`.
+- `AccessPoint` and `RegionSpecName`, `ZoneExtendedName`, `TransitEndpoint`, `Directionality` and `Notation`, which
+  `## Zone file format` describes.
+- `RegionExtent`, `RegionSpec` and `ZoneSpec`, which `### Generation` describes, and the spec keys in `spec_keys.hpp`.
+- `Region`, `RegionTree`, `Worldspace` and `Zone`, which `### World` describes.
+
 ## Zone file format
 
 `quetzal::stratum_format` reads and writes the JSON zone file that `discrete_layout.md` specifies, version `0.6`. It
-depends on `quetzal_common` and nlohmann/json. `load_layout` fills a zone from what `read_zone` returns, and both generators
+depends on `quetzal_common`, `quetzal_stratum_core` and nlohmann/json. `load_layout` fills a zone from what `read_zone` returns, and both generators
 write through it.
 
 `grid.hpp` has the geometry the rows define --- `on_grid`, `floor_cell`, `floor_door_cell`, `stair_cell`, `has_wall`,
@@ -1111,25 +1129,25 @@ components in the order written, and `translate_references` replaces each with t
 runs; the barriers; each room's perimeter or `RoomLocator`; wall placements; and each flat's heights. So are each
 entity's `site`, `parent` and `access_point` file components, which the reader validates. A `Site`'s address is a
 `WallPlacement`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
-relation `in` and an orientation required. An entity's `access_point` is a `stratum_format::AccessPoint`
-(`AccessPoint.hpp`), which the world sets on the entity as it is. The layout's `access_points` are `ZoneDocument::access_points`, a list of entity
+relation `in` and an orientation required. An entity's `access_point` is a `stratum_core::AccessPoint`
+(`stratum_core/AccessPoint.hpp`), which the world sets on the entity as it is. The layout's `access_points` are `ZoneDocument::access_points`, a list of entity
 ids, its optional `position` is `ZoneDocument::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
 coordinates), and its `unpopulated` flag is `ZoneDocument::is_unpopulated`, false if
 absent. The `generator` section is `ZoneDocument::generator`, an optional `Generator` with its name and its parameters'
 tokens, a `KeyValueStore`. Every other file component is `raw_values_type`, nlohmann's `ordered_json`, as
 the file wrote it. A room is kept as the file identified it.
 
-An `AccessPoint::destination_type` is where going through an access point leads: a `std::variant` of the persistent
-id of the access point it is bound to, a `RegionSpecName`, and a `ZoneExtendedName` (`ZoneExtendedName.hpp`), each of
+An `AccessPoint::destination_type` is where going through an access point leads: a `std::variant` of the `PersistentId`
+of the access point it is bound to, a `RegionSpecName`, and a `ZoneExtendedName` (`stratum_core/ZoneExtendedName.hpp`), each of
 the last two having its text as its `value`. `parse_zone_extended_name(text)` returns a zone extended name for text
 that matches the whole extended name grammar (`discrete_layout.md`, `### An access point's destination`), or nothing.
 `relative_zone_extended_name(k)` returns `../[`*k*`]`, *k* zone levels from the access point's zone, with *k* signed,
-and `relative_zone_level(zone_extended_name)` returns *k* for a name of that form. `valid_segment_name(text)` returns true for a
+and `relative_zone_offset(zone_extended_name)` returns *k* for a name of that form. `valid_segment_name(text)` returns true for a
 letter or underscore followed by letters, digits, and underscores. `parse_access_point_destination(text)` returns a region spec name
 for a name and a zone extended name for any other text that `parse_zone_extended_name` accepts, or nothing, and
-`format_access_point_destination(destination)` writes either back as the same text. A `TransitEndpoint` (`TransitEndpoint.hpp`) is one end of a transit between zones: an id,
+`format_access_point_destination(destination)` writes either back as the same text. A `TransitEndpoint` (`stratum_core/TransitEndpoint.hpp`) is one end of a transit between zones: an id,
 an optional name, its entity type, its cell position, its orientation, its egress direction, and an optional `Directionality`
-(`Directionality.hpp`), up or down, with `name` and `to_directionality`. A saved zone's `zone.id` is `ZoneDocument::zone_id`, which makes every id in the file persistent; it is
+(`stratum_core/Directionality.hpp`), up or down, with `name` and `to_directionality`. A saved zone's `zone.id` is `ZoneDocument::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.
 
 `read_zone` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
@@ -1160,13 +1178,11 @@ identification comes first, then the rest in its section's table order, and file
 An entity's `parent`, `site` and `access_point` are written into its `components` ahead of the rest. In runs, a count is written for a
 run of three glyphs or more. A document that `read_zone` produces is written back equivalent to it.
 
-The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.3`
+The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.4`
 (`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, world seed, each random engine's state by stream in `random_engines`, and its
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
-`Entity`s; and `WorldDocument`, with the worldspace name counter, whose worldspaces are each a `WorldDocument::Worldspace` with
-its id, its name and its top-level region, a `WorldDocument::Region` with its id, name, name counter, components, the spec it was
-created from as a `stratum_format::RegionSpec`, and a `WorldDocument::Zone`, an id, a file, an optional position and an optional name, for each zone, and whose
-`entity_zones` is the world index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
+`Entity`s; and `WorldDocument`, with the worldspaces, each a `stratum_core::Worldspace`, and
+`entity_zones`, the world index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
 written form, with an absent object written as an empty one. These writers and the zone's, `write_zone`, share the text
 of the written form through `json_util.hpp`, internal to the library in `stratum_format::detail`.
 
@@ -1177,8 +1193,8 @@ and the keys and value types that `game_file_spec.md` specifies. `read_character
 a copy of the character's name, equals the `name` component, and that every entity of the inventory has a unique id
 and a parent, the character or another entity of the inventory, with no cycle, and that it
 is sited on its parent if sited at all, with no address and no access point. `read_world` requires worldspace, region and
-zone ids unique across the world, zone positions unique in each worldspace, zone names unique
-in each region, and every entry of
+zone ids unique across the world, zone positions unique in each worldspace, a top-level region spec that
+`Worldspace::create` accepts, a string for each region component, and every entry of
 the world index in a zone that a region lists, once. The readers share
 the checked reading of values through `checked_values.hpp`, in `stratum_format::detail`. Each file's header is its
 leading keys, `format` and `version`, and in the character file `name` after them; `check_file_header` checks it, and a
@@ -1205,15 +1221,15 @@ and `world.start_cell`, `center` by default, are where a new game starts.
 
 A region spec file has the format `quetzal.stratum_region_specs`. `RegionSpecsDocument`, in `RegionSpecsDocument.hpp`,
 has the format's name and version, the file's path, `data/region_specs.json` relative to the assets directory or a
-mod's directory, and the file's `region_specs`, each a `stratum_format::RegionSpec` (`RegionSpec.hpp`) by its name.
-`stratum_format::RegionSpec` is a region spec's file form: `name`, `display_name`, `parent` and `region_spec` as text, `seed`
+mod's directory, and the file's `region_specs`, each a `stratum_core::RegionSpec` by its name.
+`stratum_core::RegionSpec` is a region spec's file form, read and written by `stratum_format`'s `RegionSpec.hpp`: `name`, `display_name`, `parent` and `region_spec` as text, `seed`
 written as text and read as a seed, `extent`, `zone_size` as `[x, y]`, and its other keys, each a dotted path such as
-`zone.parameters.algorithm` with its value as text. An extent is an object with its `arrangement`, `ranges` with its
-`boxes` or `positions` with its `positions`; a box's axis is an integer or `[lower, upper]`, and a position is
+`zone.parameters.algorithm` with its value as text. An extent is an object with exactly one of `boxes`, its
+boxes, and `positions`, its zone positions, which sets its `arrangement`; a box's axis is an integer or `[lower, upper]`, and a position is
 `[x, y, z]`. `read_region_specs` requires the format, the version, and `region_specs`, and throws
 `std::runtime_error` for a key the format does not have, a region spec that is not an object, a value that is not text,
-a seed that is not a seed, a key under `extent.` or `zone_size.`, which belongs in the member's value, an arrangement
-that is neither, a member the arrangement does not have, or a range whose lower bound is
+a seed that is not a seed, a key under `extent.` or `zone_size.`, which belongs in the member's value, an extent
+without exactly one of `boxes` and `positions`, or an interval whose lower bound is
 above its upper bound. `stratum_sim::load_region_specs(assets_directory)`, in `RegionSpec.hpp`, returns the
 `RegionSpec`s by name. The game's file is `assets/data/region_specs.json`, with two top-level region specs: `surface`,
 whose extent is x and y 0 to 9 and z 0, whose `zone.name` is `&region_name .. '_' .. x .. '_' .. y`, and whose zones are
@@ -1483,6 +1499,9 @@ must not already have the project open, or the library is locked and the build f
 
 ## Tests
 
+`stratum_core_test` covers access point destinations, relative zone extended names, the names of `Directionality` and
+`Notation`, a zone spec's position, `RegionTree`, and `Worldspace::create` and `contains`.
+
 `stratum_sim_test` covers the layout hierarchy, layout structure, rooms, the grid, the proximity index and each zone's,
 flats, blocking, the scheduler, the
 clock, movement, adjacency and sight, loading, doors, the world, persistent ids, access points, residency, commands,
@@ -1566,11 +1585,13 @@ back, and the Godot host by its two headless invocations.
 
 The build is CMake, with the solution at `build/kml_dev.slnx`. `/std:c++latest /bigobj /W4` is used throughout, with
 third-party sources at `/W1` and flecs and godot-cpp included as SYSTEM. `quetzal_stratum_sim` links `quetzal_common`,
-`quetzal_settings`, `quetzal_stratum_format` and `flecs_static`, and privately `lua_static` and `quetzal_log`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
+`quetzal_settings`, `quetzal_stratum_core`, `quetzal_stratum_format` and `flecs_static`, and privately `lua_static` and `quetzal_log`; `quetzal_stratum_view` links `quetzal_stratum_sim`; `quetzal_settings`
 links `quetzal_common`;
 `quetzal_stratum_gen` links `quetzal_catagen`, `quetzal_common`, `quetzal_dungen` and `quetzal_stratum_format`; both hosts link `quetzal_log`,
-`quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`. `quetzal_stratum_format`
-links `quetzal_common`, `quetzal_log`, `quetzal_settings` and `nlohmann_json`, vendored at
+`quetzal_stratum_gen` and `quetzal_stratum_view`. `quetzal_dungen` links `quetzal_log`, and `quetzal_dungen` and
+`quetzal_catagen` link `quetzal_stratum_core`. `quetzal_stratum_core` links `quetzal_common` and `quetzal_math`, and
+privately `quetzal_log`. `quetzal_stratum_format`
+links `quetzal_common`, `quetzal_log`, `quetzal_settings`, `quetzal_stratum_core` and `nlohmann_json`, vendored at
 `library3/json` with its headers SYSTEM.
 `lua_static` is Lua 5.5.1, from `library3/lua` without its standalone interpreter, `onelua.c`, and `ltests.c`, compiled as C++ so that a
 Lua error unwinds C++ frames. Its clients include `lua.h`, `lualib.h`, and `lauxlib.h`.

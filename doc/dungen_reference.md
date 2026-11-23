@@ -51,7 +51,7 @@ These structures are the same whichever algorithm fills them:
 - `Cell` --- a type, the id of the room it belongs to, and four `Wall`s.
 - `Cells` --- a rectangle of cells, addressed by `point_type`.
 - `Zone` --- an id, a name, the cells and their `extent`, the `Room` and `Door` records and the
-  `stratum_format::TransitEndpoint`s over them, and a renderer for printing.
+  `stratum_core::TransitEndpoint`s over them, and a renderer for printing.
   `create_room`, `create_door` and `create_staircase` each set the cell type and add the record. `create_room` takes a
   rectangle or a list of cells, whose bounding box is the room's rectangle. `create_staircase(placement, directionality)`
   adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress direction the

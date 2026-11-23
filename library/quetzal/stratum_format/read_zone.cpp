@@ -57,9 +57,9 @@ namespace
 
     //--------------------------------------------------------------------------
     // The glyphs a position in the notation accepts. A corner accepts only a space
-    std::string_view glyphs(Notation notation, bool cell_x, bool cell_y)
+    std::string_view glyphs(quetzal::stratum_core::Notation notation, bool cell_x, bool cell_y)
     {
-        if (notation == Notation::Block)
+        if (notation == quetzal::stratum_core::Notation::Block)
         {
             return ".#+><";
         }
@@ -144,7 +144,7 @@ namespace
     // the grid
     void check_floor_enclosed(const Cells& cells, const std::string& path)
     {
-        if (cells.notation != Notation::Wall)
+        if (cells.notation != quetzal::stratum_core::Notation::Wall)
         {
             return;
         }
@@ -187,7 +187,7 @@ namespace
     {
         const raw_values_type& a = array(v, path);
 
-        bool wall = cells.notation == Notation::Wall;
+        bool wall = cells.notation == quetzal::stratum_core::Notation::Wall;
         size_t extent_x = static_cast<size_t>(cells.extent.x());
         size_t extent_y = static_cast<size_t>(cells.extent.y());
         size_t width = wall ? 2 * extent_x + 1 : extent_x;
@@ -240,7 +240,8 @@ namespace
         Cells cells;
 
         std::string notation_path = member_path(path, "notation");
-        std::optional<Notation> notation = to_notation(string_value(required_member(v, path, "notation"), notation_path));
+        std::optional<quetzal::stratum_core::Notation> notation
+            = quetzal::stratum_core::to_notation(string_value(required_member(v, path, "notation"), notation_path));
         if (!notation.has_value())
         {
             fail(notation_path, "not a notation the format defines");
@@ -322,7 +323,7 @@ namespace
             const discrete_point_type& a = junctions[k];
             const discrete_point_type& b = junctions[(k + 1) % n];
 
-            if (a.i() < 0 || a.j() < 0 || a.i() > cells.extent.x() || a.j() > cells.extent.y())
+            if (a.x() < 0 || a.y() < 0 || a.x() > cells.extent.x() || a.y() > cells.extent.y())
             {
                 fail(element_path(path, k), "off the grid");
             }
@@ -332,7 +333,7 @@ namespace
                 fail(element_path(path, k), "an edge of no length to the next junction");
             }
 
-            if (a.i() != b.i() && a.j() != b.j())
+            if (a.x() != b.x() && a.y() != b.y())
             {
                 fail(element_path(path, k), "an edge to the next junction that is neither horizontal nor vertical");
             }
@@ -352,7 +353,7 @@ namespace
 
                 if (m == k + 1 || (k == 0 && m == n - 1))
                 {
-                    bool doubles_back = sign(b.i() - a.i()) == -sign(d.i() - c.i()) && sign(b.j() - a.j()) == -sign(d.j() - c.j());
+                    bool doubles_back = sign(b.x() - a.x()) == -sign(d.x() - c.x()) && sign(b.y() - a.y()) == -sign(d.y() - c.y());
                     if (doubles_back)
                     {
                         fail(element_path(path, m == k + 1 ? m : 0), "the perimeter doubles back at this junction");
@@ -361,8 +362,8 @@ namespace
                     continue;
                 }
 
-                bool overlap_i = std::min(a.i(), b.i()) <= std::max(c.i(), d.i()) && std::min(c.i(), d.i()) <= std::max(a.i(), b.i());
-                bool overlap_j = std::min(a.j(), b.j()) <= std::max(c.j(), d.j()) && std::min(c.j(), d.j()) <= std::max(a.j(), b.j());
+                bool overlap_i = std::min(a.x(), b.x()) <= std::max(c.x(), d.x()) && std::min(c.x(), d.x()) <= std::max(a.x(), b.x());
+                bool overlap_j = std::min(a.y(), b.y()) <= std::max(c.y(), d.y()) && std::min(c.y(), d.y()) <= std::max(a.y(), b.y());
                 if (overlap_i && overlap_j)
                 {
                     fail(element_path(path, m), std::format("the edge from this junction meets the edge from junction {}", k));
@@ -375,7 +376,7 @@ namespace
         {
             const discrete_point_type& a = junctions[k];
             const discrete_point_type& b = junctions[(k + 1) % n];
-            twice_area += static_cast<std::int64_t>(a.i()) * b.j() - static_cast<std::int64_t>(b.i()) * a.j();
+            twice_area += static_cast<std::int64_t>(a.x()) * b.y() - static_cast<std::int64_t>(b.x()) * a.y();
         }
 
         // The inside is left of each edge on a counterclockwise perimeter and right of it on a clockwise one
@@ -389,14 +390,14 @@ namespace
             const discrete_point_type& a = junctions[k];
             const discrete_point_type& b = junctions[(k + 1) % n];
 
-            discrete_vector_type step{sign(b.i() - a.i()), sign(b.j() - a.j())};
+            discrete_vector_type step{sign(b.x() - a.x()), sign(b.y() - a.y())};
             discrete_vector_type inward{-turn * step.y(), turn * step.x()};
             discrete_vector_type outward{-inward.x(), -inward.y()};
 
             for (discrete_point_type junction = a; junction != b; junction += step)
             {
-                discrete_point_type lower{std::min(junction.i(), junction.i() + step.x()), std::min(junction.j(), junction.j() + step.y())};
-                discrete_point_type inside{lower.i() - (inward.x() < 0 ? 1 : 0), lower.j() - (inward.y() < 0 ? 1 : 0)};
+                discrete_point_type lower{std::min(junction.x(), junction.x() + step.x()), std::min(junction.y(), junction.y() + step.y())};
+                discrete_point_type inside{lower.x() - (inward.x() < 0 ? 1 : 0), lower.y() - (inward.y() < 0 ? 1 : 0)};
                 discrete_point_type outside = inside + outward;
 
                 assert(on_grid(cells, inside));
@@ -410,7 +411,7 @@ namespace
                 if (!(inside_open && outside_open) && !inside_wall && !outside_wall)
                 {
                     fail(element_path(path, k), std::format("the edge from this junction between cell [{}, {}] inside and cell [{}, {}] outside is neither "
-                        "a wall facing a floor/door cell nor between two of them", inside.i(), inside.j(), outside.i(), outside.j()));
+                        "a wall facing a floor/door cell nor between two of them", inside.x(), inside.y(), outside.x(), outside.y()));
                 }
             }
         }
@@ -551,7 +552,7 @@ namespace
                 {
                     if (bounds[larger].contains(cell_position) && covers[larger].contains(cell_position))
                     {
-                        fail(element_path("rooms", r), std::format("covers the cell [{}, {}], which rooms[{}] also covers", cell_position.i(), cell_position.j(), q));
+                        fail(element_path("rooms", r), std::format("covers the cell [{}, {}], which rooms[{}] also covers", cell_position.x(), cell_position.y(), q));
                     }
                 }
             }
@@ -802,11 +803,11 @@ namespace
 
     //--------------------------------------------------------------------------
     // The access point's order and site are checked with the zone's access points
-    AccessPoint read_access_point(const raw_values_type& v, const std::string& path)
+    quetzal::stratum_core::AccessPoint read_access_point(const raw_values_type& v, const std::string& path)
     {
         object(v, path);
 
-        AccessPoint access_point;
+        quetzal::stratum_core::AccessPoint access_point;
 
         std::string order_path = member_path(path, "order");
         const raw_values_type& order = required_member(v, path, "order");
@@ -838,7 +839,8 @@ namespace
         std::string destination_path = member_path(path, "destination");
         if (destination->is_string())
         {
-            std::optional<AccessPoint::destination_type> parsed = parse_access_point_destination(destination->get<std::string>());
+            std::optional<quetzal::stratum_core::AccessPoint::destination_type> parsed
+                = quetzal::stratum_core::parse_access_point_destination(destination->get<std::string>());
             if (!parsed.has_value())
             {
                 fail(destination_path, "not an access point destination");
@@ -848,7 +850,7 @@ namespace
         }
         else if (std::optional<stored_entity_id_type> id = reference_id(*destination); id.has_value())
         {
-            access_point.destination = *id;
+            access_point.destination = quetzal::stratum_core::PersistentId{*id};
         }
         else
         {
@@ -907,7 +909,7 @@ namespace
     //--------------------------------------------------------------------------
     wall_key_type wall_key(const WallPlacement& placement)
     {
-        return {placement.cell_position.i(), placement.cell_position.j(), placement.normal.x(), placement.normal.y()};
+        return {placement.cell_position.x(), placement.cell_position.y(), placement.normal.x(), placement.normal.y()};
     }
 
     //--------------------------------------------------------------------------
@@ -927,7 +929,7 @@ namespace
     //--------------------------------------------------------------------------
     std::string wall_text(const WallPlacement& placement)
     {
-        return std::format("[{}, {}] normal [{}, {}]", placement.cell_position.i(), placement.cell_position.j(),
+        return std::format("[{}, {}] normal [{}, {}]", placement.cell_position.x(), placement.cell_position.y(),
             placement.normal.x(), placement.normal.y());
     }
 
@@ -1124,7 +1126,7 @@ namespace
 
             for (const auto& [cell_position, properties] : document.flats[i].cells)
             {
-                check_components(properties.components, std::format("{}.cells[cell [{}, {}]]", flat_path, cell_position.i(), cell_position.j()));
+                check_components(properties.components, std::format("{}.cells[cell [{}, {}]]", flat_path, cell_position.x(), cell_position.y()));
             }
         }
 
@@ -1141,7 +1143,7 @@ namespace
             }
 
             if (entity.access_point.has_value() && entity.access_point->destination.has_value()
-                && std::holds_alternative<stored_entity_id_type>(*entity.access_point->destination))
+                && std::holds_alternative<quetzal::stratum_core::PersistentId>(*entity.access_point->destination))
             {
                 fail(member_path(member_path(member_path(path, "components"), "access_point"), "destination"),
                     "bound, which an access point is only in a saved zone");
@@ -1264,12 +1266,12 @@ namespace
 
             if (i == floor_access_points.end())
             {
-                warn("entities", std::format("the stair cell at [{}, {}] has no access point sited on its floor", cell_position.i(), cell_position.j()));
+                warn("entities", std::format("the stair cell at [{}, {}] has no access point sited on its floor", cell_position.x(), cell_position.y()));
             }
             else if (i->second.size() > 1)
             {
                 warn(element_path("entities", i->second[1]), std::format("a second access point on the floor of the stair cell at [{}, {}]",
-                    cell_position.i(), cell_position.j()));
+                    cell_position.x(), cell_position.y()));
             }
         }
 
@@ -1279,7 +1281,7 @@ namespace
     //--------------------------------------------------------------------------
     // The cell in which an actor arriving at an access point is placed: the cell of the wall or the flat cell that it is
     // sited on, plus its egress
-    discrete_point_type destination_cell_position(const Site& site, const AccessPoint& access_point)
+    discrete_point_type destination_cell_position(const Site& site, const quetzal::stratum_core::AccessPoint& access_point)
     {
         const auto* wall = std::get_if<WallPlacement>(&*site.address);
         return (wall != nullptr ? wall->cell_position : std::get<FlatCell>(*site.address).cell_position) + access_point.egress;
@@ -1323,7 +1325,7 @@ namespace
                 fail(point_path, "an entity with no access_point");
             }
 
-            const AccessPoint& access_point = *entity.access_point;
+            const quetzal::stratum_core::AccessPoint& access_point = *entity.access_point;
             std::string components_path = member_path(element_path("entities", slot->second), "components");
 
             if (!entity.site.has_value() || entity.site->relation != Relation::On || !entity.site->address.has_value())
@@ -1490,7 +1492,7 @@ namespace
                 Wall wall = read_wall(a[i], element_path("walls", i), cells);
 
                 const WallPlacement& placement = wall.placement;
-                if (!placements.insert({placement.cell_position.i(), placement.cell_position.j(), placement.normal.x(), placement.normal.y()}).second)
+                if (!placements.insert({placement.cell_position.x(), placement.cell_position.y(), placement.normal.x(), placement.normal.y()}).second)
                 {
                     fail(member_path(element_path("walls", i), "wall"), "a second entry for one wall");
                 }

@@ -5,8 +5,8 @@
 // ZoneDocument.hpp
 //------------------------------------------------------------------------------
 
-#include "Notation.hpp"
-#include "AccessPoint.hpp"
+#include "quetzal/stratum_core/Notation.hpp"
+#include "quetzal/stratum_core/AccessPoint.hpp"
 #include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
@@ -72,7 +72,7 @@ namespace quetzal::stratum_format
     // The data structure for the cell grid
     struct Cells
     {
-        Notation notation = Notation::Wall;
+        stratum_core::Notation notation = stratum_core::Notation::Wall;
         Encoding encoding = Encoding::Characters;
         discrete_vector_type extent;
         point_type origin;
@@ -163,7 +163,7 @@ namespace quetzal::stratum_format
         std::string type;
         std::optional<Site> site;
         std::optional<stored_entity_id_type> parent_id;
-        std::optional<AccessPoint> access_point;
+        std::optional<stratum_core::AccessPoint> access_point;
         raw_values_type components;
     };
 

@@ -77,31 +77,30 @@ quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::DiscreteProximityIndex::entities_within(const placement_type& placement,
-    value_type range) const
+quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::DiscreteProximityIndex::entities_within(const placement_type& placement, value_type distance) const
 {
-    assert(range >= value_type(0));
+    assert(distance >= value_type(0));
 
     auto [x, y, z] = placement.position().rep();
-    value_type range2 = range * range;
+    value_type distance2 = distance * distance;
 
-    auto in_range = [&](const placement_type& other)
+    auto proximate = [&](const placement_type& other)
     {
         auto [ox, oy, oz] = other.position().rep();
         value_type dx = ox - x;
         value_type dy = oy - y;
         value_type dz = oz - z;
 
-        return dx * dx + dy * dy + dz * dz <= range2;
+        return dx * dx + dy * dy + dz * dz <= distance2;
     };
 
     const discrete_vector_type& extent = m_discrete_layout.grid().extent;
-    discrete_point_type lower = m_discrete_layout.cell_position_at(point_type(x - range, y - range, z));
-    discrete_point_type upper = m_discrete_layout.cell_position_at(point_type(x + range, y + range, z));
-    coord_type i_begin = std::max(lower.i(), coord_type(0));
-    coord_type j_begin = std::max(lower.j(), coord_type(0));
-    coord_type i_end = std::min(upper.i() + 1, extent.x());
-    coord_type j_end = std::min(upper.j() + 1, extent.y());
+    discrete_point_type lower = m_discrete_layout.cell_position_at(point_type(x - distance, y - distance, z));
+    discrete_point_type upper = m_discrete_layout.cell_position_at(point_type(x + distance, y + distance, z));
+    coord_type i_begin = std::max(lower.x(), coord_type(0));
+    coord_type j_begin = std::max(lower.y(), coord_type(0));
+    coord_type i_end = std::min(upper.x() + 1, extent.x());
+    coord_type j_end = std::min(upper.y() + 1, extent.y());
 
     entity_ids_type entity_ids;
 
@@ -126,7 +125,7 @@ quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::
 
                 for (id_type entity_id : it->second)
                 {
-                    if (in_range(m_placements_by_entity_id.at(entity_id)))
+                    if (proximate(m_placements_by_entity_id.at(entity_id)))
                     {
                         entity_ids.push_back(entity_id);
                     }
@@ -138,7 +137,7 @@ quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::
     {
         for (const auto& [entity_id, other] : m_placements_by_entity_id)
         {
-            if (in_range(other))
+            if (proximate(other))
             {
                 entity_ids.push_back(entity_id);
             }

@@ -30,7 +30,7 @@ using namespace std;
 namespace format_example
 {
 
-    // Shaped as stratum_format::Notation: an enum class in a named namespace
+    // Shaped as stratum_core::Notation: an enum class in a named namespace
     enum class Notation
     {
         Block,

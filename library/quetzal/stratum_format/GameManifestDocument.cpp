@@ -30,7 +30,7 @@ namespace
         document.version = std::string(GameManifestDocument::format_version);
 
         const std::string notation_name = string_value(required_member(v, "", "notation"), "notation");
-        const std::optional<Notation> notation = to_notation(notation_name);
+        const std::optional<quetzal::stratum_core::Notation> notation = quetzal::stratum_core::to_notation(notation_name);
         if (!notation)
         {
             fail("notation", std::format("'{}' is not a notation", notation_name));

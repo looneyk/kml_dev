@@ -53,7 +53,7 @@ in the order they were placed --- so the same parameters give the same ids.
 are the discrete point, vector, half-open box and directed point over it. `CellType` is `Solid`, `Open` or `Staircase`;
 `WallType` is `Open`, `Solid` or `Door`, where `Open` is the absence of a wall. Directions are `CardinalDirection`.
 
-**`Zone`** --- a name, a rectangle of cells and the walls between them, and a list of `stratum_format::TransitEndpoint`s.
+**`Zone`** --- a name, a rectangle of cells and the walls between them, and a list of `stratum_core::TransitEndpoint`s.
 Rooms and doors are cell and wall state. `create_staircase(placement, directionality)` sets a cell's type to `Staircase`
 and adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress direction the
 direction it opens onto and the orientation its opposite, and the `Directionality`, up or down. `transit_endpoints()` returns them in the

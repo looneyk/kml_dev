@@ -38,7 +38,7 @@ void quetzal::stratum_sim::Session::clear()
 //------------------------------------------------------------------------------
 void quetzal::stratum_sim::Session::start(flecs::entity access_point)
 {
-    assert(access_point && access_point.has<stratum_format::AccessPoint>());
+    assert(access_point && access_point.has<stratum_core::AccessPoint>());
 
     start(zone_of(access_point), destination_placement(access_point));
     return;

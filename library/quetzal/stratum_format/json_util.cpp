@@ -68,15 +68,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::string access_point_text(const AccessPoint& access_point)
+    std::string access_point_text(const quetzal::stratum_core::AccessPoint& access_point)
     {
         std::vector<std::string> members;
 
         if (access_point.destination.has_value())
         {
-            const auto* bound = std::get_if<stored_entity_id_type>(&*access_point.destination);
-            members.push_back(std::format("\"destination\": {}", bound != nullptr ? reference_text(*bound)
-                : string_text(format_access_point_destination(*access_point.destination))));
+            const auto* bound = std::get_if<quetzal::stratum_core::PersistentId>(&*access_point.destination);
+            members.push_back(std::format("\"destination\": {}", bound != nullptr ? reference_text(bound->id)
+                : string_text(quetzal::stratum_core::format_access_point_destination(*access_point.destination))));
         }
 
         members.push_back(std::format("\"order\": {}", access_point.order));

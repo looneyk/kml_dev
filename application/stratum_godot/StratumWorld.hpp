@@ -139,7 +139,7 @@ private:
     quetzal::stratum_sim::Session& m_session;
     std::string m_message;
     size_t m_view_slot; // The slot of the view in the manifest's views
-    quetzal::stratum_format::Notation m_notation;
+    quetzal::stratum_core::Notation m_notation;
 };
 
 VARIANT_ENUM_CAST(StratumWorld::PlaceType);

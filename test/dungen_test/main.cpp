@@ -14,7 +14,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
-#include "quetzal/stratum_format/AccessPoint.hpp"
+#include "quetzal/stratum_core/AccessPoint.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include "quetzal/testing/reference_files.hpp"
@@ -403,7 +403,7 @@ namespace
             if (entity.access_point.has_value())
             {
                 const auto& destination = entity.access_point->destination;
-                destinations.push_back(destination.has_value() && !holds_alternative<uint64_t>(*destination) ? stratum_format::format_access_point_destination(*destination) : string());
+                destinations.push_back(destination.has_value() && !holds_alternative<stratum_core::PersistentId>(*destination) ? stratum_core::format_access_point_destination(*destination) : string());
             }
         }
 
@@ -556,7 +556,7 @@ namespace
             {
                 const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
-                    wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
+                    wall.cell_position.x(), wall.cell_position.y(), wall.normal.x(), wall.normal.y());
                 return false;
             }
         }
@@ -838,7 +838,7 @@ namespace
         auto glyph = [&cells](const discrete_point_type& cell_position)
         {
             return stratum_format::on_grid(cells, cell_position)
-                ? cells.rows[cells.rows.size() - 1 - static_cast<size_t>(cell_position.j())][static_cast<size_t>(cell_position.i())] : '#';
+                ? cells.rows[cells.rows.size() - 1 - static_cast<size_t>(cell_position.y())][static_cast<size_t>(cell_position.x())] : '#';
         };
 
         auto floor_stair = [](char c) { return c == '.' || c == '>' || c == '<'; };
@@ -926,7 +926,7 @@ namespace
         {
             if (parameters.algorithm != dungen::Algorithm::Maze1 && !reached.contains(cell_position))
             {
-                detail = format("floor at {}, {} is cut off", cell_position.i(), cell_position.j());
+                detail = format("floor at {}, {} is cut off", cell_position.x(), cell_position.y());
                 return false;
             }
         }
@@ -974,13 +974,13 @@ namespace
                     }
 
                     const bool leads_down = glyph(cell_position) == '>';
-                    const stratum_format::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
-                        ? stratum_format::AccessPoint::destination_type{stratum_format::RegionSpecName{*parameters.staircase_down_region_spec}}
-                        : stratum_format::AccessPoint::destination_type{stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
+                    const stratum_core::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
+                        ? stratum_core::AccessPoint::destination_type{stratum_core::RegionSpecName{*parameters.staircase_down_region_spec}}
+                        : stratum_core::AccessPoint::destination_type{stratum_core::relative_zone_extended_name(leads_down ? -1 : 1)};
 
                     if (entity.access_point->destination != destination)
                     {
-                        detail = format("staircase at {}, {} does not have the destination {}", i, j, stratum_format::format_access_point_destination(destination));
+                        detail = format("staircase at {}, {} does not have the destination {}", i, j, stratum_core::format_access_point_destination(destination));
                         return false;
                     }
                 }
@@ -1153,7 +1153,7 @@ namespace
 
             bool placed = placing(zone, {{1, 1}, {5, 1}}, {1, 1}, {1, 1}, warnings).empty();
             size_t up_count = static_cast<size_t>(ranges::count_if(zone.transit_endpoints(),
-                [](const stratum_format::TransitEndpoint& endpoint) { return endpoint.directionality == stratum_format::Directionality::Up; }));
+                [](const stratum_core::TransitEndpoint& endpoint) { return endpoint.directionality == stratum_core::Directionality::Up; }));
 
             CHECK_CASE("staircases leading up and down alternate", placed && zone.transit_endpoints().size() == 2 && up_count == 1 && warnings.empty());
         }

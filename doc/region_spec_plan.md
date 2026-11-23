@@ -111,7 +111,7 @@ region's extent is the worldspace's extent.
 
 | Key | Value |
 | --- | --- |
-| `extent` | `ranges` with a single box and every axis given, such as `{"arrangement": "ranges", "boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}` |
+| `extent` | `boxes` with a single box and every axis given, such as `{"boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}` |
 | `zone_size` | The size of each zone in a grid worldspace, `[x, y]`, and a worldspace with a zone size is a grid |
 
 ### `subregion.`
@@ -127,7 +127,7 @@ subregion.
 | `subregion.<name>.spec.*` | Keys that override the registered spec's keys, or the whole spec when the entry has no reference |
 
 - **The parent places each subregion,** since a spec such as `crypt` is reused in parents of different extents.
-- **An extent is an object whose `arrangement` is `ranges` or `positions`,** in the worldspace's coordinates: a list of
+- **An extent is an object with either `boxes` or `positions`,** in the worldspace's coordinates: a list of
   boxes, whose positions are their union, or a list of zone positions. Each axis of a box is an inclusive range
   `[a, b]`, a single integer for one position, or left out, which spans the parent's whole range on that axis. Boxes
   should not overlap, and an overlap is logged as a warning (`world_generation_plan.md`, `### Extents`).
@@ -219,14 +219,13 @@ patterns, and a value in any other field is literal text.
 ## Names
 
 - **A worldspace and its top-level region have the top-level region spec's name.**
-- **A name gets a numeric suffix, as in `<name>_<counter>`, only if the name is taken.** The game has a counter for
-  top-level regions, and each region has one for its subregions and its zones, so every extended name is unique.
+- **A name the spec gives is used as it is.** A worldspace whose root region spec has no name is `worldspace_<count>`,
+  from the game's worldspace count, and a zone whose region spec has no `zone.name` is `<region name>_<counter>`.
 - **A region spec's `zone.name` is the name of each zone in the region,** literal text or a string pattern such as
   `&region_name .. '_' .. x .. '_' .. y` for the surface and `&region_name .. '_' .. math.abs(z)` for a dungeon.
 - **A zone's display name, shown to players, is separate from its name.** The spec defines how the display name is
   made: from a pattern, from the name reformatted, or at random.
-- **A random name that is taken is generated again,** in place of a numeric suffix, and the spec defines how the names
-  are generated.
+- **A random name is generated as the spec defines.**
 
 ## Seeds
 
@@ -300,7 +299,7 @@ or `zone_plan.md`, and proposed members are in this plan alone.
 | `name`, `display_name` | The region's name and display name | Built | Yes |
 | `parent` | In a region spec tree, the name of the parent region | Built | Yes |
 | `region_spec` | The designed spec a spec in a tree is based on | Built | Yes |
-| `extent` | The region's extent, `ranges` or `positions`; a top-level spec's is its worldspace's, `ranges` with a single box | Built | Yes |
+| `extent` | The region's extent, `boxes` or `positions`; a top-level spec's is its worldspace's, `boxes` with a single box | Built | Yes |
 | `seed` | The spec's seed, in place of the drawn one | Built | Yes |
 | `zone_size` | A top-level spec's grid worldspace's zone size | Built | Yes |
 | `zone.name` | Each zone's name, resolved with the zone's symbols | Built | Yes |

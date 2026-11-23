@@ -5,43 +5,22 @@
 // RegionSpec.hpp
 //------------------------------------------------------------------------------
 
-#include "RegionExtent.hpp"
 #include "types.hpp"
-#include "quetzal/common/KeyValueStore.hpp"
-#include <optional>
+#include "quetzal/stratum_core/RegionSpec.hpp"
 #include <string>
 
 namespace quetzal::stratum_format
 {
-
-    //--------------------------------------------------------------------------
-    // The parameters that a region is created from
-    // subregions inherit store values
-    struct RegionSpec // type, terrain, competency level ...
-    {
-        std::optional<std::string> name;
-        std::optional<std::string> display_name;
-        std::optional<std::string> parent;
-        std::optional<std::string> region_spec;
-        std::optional<seed_type> seed;
-
-        std::optional<RegionExtent> extent;
-
-        // The size of each zone of a grid worldspace, for a top-level spec
-        std::optional<discrete_vector_type> zone_size;
-
-        KeyValueStore store;
-    };
 
     namespace detail
     {
 
         // Throws std::runtime_error for a member that is not of its type, a seed whose text is not a seed, or a key under a
         // member's name, such as zone_size.x
-        RegionSpec read_region_spec(const raw_values_type& v, const std::string& path);
+        stratum_core::RegionSpec read_region_spec(const raw_values_type& v, const std::string& path);
 
         // The spec on one line: its typed members, then its store
-        std::string region_spec_text(const RegionSpec& region_spec);
+        std::string region_spec_text(const stratum_core::RegionSpec& region_spec);
 
     } // namespace detail
 

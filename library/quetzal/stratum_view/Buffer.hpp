@@ -90,8 +90,8 @@ const quetzal::stratum_view::vector_type& quetzal::stratum_view::Buffer<T>::exte
 template<typename T>
 bool quetzal::stratum_view::Buffer<T>::contains(const point_type& position) const
 {
-    return position.i() >= 0 && position.i() < m_extent.x()
-        && position.j() >= 0 && position.j() < m_extent.y();
+    return position.x() >= 0 && position.x() < m_extent.x()
+        && position.y() >= 0 && position.y() < m_extent.y();
 }
 
 //------------------------------------------------------------------------------
@@ -142,7 +142,7 @@ template<typename T>
 size_t quetzal::stratum_view::Buffer<T>::offset(const point_type& position) const
 {
     assert(contains(position));
-    return static_cast<size_t>(position.j() * m_extent.x() + position.i());
+    return static_cast<size_t>(position.y() * m_extent.x() + position.x());
 }
 
 //------------------------------------------------------------------------------

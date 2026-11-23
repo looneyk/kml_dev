@@ -5,11 +5,10 @@
 // access_points.hpp
 //------------------------------------------------------------------------------
 
-#include "PersistentId.hpp"
 #include "Site.hpp"
 #include "types.hpp"
-#include "quetzal/stratum_format/AccessPoint.hpp"
-#include "quetzal/stratum_format/Directionality.hpp"
+#include "quetzal/stratum_core/AccessPoint.hpp"
+#include "quetzal/stratum_core/Directionality.hpp"
 #include <flecs.h>
 #include <cstdint>
 #include <optional>
@@ -33,10 +32,10 @@ namespace quetzal::stratum_sim
 
     //--------------------------------------------------------------------------
     // Makes an entity an access point
-    void set_access_point(flecs::entity e, const stratum_format::AccessPoint& access_point);
+    void set_access_point(flecs::entity e, const stratum_core::AccessPoint& access_point);
 
     // Creates an entity of the type in the zone at the site and makes it an access point
-    flecs::entity create_access_point(flecs::entity zone, flecs::entity type, const Site& site, const stratum_format::AccessPoint& access_point);
+    flecs::entity create_access_point(flecs::entity zone, flecs::entity type, const Site& site, const stratum_core::AccessPoint& access_point);
 
     // The placement of an actor when it has arrived at an access point's destination
     placement_type destination_placement(flecs::entity access_point);

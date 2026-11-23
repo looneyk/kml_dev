@@ -5,7 +5,7 @@
 
 #include "load_character.hpp"
 #include "decode_components.hpp"
-#include "PersistentId.hpp"
+#include "EntityReference.hpp"
 #include "Site.hpp"
 #include "World.hpp"
 #include "quetzal/stratum_format/CharacterDocument.hpp"

@@ -29,7 +29,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/AccessPoint.hpp"
+#include "quetzal/stratum_core/AccessPoint.hpp"
 #include "quetzal/testing/named_checks.hpp"
 #include <doctest/doctest.h>
 #include <algorithm>
@@ -160,7 +160,7 @@ namespace
     size_t cells_reached(const stratum_sim::DiscreteLayout& layout, const stratum_sim::LayoutBase::crossable_function_type& crossable)
     {
         const stratum_sim::discrete_vector_type extent = layout.grid().extent;
-        auto slot = [&extent](const stratum_sim::discrete_point_type& cell_position) { return static_cast<size_t>(cell_position.j()) * extent.x() + cell_position.i(); };
+        auto slot = [&extent](const stratum_sim::discrete_point_type& cell_position) { return static_cast<size_t>(cell_position.y()) * extent.x() + cell_position.x(); };
 
         vector<bool> seen(static_cast<size_t>(extent.x()) * extent.y(), false);
         vector<stratum_sim::discrete_point_type> pending;
@@ -289,7 +289,7 @@ namespace
     TEST_CASE_FIXTURE(WorldFixture, "doors")
     {
         // Two rooms sharing one wall, with a single door in it
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/walls.zone");
 
@@ -361,7 +361,7 @@ namespace
         CHECK_CASE("and the other side of it is not concealed", stratum_sim::crossable(zone, wall_b, actor));
 
         facings[0].get_mut<stratum_sim::Detection>().actor_states.push_back(
-            stratum_sim::ActorDetection{actor.get<stratum_sim::PersistentId>(), stratum_sim::DetectionState::Revealed});
+            stratum_sim::ActorDetection{actor.get<stratum_core::PersistentId>(), stratum_sim::DetectionState::Revealed});
         CHECK_CASE("an actor who has found it crosses", stratum_sim::crossable(zone, wall_a, actor));
         CHECK_CASE("and one who has not does not", !stratum_sim::crossable(zone, wall_a, other));
 
@@ -439,7 +439,7 @@ namespace
             {
                 const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
-                    wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
+                    wall.cell_position.x(), wall.cell_position.y(), wall.normal.x(), wall.normal.y());
                 return false;
             }
         }
@@ -508,7 +508,7 @@ namespace
     // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "loaded entities")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         const flecs::world& entities = world.entities();
 
@@ -516,7 +516,7 @@ namespace
         auto loaded = [&](const stratum_format::ZoneDocument& document)
         {
             flecs::entity zone = world.create_zone(world.region_id,
-                document.zone_id.has_value() ? stratum_sim::PersistentId{*document.zone_id} : world.next_id());
+                document.zone_id.has_value() ? stratum_core::PersistentId{*document.zone_id} : world.next_id());
             stratum_sim::load_layout(zone, document);
             return zone;
         };
@@ -540,7 +540,7 @@ namespace
         vector<flecs::entity> built = zone_children(zone);
 
         CHECK_CASE_EQUAL("the door and the staircase are the zone's own children", built.size(), 2);
-        CHECK_CASE("each has a persistent id", ranges::all_of(built, [](flecs::entity e) { return e.has<stratum_sim::PersistentId>(); }));
+        CHECK_CASE("each has a persistent id", ranges::all_of(built, [](flecs::entity e) { return e.has<stratum_core::PersistentId>(); }));
 
         flecs::entity door = built.size() == 2 ? built[0] : flecs::entity();
         flecs::entity staircase = built.size() == 2 ? built[1] : flecs::entity();
@@ -554,7 +554,7 @@ namespace
 
         CHECK_CASE_EQUAL("its door facings are its children", facings.size(), 2);
         CHECK_CASE("through Parent, each with its persistent id and its door's access", ranges::all_of(facings, [&](flecs::entity e)
-            { return e.has<flecs::Parent>() && e.has<stratum_sim::PersistentId>() && stratum_sim::access_entity(e) == door; }));
+            { return e.has<flecs::Parent>() && e.has<stratum_core::PersistentId>() && stratum_sim::access_entity(e) == door; }));
         CHECK_CASE("each sited on its wall, which lists it", facing_west && facing_west.try_get<stratum_sim::AttachedEntities>() != nullptr
             && facing_west.get<stratum_sim::AttachedEntities>().entities == vector<flecs::entity>{facings.empty() ? flecs::entity() : facings[0]});
 
@@ -565,10 +565,10 @@ namespace
         flecs::entity staircase_type = stratum_sim::entity_type(world.entities(), "staircase");
         CHECK_CASE("the staircase is an instance of its registered type", staircase && staircase_type
             && staircase.has(flecs::IsA, staircase_type));
-        CHECK_CASE("it is the access point, as the file lists it", staircase && staircase.has<stratum_format::AccessPoint>()
+        CHECK_CASE("it is the access point, as the file lists it", staircase && staircase.has<stratum_core::AccessPoint>()
             && stratum_sim::entry_point(zone, staircase_type, 1) == staircase);
-        CHECK_CASE("with its destination", staircase && staircase.get<stratum_format::AccessPoint>().destination.has_value()
-            && *staircase.get<stratum_format::AccessPoint>().destination == stratum_format::AccessPoint::destination_type{stratum_format::ZoneExtendedName{"../[+1]"}});
+        CHECK_CASE("with its destination", staircase && staircase.get<stratum_core::AccessPoint>().destination.has_value()
+            && *staircase.get<stratum_core::AccessPoint>().destination == stratum_core::AccessPoint::destination_type{stratum_core::ZoneExtendedName{"../[+1]"}});
 
         // The same zone saved: every id in the file is persistent
         string saved_text = R"({ "format": "quetzal.discrete_layout", "version": "0.6", "zone": { "id": 900 },
@@ -583,14 +583,14 @@ namespace
         istringstream saved_stream(saved_text);
         flecs::entity saved = loaded(stratum_format::read_zone(saved_stream, "saved"));
 
-        CHECK_CASE("a saved zone keeps its persistent id", saved.get<stratum_sim::PersistentId>() == stratum_sim::PersistentId{900});
-        CHECK_CASE("and each of its entities its own", world.entity(stratum_sim::PersistentId{901}).parent() == saved
-            && world.entity(stratum_sim::PersistentId{902}).parent() == world.entity(stratum_sim::PersistentId{901}));
+        CHECK_CASE("a saved zone keeps its persistent id", saved.get<stratum_core::PersistentId>() == stratum_core::PersistentId{900});
+        CHECK_CASE("and each of its entities its own", world.entity(stratum_core::PersistentId{901}).parent() == saved
+            && world.entity(stratum_core::PersistentId{902}).parent() == world.entity(stratum_core::PersistentId{901}));
 
-        flecs::entity bound = world.entity(stratum_sim::PersistentId{904});
-        const auto* destination = bound ? get_if<uint64_t>(&*bound.get<stratum_format::AccessPoint>().destination) : nullptr;
-        CHECK_CASE("a bound destination refers to an access point in a zone not loaded", destination != nullptr && *destination == 7713
-            && !world.entity(stratum_sim::PersistentId{7713}));
+        flecs::entity bound = world.entity(stratum_core::PersistentId{904});
+        const auto* destination = bound ? get_if<stratum_core::PersistentId>(&*bound.get<stratum_core::AccessPoint>().destination) : nullptr;
+        CHECK_CASE("a bound destination refers to an access point in a zone not loaded", destination != nullptr && *destination == stratum_core::PersistentId{7713}
+            && !world.entity(stratum_core::PersistentId{7713}));
 
         return;
     }
@@ -598,7 +598,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE_FIXTURE(WorldFixture, "decoded components")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         const flecs::world& entities = world.entities();
         register_test_components(world.entities());
@@ -651,7 +651,7 @@ namespace
 
         const auto* lever = staircase.try_get<TestLever>();
         CHECK_CASE("a reference is translated to the entity's persistent id", lever != nullptr && lever->opens.entity == door
-            && lever->opens.persistent_id == door.get<stratum_sim::PersistentId>());
+            && lever->opens.persistent_id == door.get<stratum_core::PersistentId>());
         CHECK_CASE("and what it refers to is returned for the world index", referred_to == vector<flecs::entity>{door});
 
         auto rejected = [&](const string& layout_components, const string& door_components, const string& expected)
@@ -721,7 +721,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE_FIXTURE(WorldFixture, "properties")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::world& entities = world.entities();
         register_test_components(entities);
@@ -762,7 +762,7 @@ namespace
         flecs::entity west = stratum_sim::ensure_room_entity(zone, 0);
         CHECK_CASE("a room's entity is made once", stratum_sim::ensure_room_entity(zone, 0) == west && stratum_sim::room_entity(zone, 0) == west);
         CHECK_CASE("a room with none has a null entity", !stratum_sim::room_entity(zone, 1));
-        CHECK_CASE("a room's entity has no persistent id", !west.has<stratum_sim::PersistentId>());
+        CHECK_CASE("a room's entity has no persistent id", !west.has<stratum_core::PersistentId>());
 
         flecs::entity plain = placed_at(stratum_sim::discrete_point_type{0, 1});
         CHECK_CASE("nothing along the chain is empty", !world.property<TestFinish>(plain).has_value());
@@ -814,7 +814,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE_FIXTURE(WorldFixture, "layout entities")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
 
         auto layout = make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f,
@@ -846,7 +846,7 @@ namespace
         flecs::entity wall = stratum_sim::wall_entity(zone, north_wall);
         CHECK_CASE("siting an entity on a wall makes the wall's entity", wall && wall.parent() == zone);
         CHECK_CASE("which lists it", attached_to(wall) == vector<flecs::entity>{torch});
-        CHECK_CASE("and has no persistent id", !wall.has<stratum_sim::PersistentId>());
+        CHECK_CASE("and has no persistent id", !wall.has<stratum_core::PersistentId>());
 
         flecs::entity plaque = sited(stratum_sim::WallId{north_wall});
         CHECK_CASE("a second entity on the wall is listed on the same entity", stratum_sim::wall_entity(zone, north_wall) == wall

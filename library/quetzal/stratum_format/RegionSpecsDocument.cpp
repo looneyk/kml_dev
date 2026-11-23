@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "RegionSpecsDocument.hpp"
+#include "RegionSpec.hpp"
 #include "checked_values.hpp"
 #include <array>
 

@@ -227,8 +227,7 @@ The name and properties of the layout as a whole. It is a component object.
 ```
 
 `name`, `type`, `difficulty` and `style` are components. They are the zone metadata
-`sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too. `name` is the zone's name,
-unique in its region; a zone loaded with a name that another zone of its region has is given a numeric suffix
+`sim_zone_model.md` describes, so depth, recipe, encounter and loot tables belong here too. `name` is the zone's name
 (`zone_plan.md`, `## Implementation`). `display_name` is what the zone is called for a player to read, and dungen and
 catagen write it with the zone's name.
 
@@ -686,7 +685,8 @@ segment and with no initial `/`, or relative to the access point's zone. A zone 
 
 `../[`*k*`]` selects the zone *k* zone levels from the access point's zone (`## layout`), in the worldspace of the
 access point's zone, and the writers give *k* its sign. Going through an unbound zone extended name of any other form is an
-error. A region spec's `entry_zone` is the name of the zone at which its worldspace is entered.
+error. A region spec's `entry_zone` is the name of the zone at which its worldspace is entered, and exactly one
+zone of the worldspace has it.
 
 Resolving one finds a zone or makes one. Traversal passes the destination to whatever manages the zones, which
 returns a zone it has or generates one, and chooses the cell an arriving actor is placed in. What it

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_format
+// stratum_core
 // ZoneExtendedName.cpp
 //------------------------------------------------------------------------------
 
@@ -33,7 +33,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns the value of an optionally signed integer, or nothing if the text is not one or it is out of range
     template<typename T>
     std::optional<T> integer_value(std::string_view text)
     {
@@ -54,7 +53,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // An optionally signed number, with an optional fractional part
+    // Tests for a string representing a number
     bool coordinate(std::string_view text)
     {
         remove_sign(text);
@@ -64,7 +63,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // (coordinate,coordinate)
+    // Tests for a string representing a point: (coordinate,coordinate)
     bool position(std::string_view text)
     {
         if (!text.starts_with('(') || !text.ends_with(')'))
@@ -79,8 +78,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // [k] or [=n]
-    bool zone_level_segment(std::string_view segment)
+    // Test for a segment containing a zone offset: [k] or [=n]
+    bool zone_offset_segment(std::string_view segment)
     {
         if (!segment.starts_with('[') || !segment.ends_with(']'))
         {
@@ -97,14 +96,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // #id
+    // Test for a segment containing a persistent id
     bool persistent_id_segment(std::string_view segment)
     {
         return segment.starts_with('#') && digits(segment.substr(1)) && integer_value<std::uint64_t>(segment.substr(1)).has_value();
     }
 
     //--------------------------------------------------------------------------
-    // Returns true if the segments, written without the position or an initial /, match the grammar
+    // Validate the segments individually
     bool valid_segments(std::string_view segments, bool absolute)
     {
         bool valid = true;
@@ -116,8 +115,8 @@ namespace
             const std::string_view segment = segments.substr(0, separator);
             last = separator == std::string_view::npos;
 
-            valid = segment == ".." || quetzal::stratum_format::valid_segment_name(segment)
-                || (slot == 0 && !absolute && persistent_id_segment(segment)) || (last && zone_level_segment(segment));
+            valid = segment == ".." || quetzal::stratum_core::valid_segment_name(segment)
+                || (slot == 0 && !absolute && persistent_id_segment(segment)) || (last && zone_offset_segment(segment));
 
             segments.remove_prefix(last ? segments.size() : separator + 1);
         }
@@ -128,7 +127,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::stratum_format::ZoneExtendedName> quetzal::stratum_format::parse_zone_extended_name(std::string_view text)
+std::optional<quetzal::stratum_core::ZoneExtendedName> quetzal::stratum_core::parse_zone_extended_name(std::string_view text)
 {
     std::string_view segments = text;
 
@@ -152,13 +151,13 @@ std::optional<quetzal::stratum_format::ZoneExtendedName> quetzal::stratum_format
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::ZoneExtendedName quetzal::stratum_format::relative_zone_extended_name(std::int32_t k)
+quetzal::stratum_core::ZoneExtendedName quetzal::stratum_core::relative_zone_extended_name(std::int32_t k)
 {
     return ZoneExtendedName{std::format("{}{:+}{}", relative_zone_prefix, k, relative_zone_suffix)};
 }
 
 //------------------------------------------------------------------------------
-std::optional<std::int32_t> quetzal::stratum_format::relative_zone_level(std::string_view zone_extended_name)
+std::optional<std::int32_t> quetzal::stratum_core::relative_zone_offset(std::string_view zone_extended_name)
 {
     if (!zone_extended_name.starts_with(relative_zone_prefix) || !zone_extended_name.ends_with(relative_zone_suffix))
     {
@@ -170,7 +169,7 @@ std::optional<std::int32_t> quetzal::stratum_format::relative_zone_level(std::st
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_format::valid_segment_name(std::string_view text)
+bool quetzal::stratum_core::valid_segment_name(std::string_view text)
 {
     return !text.empty() && (std::isalpha(static_cast<unsigned char>(text.front())) || text.front() == '_')
         && std::ranges::all_of(text, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; });

@@ -1,19 +1,21 @@
-#if !defined(QUETZAL_STRATUM_SIM_REGION_HPP)
-#define QUETZAL_STRATUM_SIM_REGION_HPP
+#if !defined(QUETZAL_STRATUM_CORE_REGION_HPP)
+#define QUETZAL_STRATUM_CORE_REGION_HPP
 //------------------------------------------------------------------------------
-// stratum_sim
+// stratum_core
 // Region.hpp
 //------------------------------------------------------------------------------
 
 #include "PersistentId.hpp"
 #include "RegionSpec.hpp"
+#include "Zone.hpp"
+#include "quetzal/common/KeyValueStore.hpp"
 #include <cstddef>
 #include <map>
 #include <optional>
 #include <string>
 #include <vector>
 
-namespace quetzal::stratum_sim
+namespace quetzal::stratum_core
 {
 
     //--------------------------------------------------------------------------
@@ -25,12 +27,11 @@ namespace quetzal::stratum_sim
         std::vector<PersistentId> subregion_ids;
         std::string name;
         std::optional<std::string> display_name;
+        KeyValueStore components;
         RegionSpec region_spec;
-        std::vector<PersistentId> zone_ids; // The zones that make up this region
-        std::map<std::string, PersistentId> named_zone_ids; // <name, zone_id>
-        std::size_t name_counter = 0; // The last suffix given to a name of its zones that was taken
+        std::vector<Zone> zones;
     };
 
-} // namespace quetzal::stratum_sim
+} // namespace quetzal::stratum_core
 
-#endif // QUETZAL_STRATUM_SIM_REGION_HPP
+#endif // QUETZAL_STRATUM_CORE_REGION_HPP

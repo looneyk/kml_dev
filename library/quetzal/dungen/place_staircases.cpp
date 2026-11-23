@@ -12,7 +12,7 @@
 #include <cassert>
 
 using namespace std;
-using quetzal::stratum_format::Directionality;
+using quetzal::stratum_core::Directionality;
 
 namespace
 {

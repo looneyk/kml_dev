@@ -28,7 +28,7 @@ namespace
         const raw_values_type& game = object(required_member(v, "", "game"), "game");
 
         const std::string notation_name = string_value(required_member(game, "game", "notation"), "game.notation");
-        const std::optional<Notation> notation = to_notation(notation_name);
+        const std::optional<quetzal::stratum_core::Notation> notation = quetzal::stratum_core::to_notation(notation_name);
         if (!notation)
         {
             fail("game.notation", std::format("'{}' is not a notation", notation_name));

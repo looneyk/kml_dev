@@ -123,7 +123,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE_FIXTURE(WorldFixture, "occupancy")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/corridor.zone");
 
@@ -160,7 +160,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE_FIXTURE(WorldFixture, "zone proximity index")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity hall = load_zone_unpopulated(world, "data/corridor.zone");
         flecs::entity moor = load_zone_unpopulated(world, "data/corridor.zone");
@@ -247,7 +247,7 @@ namespace
 
         stratum_format::ZoneDocument saved = stratum_sim::make_document(hall);
         bool saved_without_wanderer = none_of(saved.entities.begin(), saved.entities.end(),
-            [&](const stratum_format::Entity& entity) { return entity.id == wanderer.get<stratum_sim::PersistentId>().id; });
+            [&](const stratum_format::Entity& entity) { return entity.id == wanderer.get<stratum_core::PersistentId>().id; });
         CHECK_CASE("and is left out of the zone's saved document", saved_without_wanderer);
 
         flecs::entity loaded = world.load_zone(world.region_id, "data/door.zone");
@@ -261,7 +261,7 @@ namespace
     // World composes topology and occupancy
     TEST_CASE_FIXTURE(WorldFixture, "world movement")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/corridor.zone");
 
@@ -290,7 +290,7 @@ namespace
         // Only a Blocking entity blocks
         boulder.remove<stratum_sim::Blocking>();
         stratum_sim::MoveResult past = world.move(mover, east, 4.0f);
-        CHECK_CASE("an entity that does not block is moved through", layout.cell_position_at(past.placement.position()).i() > 3);
+        CHECK_CASE("an entity that does not block is moved through", layout.cell_position_at(past.placement.position()).x() > 3);
         CHECK_CASE("and nothing is reported as a blocker", past.blocking_entity_id == nullid);
 
         boulder.add<stratum_sim::Blocking>();
@@ -317,7 +317,7 @@ namespace
 
         // A layout queried directly resolves only its own geometry
         stratum_sim::MoveResult geometric = layout.move(place(1, 1), east, 4.0f);
-        CHECK_CASE("the layout alone does not stop for entities", layout.cell_position_at(geometric.placement.position()).i() > 3);
+        CHECK_CASE("the layout alone does not stop for entities", layout.cell_position_at(geometric.placement.position()).x() > 3);
 
         return;
     }

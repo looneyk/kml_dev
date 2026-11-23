@@ -16,6 +16,8 @@ The design behind the items is in these documents, which the items refer to by s
 - `discrete_layout.md` is the zone file format, and `discrete_layout_plan.md` the structures a zone file loads into.
 - `game_file_spec.md` is how a game is saved: a directory with a file for the game's state and settings, one for the
   character, one for the world, and a zone file for each zone.
+- `layout_properties_plan.md` keeps the ECS for actors and items: a layout part has its properties in a table in the
+  layout, and a zone is a record in its worldspace.
 - `log_plan.md` is the reusable, thread-safe log library in `quetzal/log`, and the process-wide log the game writes to.
 - `modding_plan.md` covers mods and data-driven design.
 - `placement_plan.md` is the form placement takes: what fills a zone.
@@ -29,8 +31,6 @@ The design behind the items is in these documents, which the items refer to by s
 - `region_spec_plan.md` defines the form of a `RegionSpec` and a `ZoneSpec`, patterns included, so that a designer can
   write one by hand and the game can generate one.
 - `sim_zone_model.md` has the model beneath the code.
-- `stratum_core_plan.md` moves the data types that `stratum_format` and `stratum_sim` share into a library of their
-  own.
 - `site_plan.md` replaces `Site` with a placement component and in and on relationships.
 - `template_plan.md` covers templates, the data a zone's content is made from, and pregenerated content.
 - `testing_plan.md` covers how the tests are written, registered and run: doctest, CTest, and reference files that one
@@ -76,16 +76,17 @@ boxes are removed at the start of the next piece of work, since the reference do
   renamed, and a flat's room overrides kept in the flat's map.
 - [ ] **Site replacement** (`site_plan.md`, `## Steps`): `Site` replaced by a placement, an `AttachedTo` relationship,
   and a position on the surface, and the `site` file component by `attachment` and `placement`.
+- [ ] **The ECS for actors and items, planned** (`layout_properties_plan.md`): the plan analyzed against the code and
+  given its steps, covering the layout parts' property tables and a zone as a record in its worldspace, the one source of
+  truth for the zone, with its open questions answered.
 - [ ] **Zone construction and loading paths:** the functions that create, generate, read, and build zones
   (`World`'s `create_zone`, `build_zone`, `fill_zone`, `zone_at`, and `load_*` functions, and `load_layout`) analyzed and
   remediated, so that each name tells building from a document, reading a saved zone, and generating an empty zone's
   content apart, every zone document is built by one path, and an empty zone is created without a zone document.
-- [ ] **stratum_core** (`stratum_core_plan.md`, `## Steps`): the data types that `stratum_format` and `stratum_sim`
-  share, the world's records among them, in a library of their own, which `WorldDocument` contains directly.
 
 - [x] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
       flecs parent of its zones, with its coordinate system from its top-level region's spec, and each zone's
-      `Position` in its worldspace, unique there.
+      `zone_position_type` in its worldspace, unique there.
 - [x] **Top-level regions** (`zone_plan.md`, `### Regions`): one region for each worldspace, created from its region
       spec, with the worldspace's extent, and a zone referring to its region by persistent id.
 - [x] **Extended names** (`zone_plan.md`, `### Identity`): a name and an extended name for every worldspace, zone and
@@ -97,6 +98,9 @@ boxes are removed at the start of the next piece of work, since the reference do
 - [ ] **The world's structure created whole** (`world_structure_plan.md`): each worldspace created whole from a region
       spec tree, with its region tree and an empty zone at every position of its extent, the starting worldspace with
       the game and each other worldspace when the zone of an access point that leads to it is generated.
+- [ ] **An entry zone access point for each access point leading in:** access points whose destination is the same root
+      region spec lead to one worldspace. Their number is tracked, so the worldspace's entry zone is generated with an
+      access point for each of them to arrive at.
 - [ ] **Destinations with a position** (`world_structure_plan.md`, `## Extended names`): going through a destination whose zone
       extended name ends with `@`*position* places the arriving actor at that cell position in the zone.
 - [ ] **A reference's zone in the reference:** an `EntityReference` to an entity that never changes zone, such as an
@@ -230,10 +234,8 @@ These are the open questions.
 
 ### Zones and regions
 
-- **How are a region's components stored in stratum_core?** `WorldDocument::Region` has them as raw values, which
-  stratum_core cannot contain (`stratum_core_plan.md`).
 - **Is a worldspace's record of the zones it created, and of the links set between worldspaces, a structure of its own
-  apart from the root region spec?** (`stratum_core_plan.md`)
+  apart from the root region spec?** (`archived/stratum_core_plan.md`)
 - **Can a `RegionSpec`'s `extent` and `zone_size` be patterns?** Their values are not text
   (`archived/pattern_resolution_plan.md`).
 - **What type does a store entry have as a pattern's symbol?** The stub makes it a number when its text parses as

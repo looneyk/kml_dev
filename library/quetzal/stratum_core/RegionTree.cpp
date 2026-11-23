@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_sim
+// stratum_core
 // RegionTree.cpp
 //------------------------------------------------------------------------------
 
@@ -10,7 +10,7 @@
 #include <cassert>
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::RegionTree::RegionTree(Region root) :
+quetzal::stratum_core::RegionTree::RegionTree(Region root) :
     m_regions()
 {
     assert(!root.parent_id.has_value() && root.subregion_ids.empty());
@@ -18,25 +18,25 @@ quetzal::stratum_sim::RegionTree::RegionTree(Region root) :
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::RegionTree::regions_type& quetzal::stratum_sim::RegionTree::regions() const
+const quetzal::stratum_core::RegionTree::regions_type& quetzal::stratum_core::RegionTree::regions() const
 {
     return m_regions;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::root()
+quetzal::stratum_core::Region& quetzal::stratum_core::RegionTree::root()
 {
     return m_regions.front();
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::root() const
+const quetzal::stratum_core::Region& quetzal::stratum_core::RegionTree::root() const
 {
     return m_regions.front();
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::add_subregion(PersistentId parent_id, Region subregion)
+quetzal::stratum_core::Region& quetzal::stratum_core::RegionTree::add_subregion(PersistentId parent_id, Region subregion)
 {
     assert(!contains(subregion.region_id) && subregion.subregion_ids.empty());
 
@@ -48,13 +48,13 @@ quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::add_subregion(Pe
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::RegionTree::contains(PersistentId region_id) const
+bool quetzal::stratum_core::RegionTree::contains(PersistentId region_id) const
 {
     return std::ranges::contains(m_regions, region_id, &Region::region_id);
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::region(PersistentId region_id)
+quetzal::stratum_core::Region& quetzal::stratum_core::RegionTree::region(PersistentId region_id)
 {
     auto i = std::ranges::find(m_regions, region_id, &Region::region_id);
     assert(i != m_regions.end());
@@ -62,7 +62,7 @@ quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::region(Persisten
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::region(PersistentId region_id) const
+const quetzal::stratum_core::Region& quetzal::stratum_core::RegionTree::region(PersistentId region_id) const
 {
     auto i = std::ranges::find(m_regions, region_id, &Region::region_id);
     assert(i != m_regions.end());
@@ -70,7 +70,7 @@ const quetzal::stratum_sim::Region& quetzal::stratum_sim::RegionTree::region(Per
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_sim::RegionTree::extended_name(PersistentId region_id) const
+std::string quetzal::stratum_core::RegionTree::extended_name(PersistentId region_id) const
 {
     const Region& r = region(region_id);
     return std::format("{}/{}", r.parent_id.has_value() ? extended_name(r.parent_id.value()) : std::string(), r.name);

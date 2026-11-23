@@ -236,11 +236,11 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         for (const stratum_view::Span& span : stratum_view::difference(m_console_previous, console))
         {
             // Console row zero is the lowest, terminal row one the highest
-            std::cout << std::format(escape_position_pattern, extent.y() - span.position.j(), span.position.i() + 1);
+            std::cout << std::format(escape_position_pattern, extent.y() - span.position.y(), span.position.x() + 1);
 
-            for (auto i = span.position.i(); i < span.position.i() + span.count; ++i)
+            for (auto i = span.position.x(); i < span.position.x() + span.count; ++i)
             {
-                std::cout << console.at({i, span.position.j()});
+                std::cout << console.at({i, span.position.y()});
             }
         }
 

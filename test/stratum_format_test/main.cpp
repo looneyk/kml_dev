@@ -12,7 +12,7 @@
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
 #include "quetzal/stratum_format/RegionSpecsDocument.hpp"
-#include "quetzal/stratum_format/AccessPoint.hpp"
+#include "quetzal/stratum_core/AccessPoint.hpp"
 #include "quetzal/stratum_format/SettingDefinitionsDocument.hpp"
 #include "quetzal/stratum_format/SettingsDocument.hpp"
 #include "quetzal/stratum_format/WorldDefinitionDocument.hpp"
@@ -129,7 +129,7 @@ namespace
     //--------------------------------------------------------------------------
     map_type cell_position_map(const stratum_format::discrete_point_type& cell_position)
     {
-        return map_type::array({cell_position.i(), cell_position.j()});
+        return map_type::array({cell_position.x(), cell_position.y()});
     }
 
     //--------------------------------------------------------------------------
@@ -256,15 +256,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    map_type access_point_map(const stratum_format::AccessPoint& access_point)
+    map_type access_point_map(const stratum_core::AccessPoint& access_point)
     {
         map_type m;
         m["order"] = access_point.order;
 
         if (access_point.destination.has_value())
         {
-            const auto* bound = get_if<stratum_format::stored_entity_id_type>(&*access_point.destination);
-            m["destination"] = bound != nullptr ? map_type{{"entity", *bound}} : map_type(stratum_format::format_access_point_destination(*access_point.destination));
+            const auto* bound = get_if<stratum_core::PersistentId>(&*access_point.destination);
+            m["destination"] = bound != nullptr ? map_type{{"entity", bound->id}} : map_type(stratum_core::format_access_point_destination(*access_point.destination));
         }
 
         return m;
@@ -300,7 +300,7 @@ namespace
 
         m["cells"] =
         {
-            {"notation", string(stratum_format::name(cells.notation))},
+            {"notation", string(stratum_core::name(cells.notation))},
             {"encoding", string(stratum_format::name(cells.encoding))},
             {"extent", map_type::array({cells.extent.x(), cells.extent.y()})},
             {"origin", map_type::array({cells.origin[0], cells.origin[1], cells.origin[2]})},
@@ -393,7 +393,7 @@ namespace
         const stratum_format::ZoneDocument& document = *read;
 
         const stratum_format::Cells& cells = document.cells.value();
-        CHECK_CASE("the notation is wall", cells.notation == stratum_format::Notation::Wall);
+        CHECK_CASE("the notation is wall", cells.notation == stratum_core::Notation::Wall);
         CHECK_CASE("the encoding defaults to characters", cells.encoding == stratum_format::Encoding::Characters);
         CHECK_CASE("the extent is 4 by 3", cells.extent.x() == 4 && cells.extent.y() == 3);
         CHECK_CASE_EQUAL("the rows number 2 * 3 + 1", cells.rows.size(), 7);
@@ -440,7 +440,7 @@ namespace
         CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
             && stair_access_point->order == 0 && stair_access_point->egress == stratum_format::discrete_vector_type{0, -1}
             && stair_access_point->destination.has_value()
-            && *stair_access_point->destination == stratum_format::AccessPoint::destination_type{stratum_format::ZoneExtendedName{"../[-1]"}}
+            && *stair_access_point->destination == stratum_core::AccessPoint::destination_type{stratum_core::ZoneExtendedName{"../[-1]"}}
             && !document.entities[3].components.contains("access_point"));
 
         const auto& chest_site = document.entities[5].site;
@@ -488,7 +488,7 @@ namespace
         const stratum_format::ZoneDocument& document = *read;
 
         const stratum_format::Cells& cells = document.cells.value();
-        CHECK_CASE("the notation is block", cells.notation == stratum_format::Notation::Block);
+        CHECK_CASE("the notation is block", cells.notation == stratum_core::Notation::Block);
         CHECK_CASE_EQUAL("the rows number the extent", cells.rows.size(), 5);
         CHECK_CASE("the scale", cells.scale == 2.0f);
 
@@ -984,52 +984,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    TEST_CASE("access point destinations")
-    {
-        using stratum_format::AccessPoint;
-        using stratum_format::RegionSpecName;
-        using stratum_format::ZoneExtendedName;
-
-        const vector<pair<string, AccessPoint::destination_type>> destinations{
-            {"../[-1]", ZoneExtendedName{"../[-1]"}},
-            {"../[+2]", ZoneExtendedName{"../[+2]"}},
-            {"../[+0]", ZoneExtendedName{"../[+0]"}},
-            {"../[1]", ZoneExtendedName{"../[1]"}},
-            {"../[=-3]", ZoneExtendedName{"../[=-3]"}},
-            {"../[=4]", ZoneExtendedName{"../[=4]"}},
-            {"../../crypt/[-1]", ZoneExtendedName{"../../crypt/[-1]"}},
-            {"[-1]", ZoneExtendedName{"[-1]"}},
-            {"town/market", ZoneExtendedName{"town/market"}},
-            {"/surface/surface_3_4", ZoneExtendedName{"/surface/surface_3_4"}},
-            {"/town/market@(12,7)", ZoneExtendedName{"/town/market@(12,7)"}},
-            {"../[-1]@(-1.5,+2)", ZoneExtendedName{"../[-1]@(-1.5,+2)"}},
-            {"#812", ZoneExtendedName{"#812"}},
-            {"#40/market", ZoneExtendedName{"#40/market"}},
-            {"#40/../[=0]", ZoneExtendedName{"#40/../[=0]"}},
-            {"sewers", RegionSpecName{"sewers"}},
-            {"_sewers", RegionSpecName{"_sewers"}},
-            {"_town/__market", ZoneExtendedName{"_town/__market"}}
-        };
-
-        for (const auto& [text, expected] : destinations)
-        {
-            optional<AccessPoint::destination_type> parsed = stratum_format::parse_access_point_destination(text);
-            CHECK_CASE(format("{} is read and written back the same", text), parsed == expected
-                && stratum_format::format_access_point_destination(*parsed) == text);
-        }
-
-        for (const string& text : {"", "-1", "+1", "../[-]", "../[+-1]", "../[+1.5]", "../[=]", "../[==1]", "../[-1", "../-1]", "./[-1]", "sewers/",
-            "sewers/-1", "1a", "../[-1]@3,5", "../[-99999999999]", "/", "//town", "town//market", "town/", "/#12", "town/#12", "#", "#x", "#-1",
-            "#99999999999999999999", "[-1]/market", "../[-1]/[+1]", "market@", "market@(1)", "market@(1,2", "market@(1,2)x", "market@(1.,2)",
-            "market@(.5,2)", "market@(1,2)@(3,4)", "@(1,2)", "town/mar-ket"})
-        {
-            CHECK_CASE(format("\"{}\" is not a destination", text), !stratum_format::parse_access_point_destination(text).has_value());
-        }
-
-        return;
-    }
-
-    //--------------------------------------------------------------------------
     // A document written by each of the writer's two overloads and read again is equivalent to the one first read
     TEST_CASE("round trip")
     {
@@ -1134,7 +1088,7 @@ namespace
         };
 
         stratum_format::GameDocument game;
-        game.notation = stratum_format::Notation::Wall;
+        game.notation = stratum_core::Notation::Wall;
         game.next_id = 21;
         game.seed = "20260928";
         game.random_engines = {{"gameplay", "1 2 3"}, {"generation", "4 5 6"}};
@@ -1206,67 +1160,75 @@ namespace
             "  }\n"
             "}\n");
 
-        stratum_format::WorldDocument::Region surface;
-        surface.id = 2;
+        auto one_zone_extent = [](stratum_format::coord_type z)
+        {
+            using interval_type = math::Interval<stratum_format::coord_type>;
+            return stratum_core::RegionExtent{.arrangement = stratum_core::RegionExtent::Arrangement::Boxes,
+                .boxes = {{interval_type(0, 0), interval_type(0, 0), interval_type(z, z)}}, .positions = {}};
+        };
+
+        stratum_core::Region surface;
+        surface.region_id = stratum_core::PersistentId{2};
         surface.name = "surface";
-        surface.components = stratum_format::raw_values_type::object();
-        surface.components["type"] = "surface";
-        surface.spec.store.insert("type", "surface");
-        surface.spec.zone_size = stratum_format::discrete_vector_type(40, 30);
-        surface.zones = {{5, "zones/5.zone", stratum_format::zone_position_type{0, 0, 0}, "surface_0_0"}};
+        surface.components.insert("type", "surface");
+        surface.region_spec.store.insert("type", "surface");
+        surface.region_spec.extent = one_zone_extent(0);
+        surface.region_spec.zone_size = stratum_format::discrete_vector_type(40, 30);
+        surface.zones = {{stratum_core::PersistentId{5}, stratum_format::zone_position_type{0, 0, 0}, "surface_0"}};
 
-        stratum_format::WorldDocument::Region dungeon;
-        dungeon.id = 4;
+        stratum_core::Region dungeon;
+        dungeon.region_id = stratum_core::PersistentId{4};
         dungeon.name = "barrow";
-        dungeon.name_counter = 1;
-        dungeon.spec.store.insert("type", "dungeon");
-        dungeon.zones = {{3, "zones/3.zone", stratum_format::zone_position_type{0, 0, -1}, "Level -1"}, {6, "zones/6.zone", nullopt, "barrow"},
-            {8, "zones/8.zone", nullopt, "barrow_1"}};
+        dungeon.region_spec.store.insert("type", "dungeon");
+        dungeon.region_spec.extent = one_zone_extent(-1);
+        dungeon.zones = {{stratum_core::PersistentId{3}, stratum_format::zone_position_type{0, 0, -1}, "barrow_0"},
+            {stratum_core::PersistentId{6}, nullopt, nullopt}, {stratum_core::PersistentId{8}, nullopt, "barrow_2"}};
 
-        stratum_format::WorldDocument::Region crypt;
-        crypt.id = 9;
-        crypt.parent_id = 4;
+        stratum_core::Region crypt;
+        crypt.region_id = stratum_core::PersistentId{9};
         crypt.name = "crypt";
         crypt.display_name = "The Crypt";
-        crypt.spec.store.insert("type", "crypt");
-        crypt.zones = {{11, "zones/11.zone", stratum_format::zone_position_type{0, 0, -2}, "crypt_1"}};
+        crypt.region_spec.store.insert("type", "crypt");
+        crypt.zones = {{stratum_core::PersistentId{11}, stratum_format::zone_position_type{0, 0, -2}, nullopt}};
+
+        stratum_core::Worldspace barrow = stratum_core::Worldspace::create(stratum_core::PersistentId{7}, "barrow", 18446744073709551615u,
+            dungeon.region_spec, dungeon);
+        barrow.regions.add_subregion(stratum_core::PersistentId{4}, crypt);
 
         stratum_format::WorldDocument world;
-        world.name_counter = 2;
-        world.worldspaces = {{1, "surface", 11, {surface}}, {7, "barrow", 18446744073709551615u, {dungeon, crypt}}};
+        world.worldspaces = {stratum_core::Worldspace::create(stratum_core::PersistentId{1}, "surface", 11, surface.region_spec, surface), barrow};
         world.entity_zones = {{10, 5}, {12, 3}};
 
-        report_written("a world file has its name counter, then opens each worldspace with its id, name and seed, then a line per region, which "
-            "opens with its id, parent, name, display name, name counter and components, then its spec, then a line per zone, and has a line per "
+        report_written("a world file opens each worldspace with its id, name and seed, then a line per region, which "
+            "opens with its id, parent, name, display name and components, then its spec, then a line per zone, and has a line per "
             "entry of the world index",
             written(world),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
             "  \"version\": \"0.4\",\n"
             "  \"world\": {\n"
-            "    \"name_counter\": 2,\n"
             "    \"worldspaces\": [\n"
             "      { \"id\": 1, \"name\": \"surface\", \"seed\": \"11\",\n"
             "        \"regions\": [\n"
-            "          { \"id\": 2, \"name\": \"surface\", \"name_counter\": 0, \"components\": { \"type\": \"surface\" },\n"
-            "            \"spec\": { \"zone_size\": [40, 30], \"type\": \"surface\" },\n"
+            "          { \"id\": 2, \"name\": \"surface\", \"components\": { \"type\": \"surface\" },\n"
+            "            \"spec\": { \"extent\": { \"boxes\": [ { \"x\": 0, \"y\": 0, \"z\": 0 } ] }, \"zone_size\": [40, 30], \"type\": \"surface\" },\n"
             "            \"zones\": [\n"
-            "              { \"id\": 5, \"name\": \"surface_0_0\", \"file\": \"zones/5.zone\", \"position\": [0, 0, 0] }\n"
+            "              { \"id\": 5, \"name\": \"surface_0\", \"position\": [0, 0, 0] }\n"
             "            ] }\n"
             "        ] },\n"
             "      { \"id\": 7, \"name\": \"barrow\", \"seed\": \"18446744073709551615\",\n"
             "        \"regions\": [\n"
-            "          { \"id\": 4, \"name\": \"barrow\", \"name_counter\": 1,\n"
-            "            \"spec\": { \"type\": \"dungeon\" },\n"
+            "          { \"id\": 4, \"name\": \"barrow\",\n"
+            "            \"spec\": { \"extent\": { \"boxes\": [ { \"x\": 0, \"y\": 0, \"z\": -1 } ] }, \"type\": \"dungeon\" },\n"
             "            \"zones\": [\n"
-            "              { \"id\": 3, \"name\": \"Level -1\", \"file\": \"zones/3.zone\", \"position\": [0, 0, -1] },\n"
-            "              { \"id\": 6, \"name\": \"barrow\", \"file\": \"zones/6.zone\" },\n"
-            "              { \"id\": 8, \"name\": \"barrow_1\", \"file\": \"zones/8.zone\" }\n"
+            "              { \"id\": 3, \"name\": \"barrow_0\", \"position\": [0, 0, -1] },\n"
+            "              { \"id\": 6 },\n"
+            "              { \"id\": 8, \"name\": \"barrow_2\" }\n"
             "            ] },\n"
-            "          { \"id\": 9, \"parent\": 4, \"name\": \"crypt\", \"display_name\": \"The Crypt\", \"name_counter\": 0,\n"
+            "          { \"id\": 9, \"parent\": 4, \"name\": \"crypt\", \"display_name\": \"The Crypt\",\n"
             "            \"spec\": { \"type\": \"crypt\" },\n"
             "            \"zones\": [\n"
-            "              { \"id\": 11, \"name\": \"crypt_1\", \"file\": \"zones/11.zone\", \"position\": [0, 0, -2] }\n"
+            "              { \"id\": 11, \"position\": [0, 0, -2] }\n"
             "            ] }\n"
             "        ] }\n"
             "    ],\n"
@@ -1381,13 +1343,11 @@ namespace
         CHECK_CASE("a world file with two zones of one id is rejected", rejected(read_world, changed(world_text, "\"id\": 6", "\"id\": 5"),
             "a second entity with the id 5"));
         CHECK_CASE("and one with two zones of a worldspace at one position", rejected(read_world, changed(world_text,
-            "\"file\": \"zones/6.zone\"", "\"file\": \"zones/6.zone\", \"position\": [0, 0, -1]"), "a second zone of the worldspace at (0, 0, -1)"));
+            "\"id\": 6 }", "\"id\": 6, \"position\": [0, 0, -1] }"), "a second zone of the worldspace at (0, 0, -1)"));
         CHECK_CASE("and one whose worldspace and region have one id", rejected(read_world, changed(world_text, "\"id\": 7", "\"id\": 4"),
             "a second entity with the id 4"));
         CHECK_CASE("and one whose zone has its worldspace's id", rejected(read_world, changed(world_text, "\"id\": 8", "\"id\": 7"),
             "a second entity with the id 7"));
-        CHECK_CASE("and one with two zones of a region of one name", rejected(read_world, changed(world_text, "\"barrow_1\"", "\"barrow\""),
-            "a second zone of the region named barrow"));
         CHECK_CASE("and one whose world index has an entity in a zone no region lists", rejected(read_world, changed(world_text, "[12, 3]",
             "[12, 4]"), "zone 4 is in no region"));
         CHECK_CASE("and one whose world index has an entity twice", rejected(read_world, changed(world_text, "[12, 3]", "[10, 3]"),
@@ -1479,7 +1439,7 @@ namespace
         istringstream is(manifest_text);
         stratum_format::GameManifestDocument manifest = stratum_format::read_game_manifest(is, "manifest");
         CHECK_CASE("a game manifest file has the notation, the views in order, the view menu, the default view, and the settings",
-            manifest.notation == stratum_format::Notation::Wall && manifest.views == vector<string>{"cell", "lattice"} && manifest.view_menu
+            manifest.notation == stratum_core::Notation::Wall && manifest.views == vector<string>{"cell", "lattice"} && manifest.view_menu
             && manifest.default_view == "lattice" && manifest.settings.value("world.zone_size.x") == "32"
             && manifest.settings.value("world.zone_size.y") == "12");
 
@@ -1684,17 +1644,17 @@ namespace
             "  \"version\": \"0.1\",\n"
             "  \"region_specs\": {\n"
             "    \"surface\": { \"zone.name\":\"&region_name .. '_' .. x .. '_' .. y\", \"seed\": \"42\",\n"
-            "      \"extent\": { \"arrangement\": \"ranges\", \"boxes\": [ { \"x\": [0, 9], \"y\": [0, 9], \"z\": 0 } ] }, \"zone_size\": [64, 32] },\n"
-            "    \"islands\": { \"parent\": \"surface\", \"extent\": { \"arrangement\": \"positions\", \"positions\": [[3, 3, 0], [4, 4, 0]] } },\n"
+            "      \"extent\": { \"boxes\": [ { \"x\": [0, 9], \"y\": [0, 9], \"z\": 0 } ] }, \"zone_size\": [64, 32] },\n"
+            "    \"islands\": { \"parent\": \"surface\", \"extent\": { \"positions\": [[3, 3, 0], [4, 4, 0]] } },\n"
             "    \"crypt\": {}\n"
             "  }\n"
             "}\n";
 
         istringstream is(region_specs_text);
         document_type document = stratum_format::read_region_specs(is, "region specs");
-        const stratum_format::RegionSpec& surface = document.region_specs.at("surface");
-        const stratum_format::RegionSpec& islands = document.region_specs.at("islands");
-        const stratum_format::RegionSpec& crypt = document.region_specs.at("crypt");
+        const stratum_core::RegionSpec& surface = document.region_specs.at("surface");
+        const stratum_core::RegionSpec& islands = document.region_specs.at("islands");
+        const stratum_core::RegionSpec& crypt = document.region_specs.at("crypt");
         auto range_is = [](const optional<math::Interval<stratum_format::coord_type>>& range, stratum_format::coord_type lower,
             stratum_format::coord_type upper)
         {
@@ -1706,7 +1666,7 @@ namespace
         CHECK_CASE("and its members with a type of their own", surface.seed == 42u && surface.extent.has_value()
             && surface.extent->boxes.size() == 1 && range_is(surface.extent->boxes[0].x_extent, 0, 9) && range_is(surface.extent->boxes[0].z_extent, 0, 0)
             && surface.zone_size == stratum_format::discrete_vector_type(64, 32) && islands.parent == "surface"
-            && islands.extent.has_value() && islands.extent->arrangement == stratum_format::RegionExtent::Arrangement::Positions
+            && islands.extent.has_value() && islands.extent->arrangement == stratum_core::RegionExtent::Arrangement::Positions
             && islands.extent->positions.size() == 2 && islands.extent->positions[1] == stratum_format::zone_position_type {4, 4, 0});
         CHECK_CASE("and a spec with neither", crypt.store.empty() && !crypt.name.has_value() && !crypt.extent.has_value()
             && !crypt.zone_size.has_value());
@@ -1739,12 +1699,12 @@ namespace
         CHECK_CASE("and one with a key under a member's name", rejected("\"seed\": \"42\"", "\"zone_size.x\": \"64\"",
             "region_specs.surface.zone_size.x: a part of zone_size, written in its value"));
         CHECK_CASE("and one with a seed that is not a seed", rejected("\"42\"", "\"forty\"", "region_specs.surface.seed: a seed was expected"));
-        CHECK_CASE("and one with an arrangement that is neither", rejected("\"positions\", \"positions\"", "\"grid\", \"positions\"",
-            "region_specs.islands.extent.arrangement: ranges or positions was expected"));
-        CHECK_CASE("and one with a member the arrangement does not have", rejected("\"boxes\"", "\"positions\"",
-            "region_specs.surface.extent.positions: not a member of a ranges extent"));
-        CHECK_CASE("and one with a range whose lower bound is above its upper bound", rejected("[0, 9], \"y\"", "[9, 0], \"y\"",
-            "region_specs.surface.extent.boxes[0].x: a range whose lower bound is above its upper bound"));
+        CHECK_CASE("and one with an extent with neither boxes nor positions", rejected("{ \"positions\": [[3, 3, 0], [4, 4, 0]] }", "{}",
+            "region_specs.islands.extent: one of boxes and positions was expected"));
+        CHECK_CASE("and one with an extent with both", rejected("{ \"positions\": [[3, 3, 0], [4, 4, 0]] }",
+            "{ \"boxes\": [], \"positions\": [[3, 3, 0], [4, 4, 0]] }", "region_specs.islands.extent: one of boxes and positions was expected"));
+        CHECK_CASE("and one with an interval whose lower bound is above its upper bound", rejected("[0, 9], \"y\"", "[9, 0], \"y\"",
+            "region_specs.surface.extent.boxes[0].x: an interval whose lower bound is above its upper bound"));
 
         document_type game = stratum_format::read_region_specs(filesystem::path("../../assets") / document_type::filepath);
         CHECK_CASE("the game's region spec file reads", game.region_specs.contains("surface") && game.region_specs.contains("dungeon"));
@@ -1763,9 +1723,9 @@ namespace
             "  \"starting_region\": \"barrow\",\n"
             "  \"region_specs\": [\n"
             "    [\n"
-            "      { \"name\": \"barrow\", \"region_spec\": \"dungeon\", \"extent\": { \"arrangement\": \"ranges\", "
+            "      { \"name\": \"barrow\", \"region_spec\": \"dungeon\", \"extent\": { "
             "\"boxes\": [ { \"x\": 0, \"y\": 0, \"z\": [-10, -1] } ] }, \"zone_size\": [64, 32], \"difficulty\": \"3\" },\n"
-            "      { \"name\": \"barrow_crypt\", \"parent\": \"barrow\", \"region_spec\": \"crypt\", \"extent\": { \"arrangement\": \"positions\", "
+            "      { \"name\": \"barrow_crypt\", \"parent\": \"barrow\", \"region_spec\": \"crypt\", \"extent\": { "
             "\"positions\": [[0, 0, -5], [0, 0, -6]] } }\n"
             "    ],\n"
             "    []\n"

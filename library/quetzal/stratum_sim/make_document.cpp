@@ -9,7 +9,7 @@
 #include "Name.hpp"
 #include "file_components.hpp"
 #include "layout_entities.hpp"
-#include "PersistentId.hpp"
+#include "EntityReference.hpp"
 #include "properties.hpp"
 #include "Site.hpp"
 #include "Zone.hpp"
@@ -221,7 +221,7 @@ namespace
             entity.site = encoded_site(*site, layout, parent == zone);
         }
 
-        if (const auto* access_point = e.try_get<stratum_format::AccessPoint>())
+        if (const auto* access_point = e.try_get<stratum_core::AccessPoint>())
         {
             entity.access_point = *access_point;
         }
@@ -270,9 +270,9 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
     stratum_format::ZoneDocument document = *zone.get<Document>().document;
     document.version = std::string(stratum_format::format_version);
     document.zone_id = zone.get<PersistentId>().id;
-    if (const auto* position = zone.try_get<Position>())
+    if (const auto* position = zone.try_get<zone_position_type>())
     {
-        document.position = stratum_format::zone_position_type{position->x, position->y, position->z};
+        document.position = *position;
     }
     document.components = encoded_components(zone, file_components);
 
@@ -361,7 +361,7 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
 
     for (flecs::entity e : subtree_by_persistent_id(zone))
     {
-        if (e.has<stratum_format::AccessPoint>())
+        if (e.has<stratum_core::AccessPoint>())
         {
             document.access_points.push_back(e.get<PersistentId>().id);
         }

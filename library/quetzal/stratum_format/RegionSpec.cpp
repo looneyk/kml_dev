@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "RegionSpec.hpp"
+#include "RegionExtent.hpp"
 #include "checked_values.hpp"
 #include "json_util.hpp"
 #include <algorithm>
@@ -18,6 +19,8 @@ namespace
 
     using namespace quetzal::stratum_format;
     using namespace quetzal::stratum_format::detail;
+
+    using quetzal::stratum_core::RegionSpec;
 
     constexpr std::string_view name_key = "name";
     constexpr std::string_view display_name_key = "display_name";
@@ -41,7 +44,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::RegionSpec quetzal::stratum_format::detail::read_region_spec(const raw_values_type& v, const std::string& path)
+quetzal::stratum_core::RegionSpec quetzal::stratum_format::detail::read_region_spec(const raw_values_type& v, const std::string& path)
 {
     RegionSpec region_spec;
 

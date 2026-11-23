@@ -200,7 +200,7 @@ const quetzal::dungen::Zone::transit_endpoints_type& quetzal::dungen::Zone::tran
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Zone::create_staircase(const directed_point_type& placement, stratum_format::Directionality directionality)
+void quetzal::dungen::Zone::create_staircase(const directed_point_type& placement, stratum_core::Directionality directionality)
 {
     cell(placement.position()).set_type(CellType::Staircase);
 

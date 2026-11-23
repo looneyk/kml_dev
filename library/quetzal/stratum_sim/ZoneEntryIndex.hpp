@@ -5,7 +5,7 @@
 // ZoneEntryIndex.hpp
 //------------------------------------------------------------------------------
 
-#include "PersistentId.hpp"
+#include "types.hpp"
 #include <flecs.h>
 #include <cstdint>
 #include <map>

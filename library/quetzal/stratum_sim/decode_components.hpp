@@ -5,7 +5,7 @@
 // decode_components.hpp
 //------------------------------------------------------------------------------
 
-#include "PersistentId.hpp"
+#include "EntityReference.hpp"
 #include "quetzal/stratum_format/types.hpp"
 #include <flecs.h>
 #include <functional>

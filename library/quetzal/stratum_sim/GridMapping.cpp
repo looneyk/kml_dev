@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 bool quetzal::stratum_sim::GridMapping::contains(const discrete_point_type& cell_position) const
 {
-    return cell_position.i() >= 0 && cell_position.j() >= 0 && cell_position.i() < extent.x() && cell_position.j() < extent.y();
+    return cell_position.x() >= 0 && cell_position.y() >= 0 && cell_position.x() < extent.x() && cell_position.y() < extent.y();
 }
 
 //------------------------------------------------------------------------------
@@ -29,8 +29,8 @@ quetzal::stratum_sim::point_type quetzal::stratum_sim::GridMapping::position(con
 {
     auto [ox, oy, oz] = origin.rep();
 
-    value_type x = ox + (static_cast<value_type>(cell_position.i()) + value_type(0.5)) * scale;
-    value_type y = oy + (static_cast<value_type>(cell_position.j()) + value_type(0.5)) * scale;
+    value_type x = ox + (static_cast<value_type>(cell_position.x()) + value_type(0.5)) * scale;
+    value_type y = oy + (static_cast<value_type>(cell_position.y()) + value_type(0.5)) * scale;
 
     return point_type(x, y, oz);
 }

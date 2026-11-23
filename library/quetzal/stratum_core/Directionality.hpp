@@ -1,14 +1,14 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_DIRECTIONALITY_HPP)
-#define QUETZAL_STRATUM_FORMAT_DIRECTIONALITY_HPP
+#if !defined(QUETZAL_STRATUM_CORE_DIRECTIONALITY_HPP)
+#define QUETZAL_STRATUM_CORE_DIRECTIONALITY_HPP
 //------------------------------------------------------------------------------
-// stratum_format
+// stratum_core
 // Directionality.hpp
 //------------------------------------------------------------------------------
 
 #include <optional>
 #include <string_view>
 
-namespace quetzal::stratum_format
+namespace quetzal::stratum_core
 {
 
     //--------------------------------------------------------------------------
@@ -22,6 +22,6 @@ namespace quetzal::stratum_format
     std::string_view name(Directionality directionality);
     std::optional<Directionality> to_directionality(std::string_view name);
 
-} // namespace quetzal::stratum_format
+} // namespace quetzal::stratum_core
 
-#endif // QUETZAL_STRATUM_FORMAT_DIRECTIONALITY_HPP
+#endif // QUETZAL_STRATUM_CORE_DIRECTIONALITY_HPP

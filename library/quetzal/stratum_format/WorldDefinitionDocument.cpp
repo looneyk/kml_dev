@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "WorldDefinitionDocument.hpp"
+#include "RegionSpec.hpp"
 #include "checked_values.hpp"
 #include "json_util.hpp"
 #include <array>

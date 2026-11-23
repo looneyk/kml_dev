@@ -72,7 +72,7 @@ namespace quetzal::geometry
         value_type& y() requires (N >= 2);
         value_type& z() requires (N >= 3);
         value_type& w() requires (N >= 4);
-
+/*
         // Alternate component notation
         value_type i() const requires (N >= 1);
         value_type j() const requires (N >= 2);
@@ -83,7 +83,7 @@ namespace quetzal::geometry
         value_type& j() requires (N >= 2);
         value_type& k() requires (N >= 3);
         value_type& l() requires (N >= 4);
-
+*/
         void set_x(value_type x) requires (N >= 1);
         void set_y(value_type y) requires (N >= 2);
         void set_z(value_type z) requires (N >= 3);
@@ -351,7 +351,7 @@ typename quetzal::geometry::DiscretePoint<T, N>::value_type& quetzal::geometry::
 {
     return m_components[3];
 }
-
+/*
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
 typename quetzal::geometry::DiscretePoint<T, N>::value_type quetzal::geometry::DiscretePoint<T, N>::i() const requires (N >= 1)
@@ -407,7 +407,7 @@ typename quetzal::geometry::DiscretePoint<T, N>::value_type& quetzal::geometry::
 {
     return m_components[3];
 }
-
+*/
 //------------------------------------------------------------------------------
 template<std::signed_integral T, size_t N> requires (N > 0)
 void quetzal::geometry::DiscretePoint<T, N>::set_x(value_type x) requires (N >= 1)

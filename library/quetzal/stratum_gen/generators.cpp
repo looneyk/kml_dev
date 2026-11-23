@@ -58,7 +58,7 @@ std::map<std::string, quetzal::stratum_gen::generator_function_type, std::less<>
 }
 
 //------------------------------------------------------------------------------
-std::string_view quetzal::stratum_gen::generator_name(stratum_format::Notation notation)
+std::string_view quetzal::stratum_gen::generator_name(stratum_core::Notation notation)
 {
-    return notation == stratum_format::Notation::Block ? dungen_generator_name : catagen_generator_name;
+    return notation == stratum_core::Notation::Block ? dungen_generator_name : catagen_generator_name;
 }

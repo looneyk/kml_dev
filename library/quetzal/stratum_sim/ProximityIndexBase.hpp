@@ -34,8 +34,8 @@ namespace quetzal::stratum_sim
         // The entities at the same location as the placement, in ascending id order
         virtual entity_ids_type entities_at(const placement_type& placement) const = 0;
 
-        // The entities whose positions are within the range of the placement's position, in ascending id order
-        virtual entity_ids_type entities_within(const placement_type& placement, value_type range) const = 0;
+        // The entities whose positions are within a given distance from the placement position, in ascending id order
+        virtual entity_ids_type entities_within(const placement_type& placement, value_type distance) const = 0;
 
     protected:
 

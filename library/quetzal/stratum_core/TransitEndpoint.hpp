@@ -1,7 +1,7 @@
-#if !defined(QUETZAL_STRATUM_FORMAT_TRANSITENDPOINT_HPP)
-#define QUETZAL_STRATUM_FORMAT_TRANSITENDPOINT_HPP
+#if !defined(QUETZAL_STRATUM_CORE_TRANSITENDPOINT_HPP)
+#define QUETZAL_STRATUM_CORE_TRANSITENDPOINT_HPP
 //------------------------------------------------------------------------------
-// stratum_format
+// stratum_core
 // TransitEndpoint.hpp
 //------------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@
 #include <optional>
 #include <string>
 
-namespace quetzal::stratum_format
+namespace quetzal::stratum_core
 {
 
     //--------------------------------------------------------------------------
@@ -32,6 +32,6 @@ namespace quetzal::stratum_format
 
     std::ostream& operator<<(std::ostream& os, const TransitEndpoint& endpoint);
 
-} // namespace quetzal::stratum_format
+} // namespace quetzal::stratum_core
 
-#endif // QUETZAL_STRATUM_FORMAT_TRANSITENDPOINT_HPP
+#endif // QUETZAL_STRATUM_CORE_TRANSITENDPOINT_HPP

@@ -108,8 +108,8 @@ namespace
     vector<string> rows(const Zone& zone)
     {
         const vector_type& extent = zone.extent();
-        coord_type width = 2 * extent.i() + 1;
-        coord_type height = 2 * extent.j() + 1;
+        coord_type width = 2 * extent.x() + 1;
+        coord_type height = 2 * extent.y() + 1;
 
         vector<string> result;
 
@@ -143,10 +143,10 @@ namespace
 
         for (const auto& endpoint : zone.transit_endpoints())
         {
-            if (endpoint.directionality == quetzal::stratum_format::Directionality::Up)
+            if (endpoint.directionality == quetzal::stratum_core::Directionality::Up)
             {
                 const point_type position = endpoint.cell_position;
-                result[static_cast<size_t>(height - 2 - 2 * position.j())][static_cast<size_t>(2 * position.i() + 1)] = '<';
+                result[static_cast<size_t>(height - 2 - 2 * position.y())][static_cast<size_t>(2 * position.x() + 1)] = '<';
             }
         }
 
@@ -197,7 +197,7 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
 
     document.position = parameters.position;
     stratum_format::Cells& cells = document.cells.emplace();
-    cells.notation = stratum_format::Notation::Wall;
+    cells.notation = stratum_core::Notation::Wall;
     cells.extent = zone.extent();
     cells.rows = rows(zone);
 
@@ -223,16 +223,16 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
     {
         const stratum_format::FlatCell floor_cell{stratum_format::FlatRole::Floor, endpoint.cell_position};
 
-        const bool leads_down = endpoint.directionality == stratum_format::Directionality::Down;
-        const stratum_format::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
-            ? stratum_format::AccessPoint::destination_type{stratum_format::RegionSpecName{*parameters.staircase_down_region_spec}}
-            : stratum_format::AccessPoint::destination_type{stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
-        stratum_format::AccessPoint access_point{.order = staircase_count++, .egress = endpoint.egress_direction, .destination = destination};
+        const bool leads_down = endpoint.directionality == stratum_core::Directionality::Down;
+        const stratum_core::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
+            ? stratum_core::AccessPoint::destination_type{stratum_core::RegionSpecName{*parameters.staircase_down_region_spec}}
+            : stratum_core::AccessPoint::destination_type{stratum_core::relative_zone_extended_name(leads_down ? -1 : 1)};
+        stratum_core::AccessPoint access_point{.order = staircase_count++, .egress = endpoint.egress_direction, .destination = destination};
 
         stratum_format::raw_values_type components = stratum_format::raw_values_type::object();
         if (endpoint.directionality.has_value())
         {
-            components["directionality"] = std::string(stratum_format::name(*endpoint.directionality));
+            components["directionality"] = std::string(stratum_core::name(*endpoint.directionality));
         }
 
         document.access_points.push_back(++id);

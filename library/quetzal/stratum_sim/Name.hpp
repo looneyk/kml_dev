@@ -6,9 +6,6 @@
 //------------------------------------------------------------------------------
 
 #include <flecs.h>
-#include <concepts>
-#include <cstddef>
-#include <format>
 #include <string>
 #include <string_view>
 
@@ -16,7 +13,7 @@ namespace quetzal::stratum_sim
 {
 
     //--------------------------------------------------------------------------
-    // The name of an entity. A zone's is unique in its region. The file component name decodes into it
+    // The name of an entity. The file component name decodes into it
     struct Name
     {
         std::string name;
@@ -40,25 +37,6 @@ namespace quetzal::stratum_sim
     // decode into them, and an observer that gives an entity whose Name is set the placeholder DisplayName if it has none
     void register_names(flecs::world& entities);
 
-    // Returns the name if it is not taken, and otherwise the name with the suffix _<counter> for the first counter after
-    // the given one whose name is not taken, which becomes the counter
-    template<std::predicate<const std::string&> Taken>
-    std::string untaken_name(const std::string& name, std::size_t& counter, Taken taken);
-
 } // namespace quetzal::stratum_sim
-
-//------------------------------------------------------------------------------
-template<std::predicate<const std::string&> Taken>
-std::string quetzal::stratum_sim::untaken_name(const std::string& name, std::size_t& counter, Taken taken)
-{
-    std::string untaken = name;
-
-    while (taken(untaken))
-    {
-        untaken = std::format("{}_{}", name, ++counter);
-    }
-
-    return untaken;
-}
 
 #endif // QUETZAL_STRATUM_SIM_NAME_HPP

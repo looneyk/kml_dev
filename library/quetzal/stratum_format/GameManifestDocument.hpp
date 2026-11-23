@@ -5,7 +5,7 @@
 // GameManifestDocument.hpp
 //------------------------------------------------------------------------------
 
-#include "Notation.hpp"
+#include "quetzal/stratum_core/Notation.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include <filesystem>
 #include <iosfwd>
@@ -23,7 +23,7 @@ namespace quetzal::stratum_format
         static constexpr std::string_view format_version = "0.1";
 
         std::string version;
-        Notation notation = Notation::Block;
+        stratum_core::Notation notation = stratum_core::Notation::Block;
         std::vector<std::string> views;
         bool view_menu = false; // notation/view added to main menu, development option
         std::string default_view;

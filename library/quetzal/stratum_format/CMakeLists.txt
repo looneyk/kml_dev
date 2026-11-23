@@ -1,11 +1,8 @@
 add_library(quetzal_stratum_format STATIC
-    AccessPoint.cpp
     checked_values.cpp
-    Directionality.cpp
     GameManifestDocument.cpp
     grid.cpp
     json_util.cpp
-    Notation.cpp
     read_character.cpp
     read_config.cpp
     read_game.cpp
@@ -17,7 +14,6 @@ add_library(quetzal_stratum_format STATIC
     RegionSpecsDocument.cpp
     SettingDefinitionsDocument.cpp
     SettingsDocument.cpp
-    TransitEndpoint.cpp
     WorldDefinitionDocument.cpp
     write_character.cpp
     write_config.cpp
@@ -25,16 +21,12 @@ add_library(quetzal_stratum_format STATIC
     write_world.cpp
     write_zone.cpp
     ZoneDocument.cpp
-    ZoneExtendedName.cpp
-    AccessPoint.hpp
     CharacterDocument.hpp
     checked_values.hpp
     config_format.hpp
     ConfigDocument.hpp
-    Directionality.hpp
     GameDocument.hpp
     GameManifestDocument.hpp
-    Notation.hpp
     WorldDefinitionDocument.hpp
     WorldDocument.hpp
     grid.hpp
@@ -51,7 +43,6 @@ add_library(quetzal_stratum_format STATIC
     saved_game_format.hpp
     SettingDefinitionsDocument.hpp
     SettingsDocument.hpp
-    TransitEndpoint.hpp
     types.hpp
     write_character.hpp
     write_config.hpp
@@ -59,7 +50,6 @@ add_library(quetzal_stratum_format STATIC
     write_world.hpp
     write_zone.hpp
     ZoneDocument.hpp
-    ZoneExtendedName.hpp
 )
 
 set_property(TARGET quetzal_stratum_format PROPERTY FOLDER "library")
@@ -69,4 +59,4 @@ target_include_directories(quetzal_stratum_format PUBLIC
 )
 
 # Not nlohmann_json::nlohmann_json, as library3 is added after library/ and a namespaced target must already exist
-target_link_libraries(quetzal_stratum_format PUBLIC quetzal_common quetzal_log quetzal_settings nlohmann_json)
+target_link_libraries(quetzal_stratum_format PUBLIC quetzal_common quetzal_log quetzal_settings quetzal_stratum_core nlohmann_json)

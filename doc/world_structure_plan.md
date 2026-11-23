@@ -93,9 +93,9 @@ test, and are the work of **The world's structure created whole** in `work_plan.
 - **A region spec in memory has an id,** its slot in its tree's vector, assigned when the tree is loaded.
 - **A zone has the region id of the most specific region whose extent contains its position.** That is what it means
   for a zone to be in a region.
-- **An extent is an object whose `arrangement` is `ranges` or `positions`:** a union of boxes, each with a range on
+- **An extent is an object with either `boxes` or `positions`:** a union of boxes, each with a range on
   each axis, or a list of zone positions (`world_generation_plan.md`, `### Extents`). A root region's extent is its
-  worldspace's, and is `ranges` with a single box.
+  worldspace's, and is `boxes` with a single box.
 - **The start is a placeholder setting.** `world.start_zone` and `world.start_cell` default to `center`: the zone at
   the centroid of the starting worldspace's extent, and the cell nearest the center of that zone's layout that an actor
   can occupy. Any other value is a zone position or a cell position.
@@ -149,7 +149,7 @@ coordinate    := signed_numeric_value
   name, each root spec first. The starting region replaces `Generation::m_initial_region_spec_name`.
 - [x] 3. **Structured region specs.** `RegionSpec`, one type in `stratum_format`, has the typed members and the `store`
   of `## Design`, read from `region_specs.json`, the world definition file, and `world.json`. An extent is an object
-  with its `arrangement`, and a top-level spec's extent is its worldspace's, checked to be `ranges` with a single box.
+  with either `boxes` or `positions`, and a top-level spec's extent is its worldspace's, checked to be `boxes` with a single box.
 - [x] 4. **Region spec trees.** A spec's id is its slot in its tree's `region_spec_tree_type`. Each spec's `parent` is
   resolved to its parent's id, and each spec's list of subregion ids is built from those. The names of specs with the
   same parent are checked to be distinct. Each spec is composed and its patterns resolved as `## Design` describes,
@@ -195,7 +195,7 @@ coordinate    := signed_numeric_value
     lists. `entry_point` takes the lowest-ordered access point of the departure's type that has no destination or an
     unbound destination to the zone the actor came from, in place of `targets_level` and `accepts_arrival`, and going
     through a `#<zone id>` destination arrives in that zone. `stairs_down_region_spec`, `relative_zone_extended_name`,
-    `relative_zone_level`, `load_relative_zone`, and `new_zone_position` go.
+    `relative_zone_offset`, `load_relative_zone`, and `new_zone_position` go.
   - [ ] i. **Destinations resolved when gone through.** Going through an unbound destination resolves it to a zone, by
     its zone extended name or its region spec name, and creates the zone's content, and its worldspace as needed, then.
     `create_destination_worldspaces` goes.

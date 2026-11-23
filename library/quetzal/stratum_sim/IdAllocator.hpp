@@ -5,7 +5,7 @@
 // IdAllocator.hpp
 //------------------------------------------------------------------------------
 
-#include "PersistentId.hpp"
+#include "types.hpp"
 
 namespace quetzal::stratum_sim
 {

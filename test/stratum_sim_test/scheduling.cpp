@@ -259,7 +259,7 @@ namespace
     // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "clock")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/corridor.zone");
 
@@ -322,7 +322,7 @@ namespace
 
         // An action that achieves nothing costs no turn, so walking into a wall is free
         clock.grant_turn();
-        while (layout.cell_position_at(stratum_sim::placement_of(character).position()).i() > 1)
+        while (layout.cell_position_at(stratum_sim::placement_of(character).position()).x() > 1)
         {
             intend(-1.0f, 0.0f);
             clock.run(events, controlled);
@@ -374,7 +374,7 @@ namespace
     // The clock's driver
     TEST_CASE_FIXTURE(WorldFixture, "time driver")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/corridor.zone");
 
@@ -526,7 +526,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE_FIXTURE(WorldFixture, "commands")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/room.zone");
 

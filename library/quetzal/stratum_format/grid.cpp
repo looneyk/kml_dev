@@ -24,9 +24,9 @@ namespace
     //--------------------------------------------------------------------------
     char cell_glyph(const Cells& cells, const discrete_point_type& cell_position)
     {
-        bool wall = cells.notation == Notation::Wall;
-        size_t x = static_cast<size_t>(wall ? 2 * cell_position.i() + 1 : cell_position.i());
-        size_t y = static_cast<size_t>(wall ? 2 * cell_position.j() + 1 : cell_position.j());
+        bool wall = cells.notation == quetzal::stratum_core::Notation::Wall;
+        size_t x = static_cast<size_t>(wall ? 2 * cell_position.x() + 1 : cell_position.x());
+        size_t y = static_cast<size_t>(wall ? 2 * cell_position.y() + 1 : cell_position.y());
         return glyph_at(cells, x, y);
     }
 
@@ -35,7 +35,7 @@ namespace
     // in either notation
     discrete_point_type edge_position(const discrete_point_type& cell_position, const discrete_vector_type& direction)
     {
-        return {2 * cell_position.i() + 1 + direction.x(), 2 * cell_position.j() + 1 + direction.y()};
+        return {2 * cell_position.x() + 1 + direction.x(), 2 * cell_position.y() + 1 + direction.y()};
     }
 
     //--------------------------------------------------------------------------
@@ -121,11 +121,11 @@ namespace
         size_t n = junctions.size();
 
         auto [lowest, highest] = std::minmax_element(junctions.begin(), junctions.end(),
-            [](const discrete_point_type& a, const discrete_point_type& b) { return a.j() < b.j(); });
+            [](const discrete_point_type& a, const discrete_point_type& b) { return a.y() < b.y(); });
 
         std::set<discrete_point_type> result;
 
-        for (coord_type j = lowest->j(); j < highest->j(); ++j)
+        for (coord_type j = lowest->y(); j < highest->y(); ++j)
         {
             std::vector<coord_type> crossings;
 
@@ -134,9 +134,9 @@ namespace
                 const discrete_point_type& a = junctions[k];
                 const discrete_point_type& b = junctions[(k + 1) % n];
 
-                if (a.i() == b.i() && std::min(a.j(), b.j()) <= j && j < std::max(a.j(), b.j()))
+                if (a.x() == b.x() && std::min(a.y(), b.y()) <= j && j < std::max(a.y(), b.y()))
                 {
-                    crossings.push_back(a.i());
+                    crossings.push_back(a.x());
                 }
             }
 
@@ -163,13 +163,13 @@ namespace
 //------------------------------------------------------------------------------
 bool quetzal::stratum_format::on_grid(const Cells& cells, const discrete_point_type& cell_position)
 {
-    return cell_position.i() >= 0 && cell_position.j() >= 0 && cell_position.i() < cells.extent.x() && cell_position.j() < cells.extent.y();
+    return cell_position.x() >= 0 && cell_position.y() >= 0 && cell_position.x() < cells.extent.x() && cell_position.y() < cells.extent.y();
 }
 
 //------------------------------------------------------------------------------
 bool quetzal::stratum_format::floor_cell(const Cells& cells, const discrete_point_type& cell_position)
 {
-    return cell_glyph(cells, cell_position) == '.' || (cells.notation == Notation::Block && stair_cell(cells, cell_position));
+    return cell_glyph(cells, cell_position) == '.' || (cells.notation == quetzal::stratum_core::Notation::Block && stair_cell(cells, cell_position));
 }
 
 //------------------------------------------------------------------------------
@@ -188,10 +188,10 @@ bool quetzal::stratum_format::stair_cell(const Cells& cells, const discrete_poin
 //------------------------------------------------------------------------------
 bool quetzal::stratum_format::has_wall(const Cells& cells, const discrete_point_type& cell_position, const discrete_vector_type& direction)
 {
-    if (cells.notation == Notation::Wall)
+    if (cells.notation == quetzal::stratum_core::Notation::Wall)
     {
         discrete_point_type position = edge_position(cell_position, direction);
-        return glyph_at(cells, static_cast<size_t>(position.i()), static_cast<size_t>(position.j())) != ' ';
+        return glyph_at(cells, static_cast<size_t>(position.x()), static_cast<size_t>(position.y())) != ' ';
     }
 
     discrete_point_type neighbor = cell_position + direction;
@@ -244,7 +244,7 @@ std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratu
         }
     };
 
-    if (cells.notation == Notation::Wall)
+    if (cells.notation == quetzal::stratum_core::Notation::Wall)
     {
         // A door edge's position in the written grid has one odd coordinate, the cells either side of it along the other
         for (coord_type y = 0; y < static_cast<coord_type>(cells.rows.size()); ++y)

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_format
+// stratum_core
 // AccessPoint.cpp
 //------------------------------------------------------------------------------
 
@@ -7,7 +7,7 @@
 #include <cassert>
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::stratum_format::AccessPoint::destination_type> quetzal::stratum_format::parse_access_point_destination(std::string_view text)
+std::optional<quetzal::stratum_core::AccessPoint::destination_type> quetzal::stratum_core::parse_access_point_destination(std::string_view text)
 {
     if (valid_segment_name(text))
     {
@@ -23,9 +23,9 @@ std::optional<quetzal::stratum_format::AccessPoint::destination_type> quetzal::s
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_format::format_access_point_destination(const AccessPoint::destination_type& destination)
+std::string quetzal::stratum_core::format_access_point_destination(const AccessPoint::destination_type& destination)
 {
-    assert(!std::holds_alternative<std::uint64_t>(destination));
+    assert(!std::holds_alternative<PersistentId>(destination));
 
     const auto* region_spec_name = std::get_if<RegionSpecName>(&destination);
     return region_spec_name != nullptr ? region_spec_name->value : std::get<ZoneExtendedName>(destination).value;

@@ -176,7 +176,7 @@ size_t quetzal::stratum_sim::DiscreteLayout::slot(const discrete_point_type& cel
     const GridMapping& g = grid();
     assert(g.contains(cell_position));
 
-    return static_cast<size_t>(cell_position.j()) * g.extent.x() + cell_position.i();
+    return static_cast<size_t>(cell_position.y()) * g.extent.x() + cell_position.x();
 }
 
 //------------------------------------------------------------------------------
@@ -449,8 +449,8 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
         return (edge - position) / d;
     };
 
-    value_type t_i = boundary(cell_position.i(), step_i, ox, fx, dx);
-    value_type t_j = boundary(cell_position.j(), step_j, oy, fy, dy);
+    value_type t_i = boundary(cell_position.x(), step_i, ox, fx, dx);
+    value_type t_j = boundary(cell_position.y(), step_j, oy, fy, dy);
 
     value_type delta_i = step_i == 0 ? far : g.scale / std::abs(dx);
     value_type delta_j = step_j == 0 ? far : g.scale / std::abs(dy);

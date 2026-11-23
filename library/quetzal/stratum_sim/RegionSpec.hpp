@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 #include "PatternResolver.hpp"
-#include "quetzal/stratum_format/RegionSpec.hpp"
+#include "quetzal/stratum_core/RegionSpec.hpp"
 #include <filesystem>
 #include <map>
 #include <string>
@@ -14,7 +14,7 @@
 namespace quetzal::stratum_sim
 {
 
-    using stratum_format::RegionSpec;
+    using stratum_core::RegionSpec;
 
     //--------------------------------------------------------------------------
     // Returns the region spec composed of the base region spec, if any, with the region spec's data fields and store applied over them

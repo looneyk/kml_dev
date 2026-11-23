@@ -5,7 +5,7 @@
 // attachments.hpp
 //------------------------------------------------------------------------------
 
-#include "PersistentId.hpp"
+#include "types.hpp"
 #include "quetzal/common/id.hpp"
 #include <flecs.h>
 #include <optional>

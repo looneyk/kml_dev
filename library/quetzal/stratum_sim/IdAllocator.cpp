@@ -12,7 +12,7 @@ quetzal::stratum_sim::CountingIdAllocator::CountingIdAllocator(PersistentId firs
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::PersistentId quetzal::stratum_sim::CountingIdAllocator::next()
+quetzal::stratum_core::PersistentId quetzal::stratum_sim::CountingIdAllocator::next()
 {
     return PersistentId{m_next.id++};
 }

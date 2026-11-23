@@ -61,33 +61,33 @@ namespace stratum_sim_test
 
     using range_type = quetzal::math::Interval<quetzal::stratum_sim::coord_type>;
 
-    // Returns a ranges extent of one box
-    quetzal::stratum_format::RegionExtent box_extent(const range_type& x, const range_type& y, const range_type& z);
+    // Returns a boxes extent of one box
+    quetzal::stratum_core::RegionExtent box_extent(const range_type& x, const range_type& y, const range_type& z);
 
     // Returns a region spec whose zones are made from the test zone's file, "door" or "staircase", with an extent of
     // 0 on x and y and -10 .. 10 on z
     quetzal::stratum_sim::RegionSpec test_region_spec(const std::string& test_zone);
 
+    // Returns the region spec with its name set
+    quetzal::stratum_sim::RegionSpec named_region_spec(quetzal::stratum_sim::RegionSpec region_spec, const std::string& name);
+
     // The number of positions in the extent of test_region_spec, each of which has a zone
     inline constexpr size_t test_extent_zone_count = 21;
 
     // Creates a worldspace from test_region_spec, named for the test zone, and returns its top-level region's id
-    quetzal::stratum_sim::PersistentId create_test_region(quetzal::stratum_sim::World& world, const std::string& test_zone);
+    quetzal::stratum_core::PersistentId create_test_region(quetzal::stratum_sim::World& world, const std::string& test_zone);
 
     // Returns the zone file that the region spec's zones are made from
     std::optional<std::string> zone_file_of(const quetzal::stratum_sim::RegionSpec& region_spec);
 
     // Returns the id of the worldspace's top-level region
-    quetzal::stratum_sim::PersistentId top_level_region(const quetzal::stratum_sim::World& world, quetzal::stratum_sim::PersistentId worldspace_id);
+    quetzal::stratum_core::PersistentId top_level_region(const quetzal::stratum_sim::World& world, quetzal::stratum_core::PersistentId worldspace_id);
 
     // Returns a ZoneSpec whose position is (0, 0, level)
-    quetzal::stratum_sim::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
+    quetzal::stratum_core::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
 
     // Returns the position of a zone at the level, (0, 0, level)
-    quetzal::stratum_sim::Position zone_position_at_level(quetzal::stratum_sim::level_type level);
-
-    // Returns zone_position_at_level(level)
-    quetzal::stratum_format::zone_position_type document_position_at_level(quetzal::stratum_sim::level_type level);
+    quetzal::stratum_core::zone_position_type zone_position_at_level(quetzal::stratum_sim::level_type level);
 
     // Returns the zone's level, the z of its position
     quetzal::stratum_sim::level_type level_of(flecs::entity zone);
@@ -97,8 +97,8 @@ namespace stratum_sim_test
     {
         explicit TestWorld(quetzal::stratum_sim::IdAllocator& id_allocator, size_t zone_count_max = test_zone_count_max);
 
-        quetzal::stratum_sim::PersistentId worldspace_id;
-        quetzal::stratum_sim::PersistentId region_id;
+        quetzal::stratum_core::PersistentId worldspace_id;
+        quetzal::stratum_core::PersistentId region_id;
     };
 
     // Returns the number of the world's loaded zones that are not empty
@@ -132,8 +132,8 @@ namespace stratum_sim_test
     flecs::entity load_zone_unpopulated(TestWorld& world, const std::string& filepath);
 
     // Fills the empty zone at the position in the worldspace from a zone file, with its doors and without denizens, and returns it
-    flecs::entity load_zone_unpopulated_at(quetzal::stratum_sim::World& world, quetzal::stratum_sim::PersistentId worldspace_id,
-        const quetzal::stratum_sim::Position& position, const std::string& filepath);
+    flecs::entity load_zone_unpopulated_at(quetzal::stratum_sim::World& world, quetzal::stratum_core::PersistentId worldspace_id,
+        const quetzal::stratum_core::zone_position_type& position, const std::string& filepath);
 
     // The access point type the test cases enter zones at, and the level offset its access point targets: a staircase leading up
     flecs::entity test_entry_type(const quetzal::stratum_sim::Session& session);

@@ -125,9 +125,9 @@ void quetzal::catagen::set_parameters(Parameters& parameters, const KeyValueStor
 //------------------------------------------------------------------------------
 void quetzal::catagen::validate(const Parameters& parameters)
 {
-    if (parameters.extent.i() <= 0 || parameters.extent.j() <= 0)
+    if (parameters.extent.x() <= 0 || parameters.extent.y() <= 0)
     {
-        throw invalid_argument(format("extent {},{} is empty", parameters.extent.i(), parameters.extent.j()));
+        throw invalid_argument(format("extent {},{} is empty", parameters.extent.x(), parameters.extent.y()));
     }
 
     if (parameters.scale.lower() < 1)

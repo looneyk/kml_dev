@@ -8,7 +8,7 @@
 #include "decode_components.hpp"
 #include "DiscreteLayout.hpp"
 #include "file_components.hpp"
-#include "PersistentId.hpp"
+#include "EntityReference.hpp"
 #include "layout_entities.hpp"
 #include "properties.hpp"
 #include "World.hpp"
@@ -95,7 +95,7 @@ namespace
 
     std::string flat_cell_path(const std::string& flat_path, const quetzal::stratum_format::discrete_point_type& cell_position)
     {
-        return std::format("{}.cells[cell [{}, {}]]", flat_path, cell_position.i(), cell_position.j());
+        return std::format("{}.cells[cell [{}, {}]]", flat_path, cell_position.x(), cell_position.y());
     }
 
     //--------------------------------------------------------------------------
@@ -173,7 +173,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
     if (document.position.has_value())
     {
-        zone.set<Position>(Position{document.position->x(), document.position->y(), document.position->z()});
+        zone.set<zone_position_type>(*document.position);
     }
 
     flecs::world world = zone.world();

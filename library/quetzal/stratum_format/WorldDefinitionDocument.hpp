@@ -5,7 +5,7 @@
 // WorldDefinitionDocument.hpp
 //------------------------------------------------------------------------------
 
-#include "RegionSpec.hpp"
+#include "quetzal/stratum_core/RegionSpec.hpp"
 #include <filesystem>
 #include <iosfwd>
 #include <string>
@@ -24,7 +24,7 @@ namespace quetzal::stratum_format
         // Relative to the assets or a mod directory
         static constexpr std::string_view filepath = "data/world_definition.json";
 
-        using region_spec_tree_type = std::vector<RegionSpec>;
+        using region_spec_tree_type = std::vector<stratum_core::RegionSpec>;
 
         std::string version;
 

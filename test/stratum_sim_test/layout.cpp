@@ -357,7 +357,7 @@ namespace
     // A zone read from a file is walkable by commands ordered by the scheduler, with no rendering
     TEST_CASE_FIXTURE(WorldFixture, "walking a dungeon")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, "data/corridor.zone");
 

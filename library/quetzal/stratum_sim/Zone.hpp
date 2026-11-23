@@ -6,7 +6,6 @@
 //------------------------------------------------------------------------------
 
 #include "LayoutBase.hpp"
-#include "PersistentId.hpp"
 #include "ProximityIndexBase.hpp"
 #include "Site.hpp"
 #include "types.hpp"
@@ -56,17 +55,6 @@ namespace quetzal::stratum_sim
     struct Document
     {
         std::shared_ptr<const stratum_format::ZoneDocument> document;
-    };
-
-    //--------------------------------------------------------------------------
-    // A zone's position in its worldspace, each coordinate signed
-    struct Position
-    {
-        coord_type x = 0;
-        coord_type y = 0;
-        coord_type z = 0;
-
-        auto operator<=>(const Position&) const = default;
     };
 
     //--------------------------------------------------------------------------

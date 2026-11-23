@@ -6,6 +6,7 @@
 #include "RegionSpec.hpp"
 #include "Generation.hpp"
 #include "stratum_sim_util.hpp"
+#include "quetzal/stratum_core/spec_keys.hpp"
 #include "quetzal/stratum_format/RegionSpecsDocument.hpp"
 #include <optional>
 #include <string>
@@ -59,13 +60,13 @@ quetzal::stratum_sim::RegionSpec quetzal::stratum_sim::resolve_region_spec(const
     };
 
     RegionSpec resolved = region_spec;
-    resolved.name = resolve_member(name_key, region_spec.name);
+    resolved.name = resolve_member(stratum_core::name_key, region_spec.name);
     resolved.display_name = resolve_member(display_name_key, region_spec.display_name);
 
     resolved.store.clear();
     for (const auto& [key, value] : region_spec.store)
     {
-        if (key.starts_with(zone_prefix))
+        if (key.starts_with(stratum_core::zone_prefix))
         {
             resolved.store.insert(key, value);
         }

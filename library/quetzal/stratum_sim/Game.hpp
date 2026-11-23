@@ -56,7 +56,7 @@ namespace quetzal::stratum_sim
 
         // Clears the old game and creates a new one with its starting worldspace created from the generation's initial region
         // spec, and its character from the character spec
-        void create(const CharacterSpec& character_spec, stratum_format::Notation notation,
+        void create(const CharacterSpec& character_spec, stratum_core::Notation notation,
             std::optional<seed_type> seed = std::nullopt); // starting specs, maybe read from settings instead ...
 
         // Clears the old game and starts a new one initialized from the saved game identified by save_name, in the notation
@@ -81,7 +81,7 @@ namespace quetzal::stratum_sim
         const stratum_format::GameManifestDocument& manifest() const;
 
         // The notation of the game created or opened last, or the manifest's before any
-        stratum_format::Notation notation() const;
+        stratum_core::Notation notation() const;
 
         Generation& generation();
         const Generation& generation() const;
@@ -106,7 +106,7 @@ namespace quetzal::stratum_sim
 
         // Set the game's notation and zone generator
         // Throws std::runtime_error if the notation has no zone generator
-        void set_notation(stratum_format::Notation notation);
+        void set_notation(stratum_core::Notation notation);
 
         // Some of these properties, especially Config, are only of importance to the host ...
         Config m_config; // Immutable properties like file locations, physical hardware configuration, ...
@@ -122,7 +122,7 @@ namespace quetzal::stratum_sim
         // The game in progress's directory in the working directory, and the world seed
         std::optional<std::filesystem::path> m_game_directory;
         seed_type m_seed;
-        stratum_format::Notation m_notation;
+        stratum_core::Notation m_notation;
     };
 
 } // namespace quetzal::stratum_sim

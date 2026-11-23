@@ -47,13 +47,13 @@ namespace
     //--------------------------------------------------------------------------
     bool contains(const vector_type& extent, const point_type& position)
     {
-        return position.i() >= 0 && position.j() >= 0 && position.i() < extent.i() && position.j() < extent.j();
+        return position.x() >= 0 && position.y() >= 0 && position.x() < extent.x() && position.y() < extent.y();
     }
 
     //--------------------------------------------------------------------------
     size_t cell_slot(const vector_type& extent, const point_type& position)
     {
-        return static_cast<size_t>(position.j()) * extent.i() + position.i();
+        return static_cast<size_t>(position.y()) * extent.x() + position.x();
     }
 
     //--------------------------------------------------------------------------
@@ -103,8 +103,8 @@ namespace
     // range too narrow to split into yields rectangles above the maximum
     void partition(const box_type& rectangle, const Parameters& parameters, random_type& random, rectangles_type& rectangles)
     {
-        coord_type nx = rectangle.extent().i();
-        coord_type ny = rectangle.extent().j();
+        coord_type nx = rectangle.extent().x();
+        coord_type ny = rectangle.extent().y();
 
         // Solid cells along the cut, so the gap between two rooms is the spacing drawn. Two rectangles that touch do so
         // across the cut of their lowest common ancestor alone, so spacing every cut spaces every pair
@@ -132,13 +132,13 @@ namespace
         {
             coord_type cut = parameters.scale.lower() + random.random(nx - spacing - 2 * parameters.scale.lower() + 1);
             partition({rectangle.position(), vector_type{cut, ny}}, parameters, random, rectangles);
-            partition({point_type{rectangle.position().i() + cut + spacing, rectangle.position().j()}, vector_type{nx - cut - spacing, ny}}, parameters, random, rectangles);
+            partition({point_type{rectangle.position().x() + cut + spacing, rectangle.position().y()}, vector_type{nx - cut - spacing, ny}}, parameters, random, rectangles);
         }
         else
         {
             coord_type cut = parameters.scale.lower() + random.random(ny - spacing - 2 * parameters.scale.lower() + 1);
             partition({rectangle.position(), vector_type{nx, cut}}, parameters, random, rectangles);
-            partition({point_type{rectangle.position().i(), rectangle.position().j() + cut + spacing}, vector_type{nx, ny - cut - spacing}}, parameters, random, rectangles);
+            partition({point_type{rectangle.position().x(), rectangle.position().y() + cut + spacing}, vector_type{nx, ny - cut - spacing}}, parameters, random, rectangles);
         }
 
         return;
@@ -186,7 +186,7 @@ namespace
     // Makes each room an area of its own, whose area id is its position in the room list
     cell_areas_type cell_areas(const vector_type& extent, const rectangles_type& rooms)
     {
-        cell_areas_type areas(static_cast<size_t>(extent.i()) * extent.j(), nullid);
+        cell_areas_type areas(static_cast<size_t>(extent.x()) * extent.y(), nullid);
 
         for (id_type id = 0; id < rooms.size(); ++id)
         {
@@ -209,14 +209,14 @@ namespace
     vector<point_type> path_cells(const point_type& from, const point_type& to, bool horizontal_first)
     {
         vector<point_type> positions;
-        point_type corner = horizontal_first ? point_type{to.i(), from.j()} : point_type{from.i(), to.j()};
+        point_type corner = horizontal_first ? point_type{to.x(), from.y()} : point_type{from.x(), to.y()};
 
         auto run = [&positions](const point_type& a, const point_type& b)
         {
-            coord_type di = b.i() > a.i() ? 1 : (b.i() < a.i() ? -1 : 0);
-            coord_type dj = b.j() > a.j() ? 1 : (b.j() < a.j() ? -1 : 0);
+            coord_type di = b.x() > a.x() ? 1 : (b.x() < a.x() ? -1 : 0);
+            coord_type dj = b.y() > a.y() ? 1 : (b.y() < a.y() ? -1 : 0);
 
-            for (point_type c = a; c != b; c.i() += di, c.j() += dj)
+            for (point_type c = a; c != b; c.x() += di, c.y() += dj)
             {
                 positions.push_back(c);
             }
@@ -263,9 +263,9 @@ namespace
     {
         sites_type sites;
 
-        for (coord_type j = 0; j < extent.j(); ++j)
+        for (coord_type j = 0; j < extent.y(); ++j)
         {
-            for (coord_type i = 0; i < extent.i(); ++i)
+            for (coord_type i = 0; i < extent.x(); ++i)
             {
                 id_type area = areas[cell_slot(extent, {i, j})];
                 if (area == nullid)
@@ -325,7 +325,7 @@ namespace
 
                     point_type center_a = center(rooms[a]);
                     point_type center_b = center(rooms[b]);
-                    coord_type distance = abs(center_a.i() - center_b.i()) + abs(center_a.j() - center_b.j());
+                    coord_type distance = abs(center_a.x() - center_b.x()) + abs(center_a.y() - center_b.y());
 
                     if (room_a == nullid || distance < separation)
                     {
@@ -360,9 +360,9 @@ namespace
             return contains(extent, position) ? areas[cell_slot(extent, position)] : nullid;
         };
 
-        for (coord_type j = 0; j < extent.j(); ++j)
+        for (coord_type j = 0; j < extent.y(); ++j)
         {
-            for (coord_type i = 0; i < extent.i(); ++i)
+            for (coord_type i = 0; i < extent.x(); ++i)
             {
                 id_type area = area_of({i, j});
                 zone.set_cell({i, j}, area == nullid ? CellType::Solid : CellType::Open);
@@ -451,7 +451,7 @@ namespace
     //--------------------------------------------------------------------------
     bool staircase_faces(const Zone& zone, const point_type& cell)
     {
-        return ranges::any_of(zone.transit_endpoints(), [&](const stratum_format::TransitEndpoint& endpoint)
+        return ranges::any_of(zone.transit_endpoints(), [&](const stratum_core::TransitEndpoint& endpoint)
         {
             return endpoint.cell_position + endpoint.egress_direction == cell;
         });
@@ -486,7 +486,7 @@ namespace
         }
 
         const vector_type& extent = zone.extent();
-        vector<bool> reached(static_cast<size_t>(extent.i()) * extent.j(), false);
+        vector<bool> reached(static_cast<size_t>(extent.x()) * extent.y(), false);
         reached[cell_slot(extent, sides.front())] = true;
 
         vector<point_type> pending{sides.front()};
@@ -627,8 +627,8 @@ namespace
             optional<directed_point_type> placement = staircase_placement(zone, cell, random);
             if (placement)
             {
-                zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_format::Directionality::Up
-                    : stratum_format::Directionality::Down);
+                zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_core::Directionality::Up
+                    : stratum_core::Directionality::Down);
             }
         }
 
@@ -650,9 +650,9 @@ namespace
         const vector_type& extent = zone.extent();
 
         vector<point_type> candidates;
-        for (coord_type j = 0; j < extent.j(); ++j)
+        for (coord_type j = 0; j < extent.y(); ++j)
         {
-            for (coord_type i = 0; i < extent.i(); ++i)
+            for (coord_type i = 0; i < extent.x(); ++i)
             {
                 candidates.push_back({i, j});
             }
@@ -670,8 +670,8 @@ namespace
             optional<directed_point_type> placement = staircase_placement(zone, candidates[slot], random);
             if (placement)
             {
-                zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_format::Directionality::Up
-                    : stratum_format::Directionality::Down);
+                zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_core::Directionality::Up
+                    : stratum_core::Directionality::Down);
             }
         }
 
@@ -708,7 +708,7 @@ namespace
     Zone generate_surface1(const string& name, const Parameters& parameters, random_type& random)
     {
         Zone zone(name, parameters.extent);
-        realize(zone, cell_areas_type(static_cast<size_t>(parameters.extent.i()) * parameters.extent.j(), 0));
+        realize(zone, cell_areas_type(static_cast<size_t>(parameters.extent.x()) * parameters.extent.y(), 0));
         place_open_staircases(zone, parameters, random);
 
         return zone;

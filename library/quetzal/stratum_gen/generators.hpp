@@ -8,7 +8,7 @@
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
-#include "quetzal/stratum_format/Notation.hpp"
+#include "quetzal/stratum_core/Notation.hpp"
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -49,7 +49,7 @@ namespace quetzal::stratum_gen
     std::map<std::string, generator_function_type, std::less<>> generators();
 
     // Returns the name of the generator whose zones are in the notation
-    std::string_view generator_name(stratum_format::Notation notation);
+    std::string_view generator_name(stratum_core::Notation notation);
 
 } // namespace quetzal::stratum_gen
 

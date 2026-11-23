@@ -109,8 +109,8 @@ namespace
     // Stairs with no directionality are drawn leading up, the entrance glyph
     bool leads_down(flecs::entity e)
     {
-        const auto* directionality = e.try_get<quetzal::stratum_format::Directionality>();
-        return directionality != nullptr && *directionality == quetzal::stratum_format::Directionality::Down;
+        const auto* directionality = e.try_get<quetzal::stratum_core::Directionality>();
+        return directionality != nullptr && *directionality == quetzal::stratum_core::Directionality::Down;
     }
 
     //--------------------------------------------------------------------------
@@ -120,7 +120,7 @@ namespace
     void each_stairs_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
     {
         sim::with_in_zone(zone.world().query_builder<const sim::Site>(), zone)
-            .with<quetzal::stratum_format::AccessPoint>()
+            .with<quetzal::stratum_core::AccessPoint>()
             .build()
             .each([&](flecs::entity e, const sim::Site& site)
             {
@@ -301,7 +301,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
     // Returns true if a position is part of a wall line. A cell never is, so a door occupying one is a gap in the line
     auto line = [&](const point_type& position)
     {
-        if (!lattice.contains(position) || (position.i() % 2 == 1 && position.j() % 2 == 1))
+        if (!lattice.contains(position) || (position.x() % 2 == 1 && position.y() % 2 == 1))
         {
             return false;
         }
@@ -314,8 +314,8 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
     // the four meeting at it. Positions beyond the grid count as closed
     auto solid = [&](const point_type& position)
     {
-        coord_type x = position.i();
-        coord_type y = position.j();
+        coord_type x = position.x();
+        coord_type y = position.y();
 
         coord_type i0 = x % 2 == 1 ? (x - 1) / 2 : x / 2 - 1;
         coord_type j0 = y % 2 == 1 ? (y - 1) / 2 : y / 2 - 1;

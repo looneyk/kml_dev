@@ -57,7 +57,7 @@ using zone_generator_type = std::function<stratum_format::ZoneDocument(const Zon
 
 class Game
 {
-    std::map<stratum_format::Notation, zone_generator_type> m_zone_generators;
+    std::map<stratum_core::Notation, zone_generator_type> m_zone_generators;
     zone_generator_type m_zone_generator; // The one for the game's notation
 
     // <region spec name, region spec>
@@ -198,13 +198,13 @@ flecs::entity World::create_zone(PersistentId region_id, const ZoneSpec& zone_sp
 
 ### Extents
 
-An extent is an object whose `arrangement` is `ranges` or `positions`, in the worldspace's coordinates.
+An extent is an object with either `boxes` or `positions`, in the worldspace's coordinates.
 
-- **A `ranges` extent is a list of boxes,** and its positions are the union of the boxes. Each axis of a box is an
+- **A `boxes` extent is a list of boxes,** and its positions are the union of the boxes. Each axis of a box is an
   inclusive range `[a, b]`, a single integer for one position, as `"x": 3` is `[3, 3]`, or left out, which spans the
   parent's whole range on that axis. A box can be any size, so an extent can have any form made of boxes, such as a ring.
 - **A `positions` extent is a list of zone positions,** each `[x, y, z]`.
-- **A top-level region's extent is the worldspace's extent,** `ranges` with a single box and every axis given.
+- **A top-level region's extent is the worldspace's extent,** `boxes` with a single box and every axis given.
 - **Boxes should not overlap.** An overlap, or a position listed twice, is logged as a warning, and the extent is the
   union of the boxes or the positions.
 - **A region has a zone at each position of its extent that is in no subregion's extent** (`zone_plan.md`, `###
@@ -220,7 +220,7 @@ positions, created in worldspace position order from `(0, 0, 0)` to `(3, 2, 0)`:
 [
     {
         "name": "plains",
-        "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 3], "y": [0, 2], "z": 0}]},
+        "extent": {"boxes": [{"x": [0, 3], "y": [0, 2], "z": 0}]},
         "zone_size": [64, 64],
         "zone.name": "&region_name .. '_' .. x .. '_' .. y"
     }
@@ -232,8 +232,8 @@ based on the registered `crypt` spec. The barrow's levels outside the crypt are 
 
 ```json
 [
-    {"name": "barrow", "extent": {"arrangement": "ranges", "boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}},
-    {"name": "barrow_crypt", "parent": "barrow", "region_spec": "crypt", "extent": {"arrangement": "ranges", "boxes": [{"z": [-6, -4]}]}}
+    {"name": "barrow", "extent": {"boxes": [{"x": 0, "y": 0, "z": [-10, -1]}]}},
+    {"name": "barrow_crypt", "parent": "barrow", "region_spec": "crypt", "extent": {"boxes": [{"z": [-6, -4]}]}}
 ]
 ```
 
@@ -248,13 +248,12 @@ The moor's staircase edge needs a box for each step:
 
 ```json
 [
-    {"name": "surface", "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]},
+    {"name": "surface", "extent": {"boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]},
     {
         "name": "west_moor",
         "parent": "surface",
         "region_spec": "moor",
         "extent": {
-            "arrangement": "ranges",
             "boxes": [
                 {"x": [0, 7], "y": 0},
                 {"x": [0, 6], "y": 1},
@@ -275,12 +274,11 @@ than one zone in both dimensions. Islands in the lake are a list of positions:
 
 ```json
 [
-    {"name": "lake_country", "extent": {"arrangement": "ranges", "boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]},
+    {"name": "lake_country", "extent": {"boxes": [{"x": [0, 7], "y": [0, 7], "z": 0}]}, "zone_size": [64, 64]},
     {
         "name": "shore",
         "parent": "lake_country",
         "extent": {
-            "arrangement": "ranges",
             "boxes": [
                 {"x": [1, 6], "y": [1, 2]},
                 {"x": [1, 6], "y": [5, 6]},
@@ -289,7 +287,7 @@ than one zone in both dimensions. Islands in the lake are a list of positions:
             ]
         }
     },
-    {"name": "islands", "parent": "lake_country", "extent": {"arrangement": "positions", "positions": [[3, 3, 0], [4, 4, 0]]}}
+    {"name": "islands", "parent": "lake_country", "extent": {"positions": [[3, 3, 0], [4, 4, 0]]}}
 ]
 ```
 

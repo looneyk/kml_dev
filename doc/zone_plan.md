@@ -146,14 +146,14 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
 - **`World` manages the worldspaces, zones, and regions,** with one flecs world containing their entities.
 - **A zone's flecs parent is its worldspace.** `zone_of` stops at the first ancestor that is a zone, and a zone's
   contents are its subtree (`sim_zone_model.md`, `### Entity ownership and migration`).
-- **A region's list of its zones** is its `zone_ids`, by `PersistentId`, and a loaded zone is found by its
+- **A region's list of its zones** is its `zones`, each with its `PersistentId`, and a loaded zone is found by its
   `PersistentId`.
-- **A zone with no content** is an entity with its name, `Position`, `ZoneSpec`, and seed, and its layout and
+- **A zone with no content** is an entity with its name, `zone_position_type`, `ZoneSpec`, and seed, and its layout and
   entities are added when its content is generated.
 - **A zone's list of its access points** is `layout.components.access_points`, and a pregenerated zone's name is its
   `layout.components.name`. A zone's display name is its `DisplayName`, a component separate from its name.
 - **The specs are `RegionSpec` and `ZoneSpec`.** A region spec's name is its key in the game's region specs.
-- **A zone's position in its worldspace is its `Position`,** from the zone file's `layout.components.position` or
+- **A zone's position in its worldspace is its `zone_position_type`,** from the zone file's `layout.components.position` or
   the `ZoneSpec`.
 - **An access point is the `AccessPoint` component** of a staircase, a door facing, a portal, or a waypoint, and its
   position is the site of that entity, on a wall or a flat cell (`access_point_plan.md`). An actor arrives at an access
@@ -166,11 +166,11 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
 
 The first pass puts the structures in place with these simplified forms, each to be refined later:
 
-- **A name is the one its spec states, with a numeric suffix, `<name>_<counter>`, only if that name is taken.** A
-  worldspace and its top-level region have the region spec's name. The game has a counter for top-level regions, saved
-  with the game, and each region has a counter for its subregions and its zones, saved with the region. A worldspace's
-  name is unique in the game, and a subregion's or a zone's in its region, so every extended name is unique. Random
-  names replace the suffix: a name that is taken is then generated again.
+- **A name is the one its spec states, used as it is, or else a default that is unique by construction.** A worldspace
+  and its top-level region have the root region spec's name, or `worldspace_<count>` from the game's worldspace count,
+  which starts from the number of worldspaces when the game is opened. A zone without a `zone.name` is
+  `<region name>_<counter>`, numbered as its worldspace is created. A name the designer gives is the designer's to keep
+  unique.
 - **Each worldspace has only its top-level region,** whose extent is the worldspace's. Subregions and their extents
   come later.
 - **A destination is an `AccessPoint::destination_type`:** an access point's persistent id, a region spec name, or a zone extended

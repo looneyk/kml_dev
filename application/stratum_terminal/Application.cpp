@@ -9,6 +9,7 @@
 #include "quetzal/log/Log.hpp"
 #include "quetzal/log/timestamped_files.hpp"
 #include "quetzal/settings/Settings.hpp"
+#include "quetzal/stratum_core/spec_keys.hpp"
 #include "quetzal/stratum_gen/generators.hpp"
 #include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/DiscreteLayout.hpp"
@@ -106,21 +107,19 @@ namespace
 
     //--------------------------------------------------------------------------
     // Temporary, until region specs' zone keys set every zone's extent: a zone without one has its worldspace's zone size
-    stratum_gen::ZoneRequest make_zone_request(const stratum_sim::ZoneSpec& zone_spec)
+    stratum_gen::ZoneRequest make_zone_request(const stratum_core::ZoneSpec& zone_spec)
     {
-        std::optional<stratum_gen::seed_type> seed = zone_spec.store.value<stratum_gen::seed_type>(stratum_sim::seed_key);
+        std::optional<stratum_gen::seed_type> seed = zone_spec.store.value<stratum_gen::seed_type>(stratum_core::seed_key);
         assert(seed.has_value());
-        const stratum_sim::Position position = zone_spec.position();
 
-        quetzal::KeyValueStore parameters = stratum_sim::select_prefixed(zone_spec.store, stratum_sim::parameters_prefix);
+        quetzal::KeyValueStore parameters = stratum_sim::select_prefixed(zone_spec.store, stratum_core::parameters_prefix);
         if (!parameters.contains("extent"))
         {
             parameters.insert("extent", std::format("{},{}", settings::store().value<int64_t>("world.zone_size.x"),
                 settings::store().value<int64_t>("world.zone_size.y")));
         }
 
-        return stratum_gen::ZoneRequest{zone_spec.store.value_or(stratum_sim::name_key, std::string()),
-            stratum_gen::zone_position_type{position.x, position.y, position.z}, *seed, parameters};
+        return stratum_gen::ZoneRequest{zone_spec.store.value_or(stratum_core::name_key, std::string()), zone_spec.position(), *seed, parameters};
     }
 
     //--------------------------------------------------------------------------
@@ -194,10 +193,10 @@ stratum_terminal::Application::Application(const stratum_sim::Config& config, co
     m_user_settings.load();
 
     const auto generators = stratum_gen::generators();
-    for (const auto& notation : {stratum_format::Notation::Block, stratum_format::Notation::Wall})
+    for (const auto& notation : {stratum_core::Notation::Block, stratum_core::Notation::Wall})
     {
         const stratum_gen::generator_function_type& generate = generators.at(std::string(stratum_gen::generator_name(notation)));
-        m_game.generation().m_zone_generators[notation] = [generate](const stratum_sim::ZoneSpec& zone_spec)
+        m_game.generation().m_zone_generators[notation] = [generate](const stratum_core::ZoneSpec& zone_spec)
         {
             return generate(make_zone_request(zone_spec));
         };
@@ -449,7 +448,7 @@ void stratum_terminal::Application::run_main_page(const KeyPress& key_press)
     }
     else if ((key_press.c == 't' || key_press.c == 'T') && m_game.manifest().view_menu)
     {
-        m_notation = m_notation == stratum_format::Notation::Block ? stratum_format::Notation::Wall : stratum_format::Notation::Block;
+        m_notation = m_notation == stratum_core::Notation::Block ? stratum_core::Notation::Wall : stratum_core::Notation::Block;
     }
     else if (key_press.key == Key::Escape || key_press.c == 'q' || key_press.c == 'Q')
     {
@@ -498,7 +497,7 @@ void stratum_terminal::Application::draw_menu()
     lines.push_back("o  Open");
     if (m_game.manifest().view_menu)
     {
-        lines.push_back(std::format("t  Notation  {}", stratum_format::name(m_notation)));
+        lines.push_back(std::format("t  Notation  {}", stratum_core::name(m_notation)));
         lines.push_back(std::format("v  View      {}", m_game.manifest().views[m_view_selected]));
     }
 
@@ -754,7 +753,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         else if (event.is<stratum_sim::Relocated>())
         {
             // A level is shown as its distance from the surface
-            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<stratum_sim::Position>().z));
+            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<stratum_core::zone_position_type>().z()));
         }
         else if (event.is<stratum_sim::Died>())
         {
@@ -772,5 +771,5 @@ std::string stratum_terminal::Application::status() const
     stratum_sim::discrete_point_type cell_position = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     // The message shares this line so that the frame keeps its height as it comes and goes
-    return std::format("cell ({}, {})  facing {}  turn {}  {}", cell_position.i(), cell_position.j(), name_of(placement.direction()), m_session.scheduler().elapsed(), m_message);
+    return std::format("cell ({}, {})  facing {}  turn {}  {}", cell_position.x(), cell_position.y(), name_of(placement.direction()), m_session.scheduler().elapsed(), m_message);
 }

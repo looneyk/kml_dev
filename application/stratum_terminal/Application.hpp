@@ -116,7 +116,7 @@ namespace stratum_terminal
         View m_view = View::Cell;
 
         quetzal::stratum_view::Glyphs m_view_glyphs;
-        quetzal::stratum_format::Notation m_notation; // The notation a new game is created in, the last game's once one is opened
+        quetzal::stratum_core::Notation m_notation; // The notation a new game is created in, the last game's once one is opened
         Terminal m_terminal;
         std::string m_message;
         std::string m_script;

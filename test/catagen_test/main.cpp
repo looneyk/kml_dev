@@ -14,7 +14,7 @@
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
 #include "quetzal/stratum_format/references.hpp"
-#include "quetzal/stratum_format/AccessPoint.hpp"
+#include "quetzal/stratum_core/AccessPoint.hpp"
 #include "quetzal/stratum_format/write_zone.hpp"
 #include "quetzal/testing/reference_files.hpp"
 #include <doctest/doctest.h>
@@ -253,7 +253,7 @@ namespace
             {
                 const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
-                    wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
+                    wall.cell_position.x(), wall.cell_position.y(), wall.normal.x(), wall.normal.y());
                 return false;
             }
         }
@@ -293,12 +293,12 @@ namespace
 
         auto cell_glyph = [&](const discrete_point_type& cell_position)
         {
-            return stratum_format::on_grid(cells, cell_position) ? glyph_at(2 * cell_position.i() + 1, 2 * cell_position.j() + 1) : ' ';
+            return stratum_format::on_grid(cells, cell_position) ? glyph_at(2 * cell_position.x() + 1, 2 * cell_position.y() + 1) : ' ';
         };
 
         auto edge_glyph = [&](const discrete_point_type& cell_position, const discrete_vector_type& direction)
         {
-            return glyph_at(2 * cell_position.i() + 1 + direction.x(), 2 * cell_position.j() + 1 + direction.y());
+            return glyph_at(2 * cell_position.x() + 1 + direction.x(), 2 * cell_position.y() + 1 + direction.y());
         };
 
         auto blocks_doorway = [&](const discrete_point_type& cell_position)
@@ -350,7 +350,7 @@ namespace
         {
             if (!reached.contains(cell_position))
             {
-                detail = format("floor at {}, {} is cut off", cell_position.i(), cell_position.j());
+                detail = format("floor at {}, {} is cut off", cell_position.x(), cell_position.y());
                 return false;
             }
         }
@@ -416,13 +416,13 @@ namespace
                     open_sides.push_back(entity.access_point->egress);
 
                     const bool leads_down = cell_glyph(cell_position) == '>';
-                    const stratum_format::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
-                        ? stratum_format::AccessPoint::destination_type{stratum_format::RegionSpecName{*parameters.staircase_down_region_spec}}
-                        : stratum_format::AccessPoint::destination_type{stratum_format::relative_zone_extended_name(leads_down ? -1 : 1)};
+                    const stratum_core::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
+                        ? stratum_core::AccessPoint::destination_type{stratum_core::RegionSpecName{*parameters.staircase_down_region_spec}}
+                        : stratum_core::AccessPoint::destination_type{stratum_core::relative_zone_extended_name(leads_down ? -1 : 1)};
 
                     if (entity.access_point->destination != destination)
                     {
-                        detail = format("staircase at {}, {} does not have the destination {}", i, j, stratum_format::format_access_point_destination(destination));
+                        detail = format("staircase at {}, {} does not have the destination {}", i, j, stratum_core::format_access_point_destination(destination));
                         return false;
                     }
                 }
@@ -717,7 +717,7 @@ TEST_SUITE("parameter validation")
             if (entity.access_point.has_value())
             {
                 const auto& destination = entity.access_point->destination;
-                destinations.push_back(destination.has_value() && !holds_alternative<uint64_t>(*destination) ? stratum_format::format_access_point_destination(*destination) : string());
+                destinations.push_back(destination.has_value() && !holds_alternative<stratum_core::PersistentId>(*destination) ? stratum_core::format_access_point_destination(*destination) : string());
             }
         }
 

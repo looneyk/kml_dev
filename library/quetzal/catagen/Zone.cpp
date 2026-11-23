@@ -12,11 +12,11 @@ using namespace std;
 quetzal::catagen::Zone::Zone(const string& name, const vector_type& extent) :
     m_name(name),
     m_bounds(point_type{0, 0}, extent),
-    m_cells(static_cast<size_t>(extent.i()) * extent.j(), CellType::Solid),
-    m_walls_vertical(static_cast<size_t>(extent.i() + 1) * extent.j(), WallType::Solid),
-    m_walls_horizontal(static_cast<size_t>(extent.i()) * (extent.j() + 1), WallType::Solid)
+    m_cells(static_cast<size_t>(extent.x()) * extent.y(), CellType::Solid),
+    m_walls_vertical(static_cast<size_t>(extent.x() + 1) * extent.y(), WallType::Solid),
+    m_walls_horizontal(static_cast<size_t>(extent.x()) * (extent.y() + 1), WallType::Solid)
 {
-    assert(extent.i() > 0 && extent.j() > 0);
+    assert(extent.x() > 0 && extent.y() > 0);
 }
 
 //------------------------------------------------------------------------------
@@ -81,10 +81,10 @@ quetzal::catagen::WallType quetzal::catagen::Zone::wall(const point_type& positi
 {
     switch (direction)
     {
-        case CardinalDirection::East: return wall_vertical(position.i() + 1, position.j());
-        case CardinalDirection::West: return wall_vertical(position.i(), position.j());
-        case CardinalDirection::North: return wall_horizontal(position.i(), position.j() + 1);
-        case CardinalDirection::South: return wall_horizontal(position.i(), position.j());
+        case CardinalDirection::East: return wall_vertical(position.x() + 1, position.y());
+        case CardinalDirection::West: return wall_vertical(position.x(), position.y());
+        case CardinalDirection::North: return wall_horizontal(position.x(), position.y() + 1);
+        case CardinalDirection::South: return wall_horizontal(position.x(), position.y());
     }
 
     assert(false);
@@ -96,10 +96,10 @@ void quetzal::catagen::Zone::set_wall(const point_type& position, CardinalDirect
 {
     switch (direction)
     {
-        case CardinalDirection::East: set_wall_vertical(position.i() + 1, position.j(), type); return;
-        case CardinalDirection::West: set_wall_vertical(position.i(), position.j(), type); return;
-        case CardinalDirection::North: set_wall_horizontal(position.i(), position.j() + 1, type); return;
-        case CardinalDirection::South: set_wall_horizontal(position.i(), position.j(), type); return;
+        case CardinalDirection::East: set_wall_vertical(position.x() + 1, position.y(), type); return;
+        case CardinalDirection::West: set_wall_vertical(position.x(), position.y(), type); return;
+        case CardinalDirection::North: set_wall_horizontal(position.x(), position.y() + 1, type); return;
+        case CardinalDirection::South: set_wall_horizontal(position.x(), position.y(), type); return;
     }
 
     assert(false);
@@ -113,7 +113,7 @@ const quetzal::catagen::Zone::transit_endpoints_type& quetzal::catagen::Zone::tr
 }
 
 //------------------------------------------------------------------------------
-void quetzal::catagen::Zone::create_staircase(const directed_point_type& placement, stratum_format::Directionality directionality)
+void quetzal::catagen::Zone::create_staircase(const directed_point_type& placement, stratum_core::Directionality directionality)
 {
     set_cell(placement.position(), CellType::Staircase);
 
@@ -140,21 +140,21 @@ void quetzal::catagen::Zone::clear()
 size_t quetzal::catagen::Zone::cell_slot(const point_type& position) const
 {
     assert(contains(position));
-    return static_cast<size_t>(position.j()) * m_bounds.extent().i() + position.i();
+    return static_cast<size_t>(position.y()) * m_bounds.extent().x() + position.x();
 }
 
 //------------------------------------------------------------------------------
 size_t quetzal::catagen::Zone::wall_vertical_slot(coord_type i, coord_type j) const
 {
-    assert(i >= 0 && i <= m_bounds.extent().i() && j >= 0 && j < m_bounds.extent().j());
-    return static_cast<size_t>(j) * (m_bounds.extent().i() + 1) + i;
+    assert(i >= 0 && i <= m_bounds.extent().x() && j >= 0 && j < m_bounds.extent().y());
+    return static_cast<size_t>(j) * (m_bounds.extent().x() + 1) + i;
 }
 
 //------------------------------------------------------------------------------
 size_t quetzal::catagen::Zone::wall_horizontal_slot(coord_type i, coord_type j) const
 {
-    assert(i >= 0 && i < m_bounds.extent().i() && j >= 0 && j <= m_bounds.extent().j());
-    return static_cast<size_t>(j) * m_bounds.extent().i() + i;
+    assert(i >= 0 && i < m_bounds.extent().x() && j >= 0 && j <= m_bounds.extent().y());
+    return static_cast<size_t>(j) * m_bounds.extent().x() + i;
 }
 
 //------------------------------------------------------------------------------

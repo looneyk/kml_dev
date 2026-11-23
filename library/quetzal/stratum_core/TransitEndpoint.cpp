@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_format
+// stratum_core
 // TransitEndpoint.cpp
 //------------------------------------------------------------------------------
 
@@ -7,7 +7,7 @@
 #include <ostream>
 
 //------------------------------------------------------------------------------
-std::ostream& quetzal::stratum_format::operator<<(std::ostream& os, const TransitEndpoint& endpoint)
+std::ostream& quetzal::stratum_core::operator<<(std::ostream& os, const TransitEndpoint& endpoint)
 {
     os << endpoint.type << " " << endpoint.id;
 

@@ -182,7 +182,7 @@ void quetzal::stratum_sim::Game::clear()
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::create(const CharacterSpec& character_spec, stratum_format::Notation notation,
+void quetzal::stratum_sim::Game::create(const CharacterSpec& character_spec, stratum_core::Notation notation,
     std::optional<seed_type> seed)
 {
     assert(!character_spec.name.empty());
@@ -317,12 +317,12 @@ void quetzal::stratum_sim::Game::seed_world(seed_type seed)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Game::set_notation(stratum_format::Notation notation)
+void quetzal::stratum_sim::Game::set_notation(stratum_core::Notation notation)
 {
     auto i = m_generation.m_zone_generators.find(notation);
     if (i == m_generation.m_zone_generators.end())
     {
-        const std::string message = std::format("the {} notation has no zone generator", stratum_format::name(notation));
+        const std::string message = std::format("the {} notation has no zone generator", stratum_core::name(notation));
         log::logger().error("stratum_sim", "{}", message);
         throw std::runtime_error(message);
     }
@@ -436,7 +436,7 @@ const quetzal::stratum_format::GameManifestDocument& quetzal::stratum_sim::Game:
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_format::Notation quetzal::stratum_sim::Game::notation() const
+quetzal::stratum_core::Notation quetzal::stratum_sim::Game::notation() const
 {
     return m_notation;
 }

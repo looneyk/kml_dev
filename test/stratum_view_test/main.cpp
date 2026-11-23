@@ -5,7 +5,7 @@
 
 #include "quetzal/stratum_format/grid.hpp"
 #include "quetzal/stratum_format/read_zone.hpp"
-#include "quetzal/stratum_format/AccessPoint.hpp"
+#include "quetzal/stratum_core/AccessPoint.hpp"
 #include "quetzal/stratum_sim/access_points.hpp"
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/commands.hpp"
@@ -43,8 +43,8 @@ namespace
     // No zone is generated, so nothing is registered
     stratum_sim::Generation g_test_generation;
 
-    const stratum_sim::RegionSpec view_region_spec{.extent = stratum_format::RegionExtent{
-        .arrangement = stratum_format::RegionExtent::Arrangement::Ranges, .boxes = {{math::Interval<stratum_sim::coord_type>(0, 0),
+    const stratum_sim::RegionSpec view_region_spec{.name = "view", .extent = stratum_core::RegionExtent{
+        .arrangement = stratum_core::RegionExtent::Arrangement::Boxes, .boxes = {{math::Interval<stratum_sim::coord_type>(0, 0),
         math::Interval<stratum_sim::coord_type>(0, 0), math::Interval<stratum_sim::coord_type>(0, 0)}}, .positions = {}}};
 
     constexpr stratum_sim::seed_type view_worldspace_seed = 1;
@@ -55,12 +55,12 @@ namespace
     {
         explicit TestWorld(stratum_sim::IdAllocator& id_allocator) :
             World(id_allocator, g_test_generation, test_zone_count_max, stratum_sim::Config().pattern_limits),
-            region_id(worldspace(create_worldspace("view", {{.region_spec = view_region_spec}}, view_worldspace_seed)).regions.root().region_id)
+            region_id(worldspace(create_worldspace({{.region_spec = view_region_spec}}, view_worldspace_seed)).regions.root().region_id)
         {
             stratum_sim::register_game_types(*this);
         }
 
-        stratum_sim::PersistentId region_id;
+        stratum_core::PersistentId region_id;
     };
 
     //--------------------------------------------------------------------------
@@ -135,7 +135,7 @@ namespace
         b.set({0, 0}, '#');
         spans = stratum_view::difference(a, b);
         CHECK_CASE_EQUAL("a separate row is a separate span", spans.size(), 2);
-        CHECK_CASE("and rows come lowest first", spans.size() == 2 && spans[0].position.j() == 0 && spans[1].position.j() == 1);
+        CHECK_CASE("and rows come lowest first", spans.size() == 2 && spans[0].position.y() == 0 && spans[1].position.y() == 1);
 
         // A cell that matches again ends the run
         stratum_view::Console c = a;
@@ -168,7 +168,7 @@ namespace
     // The cell reduction
     TEST_CASE("cells")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
@@ -301,7 +301,7 @@ namespace
     TEST_CASE("lattice")
     {
         // Two rooms of two by three cells sharing one wall, with a door in the middle of it
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/walls.zone");
 
@@ -333,7 +333,7 @@ namespace
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         door.set<stratum_sim::Detection>(stratum_sim::Detection{stratum_sim::DetectionState::Concealed,
-            {{finder.get<stratum_sim::PersistentId>(), stratum_sim::DetectionState::Revealed}}});
+            {{finder.get<stratum_core::PersistentId>(), stratum_sim::DetectionState::Revealed}}});
 
         CHECK_CASE("a door the viewer has not found is a wall", stratum_view::lattice(world, zone, no_viewer).at({4, 5}).type == stratum_view::PlaceType::Wall);
 
@@ -384,7 +384,7 @@ namespace
     // Reads from data/, so stratum_view_test runs from its own directory
     TEST_CASE("ascii render")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
@@ -409,14 +409,14 @@ namespace
         // An access point on the floor is drawn as stairs, down if its directionality is down and up otherwise
         flecs::entity hatch = stratum_sim::create_access_point(zone, stratum_sim::entity_type(world.entities(), "portal"),
             stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::FlatCellPosition{layout.floor_id(), stratum_sim::discrete_point_type{2, 1}}, {}},
-            stratum_format::AccessPoint{.destination = stratum_format::parse_access_point_destination("../[+1]")});
+            stratum_core::AccessPoint{.destination = stratum_core::parse_access_point_destination("../[+1]")});
         CHECK_CASE("an access point on the floor with no directionality draws as stairs up", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '<');
 
-        hatch.set<stratum_format::Directionality>(stratum_format::Directionality::Down);
+        hatch.set<stratum_core::Directionality>(stratum_core::Directionality::Down);
         CHECK_CASE("one leading down as stairs down", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '>'
             && stratum_view::render_lattice(world, zone, no_viewer).at({5, 3}) == '>');
 
-        hatch.set<stratum_format::Directionality>(stratum_format::Directionality::Up);
+        hatch.set<stratum_core::Directionality>(stratum_core::Directionality::Up);
         CHECK_CASE("and one leading up as stairs up", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '<');
 
         return;
@@ -426,7 +426,7 @@ namespace
     // The lattice view of a block notation zone
     TEST_CASE("wall render")
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/corridor.zone");
 
@@ -464,7 +464,7 @@ namespace
         {
             string filepath = format("data/{}.zone", name);
 
-            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+            stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
             TestWorld world(id_allocator);
             flecs::entity zone = load_zone_unpopulated(world, filepath);
 
@@ -479,7 +479,7 @@ namespace
         {
             string filepath = "data/walls.zone";
 
-            stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+            stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
             TestWorld world(id_allocator);
             flecs::entity zone = load_zone_unpopulated(world, filepath);
 
@@ -524,7 +524,7 @@ namespace
     {
         string source = rows_of("data/dungeon.zone");
 
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world,"data/dungeon.zone");
 
@@ -617,7 +617,7 @@ namespace
         if (const stratum_sim::Moved* pevent = event.try_get<stratum_sim::Moved>())
         {
             stratum_sim::discrete_point_type cell_position = layout.cell_position_at(pevent->placement.position());
-            return format("moved to ({}, {})", cell_position.i(), cell_position.j());
+            return format("moved to ({}, {})", cell_position.x(), cell_position.y());
         }
 
         if (const stratum_sim::Blocked* pevent = event.try_get<stratum_sim::Blocked>())
@@ -661,7 +661,7 @@ namespace
         string s = format("-- {}\n", label);
         s += view == View::Lattice ? stratum_view::render_lattice(world, zone, no_viewer).to_string()
             : stratum_view::render(world, zone, no_viewer).to_string();
-        s += format("   cell ({}, {})  facing {}\n", cell_position.i(), cell_position.j(), name_of(placement.direction()));
+        s += format("   cell ({}, {})  facing {}\n", cell_position.x(), cell_position.y(), name_of(placement.direction()));
 
         for (const stratum_sim::Event& event : events.events())
         {
@@ -677,7 +677,7 @@ namespace
     // Plays a fixed command sequence, rendering after each, and returns every frame
     string play(const string& filepath, const stratum_sim::discrete_point_type& start, const string& script, View view)
     {
-        stratum_sim::CountingIdAllocator id_allocator(stratum_sim::PersistentId{});
+        stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
         flecs::entity zone = load_zone_unpopulated(world, filepath);
 
@@ -789,7 +789,7 @@ namespace
             {
                 const stratum_format::WallPlacement& wall = walls.front();
                 detail = format("no door with a door facing on each wall of the doorway at [{}, {}] normal [{}, {}]",
-                    wall.cell_position.i(), wall.cell_position.j(), wall.normal.x(), wall.normal.y());
+                    wall.cell_position.x(), wall.cell_position.y(), wall.normal.x(), wall.normal.y());
                 return false;
             }
         }

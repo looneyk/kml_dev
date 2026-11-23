@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// stratum_format
+// stratum_core
 // Directionality.cpp
 //------------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@
 namespace
 {
 
-    using quetzal::stratum_format::Directionality;
+    using quetzal::stratum_core::Directionality;
 
     constexpr std::array<std::pair<Directionality, std::string_view>, 2> directionality_names
     {{
@@ -23,7 +23,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-std::string_view quetzal::stratum_format::name(Directionality directionality)
+std::string_view quetzal::stratum_core::name(Directionality directionality)
 {
     const auto named = std::ranges::find(directionality_names, directionality, &std::pair<Directionality, std::string_view>::first);
     assert(named != directionality_names.end());
@@ -31,7 +31,7 @@ std::string_view quetzal::stratum_format::name(Directionality directionality)
 }
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::stratum_format::Directionality> quetzal::stratum_format::to_directionality(std::string_view name)
+std::optional<quetzal::stratum_core::Directionality> quetzal::stratum_core::to_directionality(std::string_view name)
 {
     const auto named = std::ranges::find(directionality_names, name, &std::pair<Directionality, std::string_view>::second);
     return named != directionality_names.end() ? std::optional<Directionality>(named->first) : std::nullopt;
