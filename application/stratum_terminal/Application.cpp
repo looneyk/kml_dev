@@ -727,7 +727,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         else if (const stratum_sim::Blocked* pblocked = event.try_get<stratum_sim::Blocked>())
         {
             flecs::entity access_point = pblocked->blocking_wall_id != nullid
-                ? stratum_sim::find_entered_access_point(m_session.zone(), stratum_sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
+                ? stratum_sim::find_access_point_ahead(m_session.zone(), stratum_sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
 
             if (access_point)
             {

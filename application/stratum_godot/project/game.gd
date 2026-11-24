@@ -13,8 +13,8 @@ const STATUS_HEIGHT := 32
 # The window's title bar and border, which its size does not include, are kept within the usable screen
 const WINDOW_FRAME_SIZE := Vector2i(16, 48)
 
-# Flat color tiles, indexed by StratumWorld.PlaceType, with an entry for every value
-const PLACE_COLORS: Array[Color] = [
+# Flat color tiles, indexed by StratumWorld.FeatureType, with an entry for every value
+const FEATURE_COLORS: Array[Color] = [
 	Color(0.00, 0.00, 0.00, 0.0),  # none, not emitted
 	Color(0.13, 0.13, 0.16),       # solid
 	Color(0.55, 0.52, 0.45),       # floor
@@ -25,7 +25,7 @@ const PLACE_COLORS: Array[Color] = [
 	Color(0.85, 0.72, 0.50),       # open door
 ]
 
-# The actor tiles follow the place tiles, indexed by StratumWorld.Occupant less one, and are painted on a layer above them
+# The actor tiles follow the feature tiles, indexed by StratumWorld.Occupant less one, and are painted on a layer above them
 const ACTOR_COLORS: Array[Color] = [
 	Color(0.95, 0.80, 0.25),       # the player
 	Color(0.85, 0.15, 0.15),       # any other actor
@@ -94,7 +94,7 @@ func _ready() -> void:
 
 
 func _build_tile_set() -> TileSet:
-	var colors := PLACE_COLORS + ACTOR_COLORS
+	var colors := FEATURE_COLORS + ACTOR_COLORS
 	var tiles := colors.size()
 	var image := Image.create(TILE_SIZE * tiles, TILE_SIZE, false, Image.FORMAT_RGBA8)
 
@@ -229,7 +229,7 @@ func _refresh() -> void:
 			_layer.set_cell(at, 0, Vector2i(cells[slot], 0))
 
 			if actors[slot] != StratumWorld.OccupantNone:
-				_actor_layer.set_cell(at, 0, Vector2i(PLACE_COLORS.size() + actors[slot] - 1, 0))
+				_actor_layer.set_cell(at, 0, Vector2i(FEATURE_COLORS.size() + actors[slot] - 1, 0))
 			else:
 				_actor_layer.erase_cell(at)
 

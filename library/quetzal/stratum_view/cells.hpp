@@ -7,19 +7,21 @@
 
 #include "Buffer.hpp"
 #include "types.hpp"
+#include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DirectionMask.hpp"
 #include "quetzal/stratum_sim/World.hpp"
 #include <cstdint>
+#include <optional>
 
 namespace quetzal::stratum_view
 {
 
     //--------------------------------------------------------------------------
-    // The fixed structure at a place, whatever its state
+    // The fixed structure at a place
     // None is an edge with no wall or a corner no wall line reaches. Solid is a closed cell, or a lattice position whose
     // cells are all closed. StairsUp and StairsDown are a floor cell with an access point on it, or a stair block: the closed
     // cell beyond a wall with an access point on it
-    enum class PlaceType : uint8_t
+    enum class FeatureType : uint8_t
     {
         None,
         Solid,
@@ -31,33 +33,17 @@ namespace quetzal::stratum_view
     };
 
     //--------------------------------------------------------------------------
-    // The states that a view draws differently, one flag each, named after the component data they are read from
-    enum class State : uint16_t
-    {
-        None = 0,
-        Open = 1 << 0, // Access is open
-        Concealed = 1 << 1 // Detection conceals it from actors in general, though not from the viewer
-    };
-
-    constexpr State operator|(State a, State b);
-    constexpr State operator&(State a, State b);
-    constexpr State& operator|=(State& a, State b);
-    constexpr bool any(State state);
-
-    // Returns true if a place type can be in the state
-    bool applies(PlaceType type, State state);
-
-    //--------------------------------------------------------------------------
     // The directions in which the wall line continues from a position
     using stratum_sim::DirectionMask;
 
     //--------------------------------------------------------------------------
-    // The contents of one position: the fixed structure, its state, the directions in which the wall line continues, and
-    // whether an actor is on it
+    // The contents of one position: the fixed structure, its access and its general detection state, the directions in which
+    // the wall line continues, and whether an actor is on it
     struct Place
     {
-        PlaceType type = PlaceType::None;
-        State state = State::None;
+        FeatureType type = FeatureType::None;
+        std::optional<stratum_sim::AccessState> access;
+        stratum_sim::DetectionState detection = stratum_sim::DetectionState::Visible;
         DirectionMask mask = DirectionMask::None;
         bool actor = false;
 
@@ -76,44 +62,6 @@ namespace quetzal::stratum_view
     // positions in both
     // A corner is Wall if any of its four edges has a wall or a door. The zone is as the viewer perceives it
     Lattice lattice(const stratum_sim::World& world, flecs::entity zone, flecs::entity viewer);
-
-    //--------------------------------------------------------------------------
-    namespace detail
-    {
-
-        constexpr State state_of(PlaceType type)
-        {
-            return type == PlaceType::Door ? State::Open | State::Concealed : State::None;
-        }
-
-    } // namespace detail
-
-    //--------------------------------------------------------------------------
-    constexpr State operator|(State a, State b)
-    {
-        return static_cast<State>(std::to_underlying(a) | std::to_underlying(b));
-    }
-
-    constexpr State operator&(State a, State b)
-    {
-        return static_cast<State>(std::to_underlying(a) & std::to_underlying(b));
-    }
-
-    constexpr State& operator|=(State& a, State b)
-    {
-        a = a | b;
-        return a;
-    }
-
-    constexpr bool any(State state)
-    {
-        return state != State::None;
-    }
-
-    inline bool applies(PlaceType type, State state)
-    {
-        return (state & detail::state_of(type)) == state;
-    }
 
 } // namespace quetzal::stratum_view
 

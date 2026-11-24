@@ -25,9 +25,7 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // The state of an entity that is a way through, such as a door. A door off its hinges is open, and one smashed into
-    // rubble that blocks the doorway is closed. It is on the door rather than a door facing, so both sides
-    // agree
+    // The state of an entity such as a door. It is on a door rather than a door facing, so both sides agree
     struct Access
     {
         AccessState state = AccessState::Closed;
@@ -42,7 +40,6 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // One actor's own detection state for an entity
     struct ActorDetection
     {
         PersistentId actor;
@@ -50,8 +47,6 @@ namespace quetzal::stratum_sim
     };
 
     //--------------------------------------------------------------------------
-    // How an entity that not every actor sees, such as one side of a secret door, is detected: its general state, and the
-    // state for each actor whose own state differs, at most one entry per actor
     struct Detection
     {
         DetectionState state = DetectionState::Visible;

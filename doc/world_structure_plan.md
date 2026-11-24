@@ -205,7 +205,7 @@ coordinate    := signed_numeric_value
     closed. In the wall notation, an access point on the floor of the cell beyond is entered only from the cell its
     egress leads to. A move onto a cell enters an access point whose `automatic_entry` is true, the `access_point` file
     component's `automatic_entry`, false when absent, and any other is entered by `Interact` or `Enter`. The hosts'
-    messages come from the same attachments. `find_access_point`, `find_entered_access_point`, and
+    messages come from the same attachments. `find_access_point`, `find_access_point_ahead`, and
     `enter_access_point_by_moving` go.
 - [ ] 8. **Seed pools.** Building a zone draws its seed pool, and a worldspace created through one of its access points
   takes its seed from the pool. `World::destination_seed` goes.

@@ -134,7 +134,7 @@ flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const 
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_entered_access_point(flecs::entity zone, const WallId& wall)
+flecs::entity quetzal::stratum_sim::find_access_point_ahead(flecs::entity zone, const WallId& wall)
 {
     if (flecs::entity on_wall = find_access_point(zone, wall))
     {

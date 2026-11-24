@@ -27,7 +27,7 @@ func _initialize() -> void:
 
 	var codes := world.cells()
 	var actors := world.actors()
-	print("cells  -> ", codes.size(), " codes, ", codes.count(StratumWorld.PlaceTypeFloor), " floor, ",
+	print("cells  -> ", codes.size(), " codes, ", codes.count(StratumWorld.FeatureTypeFloor), " floor, ",
 		actors.count(StratumWorld.OccupantPlayer), " player, ", actors.count(StratumWorld.OccupantOther), " other")
 
 	var save_name: String = world.save_game()

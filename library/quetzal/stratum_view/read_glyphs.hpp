@@ -22,11 +22,11 @@ namespace quetzal::stratum_view
     //     door open '\'
     //     wall mask=EW '-'
     //
-    // The first line states the format and its version. A glyph line is a place type, then the states it requires in any
-    // order, then actor if it requires an actor on the place, then mask= and the directions it requires, then the
-    // character in single quotes, so a space can be a glyph. \\ and \' are the escapes
-    // Omitting the states, actor or mask= matches any. mask= with no directions requires that no wall line reach the
-    // position
+    // The first line states the format and its version. A glyph line is a feature type, then the access state (open, closed,
+    // or locked) and the detection state (visible, concealed, or revealed) it requires in any order, then actor if it
+    // requires an actor on the place, then mask= and the directions it requires, then the character in single quotes, so a
+    // space can be a glyph. \\ and \' are the escapes
+    // Omitting a state, actor, or mask= matches any. mask= with no directions requires that no wall line reach the position
     // A line beginning with # is a comment
     //
     // Throws std::runtime_error, reporting the line, when the file cannot be opened, has an unsupported format or version,

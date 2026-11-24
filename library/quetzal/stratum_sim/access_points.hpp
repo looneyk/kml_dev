@@ -50,7 +50,7 @@ namespace quetzal::stratum_sim
 
     // Returns the access point that an actor facing the wall enters: one sited on the wall, or one on the floor of the cell
     // beyond the wall whose egress leads back through it, or a null entity if there is neither
-    flecs::entity find_entered_access_point(flecs::entity zone, const WallId& wall);
+    flecs::entity find_access_point_ahead(flecs::entity zone, const WallId& wall);
 
     // Returns true if the actor can go through the access point: it has a destination, its access, if it has any, is open, and
     // the actor does not find it concealed

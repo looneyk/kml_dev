@@ -700,13 +700,13 @@ actor crosses a wall as it perceives the entities on it.
 
 `Interact` opens the access of the way through on the wall ahead if it is closed, or closes it if it is open, and
 reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the controlled actor
-`can_enter` the access point that `find_entered_access_point` returns for the wall ahead, `Interact` goes through it
+`can_enter` the access point that `find_access_point_ahead` returns for the wall ahead, `Interact` goes through it
 instead, and an access point beyond the wall that has access is the way through that it opens or closes. `Interacted` has the entity acted
 on, the way through, and `entity_type_name(e)` returns the name of an entity's type, such as
 `staircase`, for the hosts' messages.
 
 `find_access_point(zone, address)` returns an access point sited on a wall or a flat cell, found through the layout
-entity's attached entities, or a null entity if there is none. `find_entered_access_point(zone, wall)` returns the
+entity's attached entities, or a null entity if there is none. `find_access_point_ahead(zone, wall)` returns the
 access point that an actor facing the wall enters: one sited on the wall, or one on the floor of the cell beyond it
 whose egress leads back through the wall. Moving into a wall and the hosts' messages about a blocked move use
 it too. `can_enter(access_point, actor)` returns true if the
@@ -1296,15 +1296,16 @@ and the terminal uses a mapping. There is no view interface over them.
 `cells.hpp` declares the reductions, `ascii.hpp` the terminal's mapping, and `read_glyphs.hpp` the reader that fills a
 mapping from a file. `Buffer.hpp` defines the grid both produce.
 
-A position reduces to a `Place`: a `PlaceType`, its `State`, its `mask`, and whether an actor is on it. `PlaceType`
-(`None`, `Solid`, `Floor`, `Wall`, `Door`, `StairsUp`, `StairsDown`) is the fixed structure, whatever its state, so a
+A position reduces to a `Place`: a `FeatureType`, its `access` and `detection`, its `mask`, and whether an actor is on
+it. `FeatureType` (`None`, `Solid`, `Floor`, `Wall`, `Door`, `StairsUp`, `StairsDown`) is the fixed structure, so a
 door that can be shut, locked or concealed is one type. `None` is an edge with no wall or a corner that no wall line reaches, which only
 `lattice` produces. `actor` is a flag over the structure, so the floor under an actor is still there to draw.
 
-`State` is a set of flags named after the component data they are read from. `Open` is set if the way through's
-`Access` is open, and `Concealed` if its `Detection` conceals it from actors in general though not from the viewer,
-which a glyph set may draw outlined. Only a state that changes the drawing is a flag. `applies(type, state)` returns
-true if a place type can be in a state. The reduction is the only code that reads a component on behalf of a view.
+`access` and `detection` are independent and use the simulation's types. `access` is the way through's `AccessState`
+from `access(e)`, and has no value for a position with no `Access`, such as a wall. `detection` is the way through's
+general `DetectionState`, so `Concealed` marks one that is concealed from actors in general though not from the viewer,
+which a glyph set may draw outlined, and is `Visible` for a position with no `Detection`. The reduction is the only code
+that reads a component on behalf of a view.
 
 Both reductions draw the zone as a viewer perceives it, and the hosts pass the character. A way through that the viewer
 finds concealed is drawn as though there were none, as a wall. A null viewer gets the general state.
@@ -1350,9 +1351,9 @@ row, lowest row first. The result is empty if they are the same, and the whole o
 `render_lattice` does the same for the lattice; it has its own name because `Cells` and `Lattice` are the same type. A
 mapping is one lookup per position.
 
-A `Glyph` is one line of a glyph set: a place type, the state flags it requires, optionally a mask, whether it
-requires an actor, and the character drawn. `Glyphs` returns the character of the most specific matching line, where
-each state flag, a mask, and an actor add one to the specificity. Ties go to the earlier line, and a space is returned
+A `Glyph` is one line of a glyph set: a feature type, optionally an access state, a detection state, and a mask,
+whether it requires an actor, and the character drawn. `Glyphs` returns the character of the most specific matching
+line, where an access state, a detection state, a mask, and an actor add one each to the specificity. Ties go to the earlier line, and a space is returned
 if no line matches. A set with a `door open` line draws an open door differently from a shut one, and a set with only
 `door` draws both the same.
 
@@ -1361,11 +1362,12 @@ Its actor lines come first, so an actor in an open doorway is drawn. `lattice_gl
 glyphs, with floor as a space and a line for each of the sixteen wall masks.
 
 `read_glyphs` reads a glyph set from a file; `assets/glyphs/` has the two built-in sets. The first line states the
-format and version. A glyph line is a place type, the states it requires in any order (`open`, `concealed`), `actor`
-if it requires an actor, `mask=` and the directions it requires, then the character in single quotes, with `\\` and
-`\'` as the escapes. Omitting the states, `actor` or `mask=` matches any; `mask=` with no directions requires that no
-wall line reach the position. A line beginning with `#` is a comment. It throws, reporting the line, including for a
-state that its type can never be in. The shipped files are compared against the built-in sets.
+format and version. A glyph line is a feature type, then in any order the access state it requires (`open`, `closed`,
+`locked`) and the detection state (`visible`, `concealed`, `revealed`), `actor` if it requires an actor, `mask=` and
+the directions it requires, then the character in single quotes, with `\\` and `\'` as the escapes. Omitting a state,
+`actor` or `mask=` matches any; `mask=` with no directions requires that no wall line reach the position. A line
+beginning with `#` is a comment. It throws, reporting the line, including for a second access state or a second
+detection state on one line. The shipped files are compared against the built-in sets.
 
 ## Terminal host
 
@@ -1464,8 +1466,8 @@ progress; a failed save pushes the reason and returns an empty name, and a faile
 listing an empty array; and a game whose `advance` throws during `step`, `interact` or `enter` pushes the reason and
 is quit, as it cannot continue.
 
-`cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `PlaceType` constants repeat
-`stratum_view::PlaceType` for Godot, followed by `PlaceTypeDoorOpen` for a door whose access is open. `actors` is one
+`cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `FeatureType` constants repeat
+`stratum_view::FeatureType` for Godot, followed by `FeatureTypeDoorOpen` for a door whose access is open. `actors` is one
 `Occupant` per cell in the same order: `OccupantNone`, `OccupantCharacter`, or `OccupantOther` for any other actor.
 
 `game.tscn` is the tile view: a `TileMapLayer` fed from `cells`, a second layer for actors, a camera, and arrow or

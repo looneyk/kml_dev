@@ -335,12 +335,12 @@ the shared form.
 `lattice` exists beside `cells` rather than replacing it: the two are not the same picture at a different scale, and
 the tile view has no use for edges.
 
-**An actor is a flag over a place.** An actor is on a place rather than a type of place. A `PlaceType` value for it
+**An actor is a flag over a place.** An actor is on a place rather than a type of place. A `FeatureType` value for it
 overwrote the floor, state and mask beneath, leaving a tile view nothing to draw under an actor. `Place::actor` is
 layered over the structure instead, and a glyph line requires it as it requires a state.
 
-**`PlaceType` has no value per state.** A door that can be shut, locked or concealed is one place type, its state
-beside it, so nothing enumerates the cross product. A state is added only when it changes the drawing.
+**`FeatureType` has no value per state.** A door that can be shut, locked or concealed is one feature type, its access
+and detection beside it, so nothing enumerates the cross product.
 
 ## flecs for the ECS
 

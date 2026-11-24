@@ -133,14 +133,14 @@ void StratumWorld::_bind_methods()
     godot::ClassDB::bind_method(godot::D_METHOD("cells"), &StratumWorld::cells);
     godot::ClassDB::bind_method(godot::D_METHOD("actors"), &StratumWorld::actors);
 
-    BIND_ENUM_CONSTANT(PlaceTypeNone);
-    BIND_ENUM_CONSTANT(PlaceTypeSolid);
-    BIND_ENUM_CONSTANT(PlaceTypeFloor);
-    BIND_ENUM_CONSTANT(PlaceTypeWall);
-    BIND_ENUM_CONSTANT(PlaceTypeDoor);
-    BIND_ENUM_CONSTANT(PlaceTypeStairsUp);
-    BIND_ENUM_CONSTANT(PlaceTypeStairsDown);
-    BIND_ENUM_CONSTANT(PlaceTypeDoorOpen);
+    BIND_ENUM_CONSTANT(FeatureTypeNone);
+    BIND_ENUM_CONSTANT(FeatureTypeSolid);
+    BIND_ENUM_CONSTANT(FeatureTypeFloor);
+    BIND_ENUM_CONSTANT(FeatureTypeWall);
+    BIND_ENUM_CONSTANT(FeatureTypeDoor);
+    BIND_ENUM_CONSTANT(FeatureTypeStairsUp);
+    BIND_ENUM_CONSTANT(FeatureTypeStairsDown);
+    BIND_ENUM_CONSTANT(FeatureTypeDoorOpen);
     BIND_ENUM_CONSTANT(OccupantNone);
     BIND_ENUM_CONSTANT(OccupantPlayer);
     BIND_ENUM_CONSTANT(OccupantOther);
@@ -384,8 +384,8 @@ godot::PackedByteArray StratumWorld::cells() const
         for (view::coord_type i = 0; i < extent.x(); ++i)
         {
             const view::Place& place = cells.at({i, j});
-            bool open_door = place.type == view::PlaceType::Door && view::any(place.state & view::State::Open);
-            codes[static_cast<int64_t>(j) * extent.x() + i] = open_door ? static_cast<uint8_t>(PlaceTypeDoorOpen) : static_cast<uint8_t>(place.type);
+            bool open_door = place.type == view::FeatureType::Door && place.access == sim::AccessState::Open;
+            codes[static_cast<int64_t>(j) * extent.x() + i] = open_door ? static_cast<uint8_t>(FeatureTypeDoorOpen) : static_cast<uint8_t>(place.type);
         }
     }
 
@@ -500,7 +500,7 @@ void StratumWorld::advance()
         if (const sim::Blocked* pblocked = event.try_get<sim::Blocked>())
         {
             flecs::entity access_point = pblocked->blocking_wall_id != quetzal::nullid
-                ? sim::find_entered_access_point(m_session.zone(), sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
+                ? sim::find_access_point_ahead(m_session.zone(), sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
             std::string name = access_point ? sim::entity_type_name(access_point) : std::string();
 
             m_message = access_point ? std::format("There is a {} before you.", name.empty() ? "way" : name) : std::string();

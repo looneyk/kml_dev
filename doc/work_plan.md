@@ -181,9 +181,9 @@ on those cases. Even the supported cases are the lowest priority configuration.
 
 ## Modding
 
-- [ ] **Place types from data** (`modding_plan.md`, `## Current blockers`). A reduction maps an entity's type to a
-      place type that the presentation table names, instead of to an enum value, so a modded type has a glyph of its
-      own.
+- [ ] **Features from data** (`modding_plan.md`, `## Features`). Each position is drawn from its feature, a registered
+      key from an entity's type or a layout part's style, and the presentation tables match on component values, in
+      place of `FeatureType` and the fixed `access` and `detection` fields.
 
 These are Phase 4 (`modding_plan.md`):
 
@@ -315,8 +315,8 @@ These are the open questions.
 - **How does a style refer to its meshes, and which surfaces may a kit piece replace?** The candidates are a wall side,
   a flat cell and a corner.
 - **Which components inherit along the chain?** Those are the components with fields that may be left unset.
-- **How is a place type defined in data, and how do `cells` and `lattice` reduce an entity of a modded type?** A place
-  type could be a name that the presentation table maps, or a field on the type.
+- **How does a presentation table's `when` match stay cheap per cell?** Its conditions could be resolved to component
+  ids at load and tested only against the components an entity has.
 - **What does opening a game do when a mod's version differs from the version the game was saved with?**
 - **Does a zone keep the entities of a missing mod's types, or lose them when it is saved?** Keeping them returns them
   with the mod, as its settings return.

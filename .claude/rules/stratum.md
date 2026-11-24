@@ -17,7 +17,7 @@ describes what is built, and `doc/game_system_principles.md` the principles.
 
 - **Every game supports mods and custom content:** objects, geometry, styles, and behavior, added as data and script
   without recompiling and with no vocabulary known in advance. No closed enums, C++-only registration, or hardcoded type
-  cases for content; `PlaceType` is a known blocker. JSON stops at loading (`ordered_json` in `stratum_format::ZoneDocument`),
+  cases for content; `FeatureType` is a known blocker. JSON stops at loading (`ordered_json` in `stratum_format::ZoneDocument`),
   and components are typed in the world with schemas from C++ or data (principle 8, `doc/modding_plan.md`).
 - **A component encodes the state, never an interpretation of it.** A smashed door is `Access` open, off its hinges, or
   closed, a blocking pile of rubble; there is no `Crossable` tag. A conclusion such as passable or visible is derived in

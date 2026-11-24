@@ -87,18 +87,18 @@ public:
     godot::String render() const;
 
     // The fixed structure at each cell, one code per cell, row major from row zero. The codes repeat
-    // stratum_view::PlaceType for Godot, followed by PlaceTypeDoorOpen for a door whose access is open; None and Wall are
+    // stratum_view::FeatureType for Godot, followed by FeatureTypeDoorOpen for a door whose access is open; None and Wall are
     // never emitted, but keep the values aligned
-    enum PlaceType
+    enum FeatureType
     {
-        PlaceTypeNone,
-        PlaceTypeSolid,
-        PlaceTypeFloor,
-        PlaceTypeWall,
-        PlaceTypeDoor,
-        PlaceTypeStairsUp,
-        PlaceTypeStairsDown,
-        PlaceTypeDoorOpen
+        FeatureTypeNone,
+        FeatureTypeSolid,
+        FeatureTypeFloor,
+        FeatureTypeWall,
+        FeatureTypeDoor,
+        FeatureTypeStairsUp,
+        FeatureTypeStairsDown,
+        FeatureTypeDoorOpen
     };
 
     // Who is on each cell
@@ -142,7 +142,7 @@ private:
     quetzal::stratum_core::Notation m_notation;
 };
 
-VARIANT_ENUM_CAST(StratumWorld::PlaceType);
+VARIANT_ENUM_CAST(StratumWorld::FeatureType);
 VARIANT_ENUM_CAST(StratumWorld::Occupant);
 
 #endif // STRATUM_GODOT_STRATUMWORLD_HPP

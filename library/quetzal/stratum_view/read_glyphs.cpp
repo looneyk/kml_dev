@@ -15,9 +15,10 @@ namespace
 {
 
     using quetzal::stratum_view::Glyph;
-    using quetzal::stratum_view::PlaceType;
+    using quetzal::stratum_view::FeatureType;
     using quetzal::stratum_view::DirectionMask;
-    using quetzal::stratum_view::State;
+    using quetzal::stratum_sim::AccessState;
+    using quetzal::stratum_sim::DetectionState;
 
     //--------------------------------------------------------------------------
     // Pre-release, so files of an older version are not readable
@@ -28,30 +29,44 @@ namespace
     struct Named
     {
         const char* name;
-        PlaceType type;
+        FeatureType type;
     };
 
     constexpr Named types[]
     {
-        {"none", PlaceType::None},
-        {"solid", PlaceType::Solid},
-        {"floor", PlaceType::Floor},
-        {"wall", PlaceType::Wall},
-        {"door", PlaceType::Door},
-        {"stairs_up", PlaceType::StairsUp},
-        {"stairs_down", PlaceType::StairsDown}
+        {"none", FeatureType::None},
+        {"solid", FeatureType::Solid},
+        {"floor", FeatureType::Floor},
+        {"wall", FeatureType::Wall},
+        {"door", FeatureType::Door},
+        {"stairs_up", FeatureType::StairsUp},
+        {"stairs_down", FeatureType::StairsDown}
     };
 
-    struct NamedState
+    struct NamedAccess
     {
         const char* name;
-        State state;
+        AccessState access;
     };
 
-    constexpr NamedState states[]
+    constexpr NamedAccess access_states[]
     {
-        {"open", State::Open},
-        {"concealed", State::Concealed}
+        {"open", AccessState::Open},
+        {"closed", AccessState::Closed},
+        {"locked", AccessState::Locked}
+    };
+
+    struct NamedDetection
+    {
+        const char* name;
+        DetectionState detection;
+    };
+
+    constexpr NamedDetection detection_states[]
+    {
+        {"visible", DetectionState::Visible},
+        {"concealed", DetectionState::Concealed},
+        {"revealed", DetectionState::Revealed}
     };
 
     //--------------------------------------------------------------------------
@@ -102,6 +117,41 @@ namespace
         }
 
         return mask;
+    }
+
+    //--------------------------------------------------------------------------
+    // Sets the glyph's access or detection from the token, and returns false if the token is neither
+    bool read_condition(Glyph& glyph, const std::string& token, const std::string& name, size_t row)
+    {
+        for (const NamedAccess& access : access_states)
+        {
+            if (token == access.name)
+            {
+                if (glyph.access.has_value())
+                {
+                    fail(name, row, "more than one access state");
+                }
+
+                glyph.access = access.access;
+                return true;
+            }
+        }
+
+        for (const NamedDetection& detection : detection_states)
+        {
+            if (token == detection.name)
+            {
+                if (glyph.detection.has_value())
+                {
+                    fail(name, row, "more than one detection state");
+                }
+
+                glyph.detection = detection.detection;
+                return true;
+            }
+        }
+
+        return false;
     }
 
 } // namespace
@@ -179,7 +229,7 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
 
         if (!named)
         {
-            fail(name, row, std::format("{} is not a place type", token));
+            fail(name, row, std::format("{} is not a feature type", token));
         }
 
         // The quoted character is read to the end of the line, as a quoted space would split into two tokens
@@ -211,27 +261,10 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
                 continue;
             }
 
-            named = false;
-
-            for (const NamedState& state : states)
+            if (!read_condition(glyph, token, name, row))
             {
-                if (token == state.name)
-                {
-                    glyph.state |= state.state;
-                    named = true;
-                }
+                fail(name, row, std::format("{} is not an access state or a detection state", token));
             }
-
-            if (!named)
-            {
-                fail(name, row, std::format("{} is not a state", token));
-            }
-        }
-
-        // A line with a state its type can never be in would never match
-        if (!applies(glyph.type, glyph.state))
-        {
-            fail(name, row, "a state that place type cannot be in");
         }
 
         glyphs.push_back(glyph);

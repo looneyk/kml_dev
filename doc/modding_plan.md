@@ -87,6 +87,30 @@ to the installation, and the user is told.
 - **A view resolves a style,** as it resolves glyphs and tiles from its presentation table. The simulation refers only
   to the name.
 
+## Features
+
+A view draws each position from its feature, a string key registered from data, and from the component values that its
+presentation table matches. Cataclysm DDA's terrain and furniture are the precedent, JSON `string_id`s such as `t_floor`
+and `f_chair` resolved to an `int_id` for the per-cell data, and Angband 4.2 loads its features from `terrain.txt` and
+looks them up by name.
+
+- **A feature's key is interned at load** to a small integer id, which a `Place` contains, so a cell costs what an enum
+  value costs.
+- **An entity's feature is its type,** the prefab it is `IsA`. The view follows the `IsA` chain to the first type that
+  the presentation table has an entry for, so a mod's `iron_door`, `IsA` `door`, draws as a door without an entry of
+  its own, and a portal or a waypoint draws as itself rather than as a staircase.
+- **A layout part's feature is its resolved `style`,** or `solid`, `floor`, or `wall` without one. A water floor is a
+  style, not a new feature.
+- **A table entry matches on component values,** such as `access: open`, `detection: concealed`, or
+  `directionality: down`. A staircase is one type with an entry for each direction, and a mod's components select
+  glyphs and tiles too.
+- **An unknown feature or component in a table is an error,** except one declared by a mod that is not loaded, which is
+  skipped with a warning.
+- **A glyph file entry** is a feature, its conditions, and a glyph: `{ "feature": "door", "when": { "access": "open" },
+  "glyph": "\\" }`.
+- **The Godot host** receives the per-cell feature ids with `feature_names()`, and builds its map from feature name to
+  tile from them.
+
 ## Geometry
 
 - **A zone's geometry is its file**, written by a tool or a generator, including a mod's.
@@ -117,8 +141,8 @@ the file as data structures, and nlohmann does not appear in any `stratum_sim` h
 
 ## Current blockers
 
-- **`stratum_view::PlaceType` is a closed enum** --- none, solid, floor, wall and door. A modded type cannot have a
-  place type or glyph of its own; the glyph sets load from a file, but the categories they map from are fixed in C++.
+- **`stratum_view::FeatureType` is a closed enum.** A modded type cannot have a glyph or a tile of its own;
+  the glyph sets load from a file, but the categories they map from are fixed in C++ (`## Features`).
 - **The `door` type is registered in C++,** with its `Access`, until types load from data.
 - **Registration is compile-time only** (`game_system_principles.md`, Key abstractions).
 
