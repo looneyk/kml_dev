@@ -321,16 +321,16 @@ namespace
         CHECK_CASE("going through an access point bound to one in a zone that has unloaded reads the zone back and arrives there",
             first_again && first_again.get<stratum_core::PersistentId>() == saving_first_id && back_up.get<stratum_core::PersistentId>() == first_down_id
             && stratum_sim::zone_of(saving_character) == first_again);
-        CHECK_CASE("a zone read back keeps its denizens and is not populated again, and its region lists it once", first_again
-            && denizens_in(first_again) == first_denizen_count && saving_world.region(saving_region).zones.size() == test_extent_zone_count);
+        CHECK_CASE("a zone read back keeps its denizens and is not populated again, and its region has its id once", first_again
+            && denizens_in(first_again) == first_denizen_count && saving_world.region(saving_region).zone_ids.size() == test_extent_zone_count);
 
         saving_world.trim_zones(first_again);
         flecs::entity down_again = saving_world.relocate_through(saving_character, back_up);
         CHECK_CASE("and the zone left, unloaded in its turn, is read back going the other way", down_again
             && down_again.get<stratum_core::PersistentId>() == second_up_id && stratum_sim::zone_of(down_again).get<stratum_core::PersistentId>() == saving_second_id);
 
-        // Saving the game, with the first zone unloaded and the second, which the character is in, loaded. The test case moved the
-        // character through the world, so the session is started where the character is
+        // Saving the game with the first zone unloaded and the character in the second. The session starts where the character is,
+        // since the test case moved it through the world
         saving.session().start(down_again);
         filesystem::path game_directory = saving_config.working_directory / "Ailis";
         string save_name = saving.save(stratum_sim::SaveType::Explicit);
@@ -386,21 +386,24 @@ namespace
             const stratum_format::raw_values_type& worldspace_json = world_json["world"]["worldspaces"][0];
             zones_listed = worldspace_json["regions"].size() == 1;
             const stratum_format::raw_values_type& region_json = worldspace_json["regions"][0];
+            const stratum_format::raw_values_type& zones_json = world_json["world"]["zones"];
             auto listed_at = [&](stratum_core::PersistentId zone_id, const stratum_format::raw_values_type& position)
             {
-                return ranges::any_of(region_json["zones"], [&](const stratum_format::raw_values_type& zone_json)
-                {
-                    return zone_json["id"] == zone_id.id && zone_json["position"] == position;
-                });
+                return ranges::contains(region_json["zone_ids"], stratum_format::raw_values_type(zone_id.id))
+                    && ranges::any_of(zones_json, [&](const stratum_format::raw_values_type& zone_json)
+                    {
+                        return zone_json["id"] == zone_id.id && zone_json["position"] == position;
+                    });
             };
 
             zones_listed = zones_listed && worldspace_json["id"] == saving_worldspace.id && worldspace_json["name"] == region_spec_name
-                && region_json["id"] == saving_region.id && region_json["zones"].size() == test_extent_zone_count
+                && region_json["id"] == saving_region.id && region_json["zone_ids"].size() == test_extent_zone_count
+                && zones_json.size() == test_extent_zone_count
                 && listed_at(saving_first_id, stratum_format::raw_values_type{0, 0, -1})
                 && listed_at(saving_second_id, stratum_format::raw_values_type{0, 0, -2})
                 && region_json["spec"].contains(format("{}{}", stratum_core::zone_prefix, zone_file_key));
 
-            for (const auto& zone_json : region_json["zones"])
+            for (const auto& zone_json : zones_json)
             {
                 zones_listed = zones_listed && filesystem::exists(save_directory / "zones" / format("{}.zone", zone_json["id"].get<uint64_t>()));
             }
@@ -476,9 +479,9 @@ namespace
 
         const bool region_opened = saving_world.worldspaces().size() == 1 && saving_world.worldspaces().front().regions.contains(region_id);
         CHECK_CASE("and the region, with its spec and its zone ids, the first zone not loaded", region_opened
-            && saving_world.region(region_id).zones.size() == test_extent_zone_count
-            && saving_world.region(region_id).zones[9].zone_id == saving_first_id
-            && saving_world.region(region_id).zones[8].zone_id == saving_second_id
+            && saving_world.region(region_id).zone_ids.size() == test_extent_zone_count
+            && saving_world.region(region_id).zone_ids[9] == saving_first_id
+            && saving_world.region(region_id).zone_ids[8] == saving_second_id
             && zone_file_of(saving_world.region(region_id).region_spec) == "data/walls.zone"
             && !saving_world.entity(saving_first_id) && saving_world.zone_count() == 1);
 

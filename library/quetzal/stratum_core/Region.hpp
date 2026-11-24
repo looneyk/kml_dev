@@ -7,7 +7,6 @@
 
 #include "PersistentId.hpp"
 #include "RegionSpec.hpp"
-#include "Zone.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include <cstddef>
 #include <map>
@@ -29,7 +28,7 @@ namespace quetzal::stratum_core
         std::optional<std::string> display_name;
         KeyValueStore components;
         RegionSpec region_spec;
-        std::vector<Zone> zones;
+        std::vector<PersistentId> zone_ids;
     };
 
 } // namespace quetzal::stratum_core

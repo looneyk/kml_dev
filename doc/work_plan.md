@@ -83,6 +83,9 @@ boxes are removed at the start of the next piece of work, since the reference do
   (`World`'s `create_zone`, `build_zone`, `fill_zone`, `zone_at`, and `load_*` functions, and `load_layout`) analyzed and
   remediated, so that each name tells building from a document, reading a saved zone, and generating an empty zone's
   content apart, every zone document is built by one path, and an empty zone is created without a zone document.
+- [ ] **A worldspace's zones added once:** `create_worldspace` adds each empty zone to the world's zones, and its id to
+  its region's `zone_ids`, once, after its region and its resolved zone spec and name are known, and `add_zone` asserts
+  that the zone is new.
 
 - [x] **Worldspaces** (`zone_plan.md`, `### Worldspaces`): a worldspace entity with its name and `PersistentId`, the
       flecs parent of its zones, with its coordinate system from its top-level region's spec, and each zone's

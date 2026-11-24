@@ -52,7 +52,9 @@ bool quetzal::stratum_sim::targets_level(flecs::entity e, level_type offset)
     const auto* zone_name = access_point != nullptr && access_point->destination.has_value()
         ? std::get_if<stratum_core::ZoneExtendedName>(&*access_point->destination) : nullptr;
 
-    return zone_name != nullptr && stratum_core::relative_zone_offset(zone_name->value) == offset;
+    const std::optional<discrete_vector3_type> destination_offset = zone_name != nullptr ? stratum_core::zone_offset(zone_name->value) : std::nullopt;
+
+    return destination_offset.has_value() && destination_offset->z() == offset;
 }
 
 //------------------------------------------------------------------------------

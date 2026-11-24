@@ -102,6 +102,7 @@ test cases, and `--update-references` copies each file it writes to `out/` over 
   | **reaches for** | physical reach | depending on or using --- a pass *uses* a table |
   | **covers** | area covered; a document covers a topic | distance or handling --- a mover *travels* a distance, a case *handles* an input |
   | **gate** | a gate in a fence; blocking progress --- this gates stage 5 | a test that compares output --- a validator *compares* files |
+  | **list** | a list of ids; a table lists the keys of a section | membership --- a zone *is in* a region, a region's `zone_ids` *has* its id |
   | **thing** | fixed idioms --- "one more thing", "the whole thing" | a placeholder noun where a specific one exists --- a *cell*, a *wall*, an *actor* |
 
 - **Choose the words when writing a comment or a document, not after.** A word that would fit a

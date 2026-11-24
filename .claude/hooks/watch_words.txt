@@ -43,6 +43,10 @@ gated
 gating
 thing
 things
+list
+lists
+listed
+listing
 shape
 shapes
 kind

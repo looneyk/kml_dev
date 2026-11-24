@@ -157,15 +157,17 @@ quetzal::stratum_core::ZoneExtendedName quetzal::stratum_core::relative_zone_ext
 }
 
 //------------------------------------------------------------------------------
-std::optional<std::int32_t> quetzal::stratum_core::relative_zone_offset(std::string_view zone_extended_name)
+std::optional<quetzal::stratum_core::discrete_vector3_type> quetzal::stratum_core::zone_offset(std::string_view extended_name)
 {
-    if (!zone_extended_name.starts_with(relative_zone_prefix) || !zone_extended_name.ends_with(relative_zone_suffix))
+    if (!extended_name.starts_with(relative_zone_prefix) || !extended_name.ends_with(relative_zone_suffix))
     {
         return std::nullopt;
     }
 
-    return integer_value<std::int32_t>(zone_extended_name.substr(relative_zone_prefix.size(),
-        zone_extended_name.size() - relative_zone_prefix.size() - relative_zone_suffix.size()));
+    const std::optional<coord_type> z = integer_value<coord_type>(extended_name.substr(relative_zone_prefix.size(),
+        extended_name.size() - relative_zone_prefix.size() - relative_zone_suffix.size()));
+
+    return z.has_value() ? std::optional<discrete_vector3_type>(discrete_vector3_type{0, 0, *z}) : std::nullopt;
 }
 
 //------------------------------------------------------------------------------

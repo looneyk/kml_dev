@@ -49,7 +49,7 @@ namespace
     using map_type = nlohmann::json;
 
     //--------------------------------------------------------------------------
-    // Reads the zone, adding the messages of the warnings it writes to the process-wide log to warnings
+    // Adds the warnings that reading the zone logs to warnings
     stratum_format::ZoneDocument read_zone_with_warnings(istream& is, const string& stream_name, vector<string>& warnings)
     {
         log::logger().add_sink([&warnings](const log::LogEntry& entry)
@@ -219,7 +219,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
+    // Returns null unless the entity is sited on a wall
     const stratum_format::WallPlacement* wall_placement(const stratum_format::Entity& entity)
     {
         if (!entity.site.has_value() || !entity.site->address.has_value())
@@ -283,7 +283,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // The document as nested maps: walls keyed by placement and flats by role, since neither has an order of its own
+    // Walls are keyed by placement and flats by role, since neither has an order
     map_type document_map(const stratum_format::ZoneDocument& document)
     {
         const stratum_format::Cells& cells = document.cells.value();
@@ -338,7 +338,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A file's text with one change made to it, and the error or warning that reading it reports
+    // A change to a file, and the error or warning that reading the changed file reports
     struct MutationCase
     {
         string name;
@@ -826,7 +826,7 @@ namespace
                 }, ""}
         });
 
-        // A door facing as an access point, as a door into another region has, raises no warning
+        // A door facing that is an access point, as on a door into another region, raises no warning
         stratum_format::raw_values_type door_access = load_values(data_directory / "cistern.json");
         door_access["entities"][1]["components"]["access_point"] = parse_values(R"({ "type": "door", "destination": "../[+0]", "order": 0 })");
         door_access["layout"]["components"]["access_points"].push_back(parse_values(R"({ "entity": 2 })"));
@@ -984,7 +984,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // A document written by each of the writer's two overloads and read again is equivalent to the one first read
+    // A document written by either overload and read again is equivalent to the original
     TEST_CASE("round trip")
     {
         filesystem::create_directories(out_directory);
@@ -1072,7 +1072,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Each game file document written to a stream is identical to its written form
+    // Writing, reading back, and rejecting game, character, and world files
     TEST_CASE("game files")
     {
         auto written = [](const auto& document)
@@ -1174,22 +1174,21 @@ namespace
         surface.region_spec.store.insert("type", "surface");
         surface.region_spec.extent = one_zone_extent(0);
         surface.region_spec.zone_size = stratum_format::discrete_vector_type(40, 30);
-        surface.zones = {{stratum_core::PersistentId{5}, stratum_format::zone_position_type{0, 0, 0}, "surface_0"}};
+        surface.zone_ids = {stratum_core::PersistentId{5}};
 
         stratum_core::Region dungeon;
         dungeon.region_id = stratum_core::PersistentId{4};
         dungeon.name = "barrow";
         dungeon.region_spec.store.insert("type", "dungeon");
         dungeon.region_spec.extent = one_zone_extent(-1);
-        dungeon.zones = {{stratum_core::PersistentId{3}, stratum_format::zone_position_type{0, 0, -1}, "barrow_0"},
-            {stratum_core::PersistentId{6}, nullopt, nullopt}, {stratum_core::PersistentId{8}, nullopt, "barrow_2"}};
+        dungeon.zone_ids = {stratum_core::PersistentId{3}, stratum_core::PersistentId{6}, stratum_core::PersistentId{8}};
 
         stratum_core::Region crypt;
         crypt.region_id = stratum_core::PersistentId{9};
         crypt.name = "crypt";
         crypt.display_name = "The Crypt";
         crypt.region_spec.store.insert("type", "crypt");
-        crypt.zones = {{stratum_core::PersistentId{11}, stratum_format::zone_position_type{0, 0, -2}, nullopt}};
+        crypt.zone_ids = {stratum_core::PersistentId{11}};
 
         stratum_core::Worldspace barrow = stratum_core::Worldspace::create(stratum_core::PersistentId{7}, "barrow", 18446744073709551615u,
             dungeon.region_spec, dungeon);
@@ -1197,11 +1196,19 @@ namespace
 
         stratum_format::WorldDocument world;
         world.worldspaces = {stratum_core::Worldspace::create(stratum_core::PersistentId{1}, "surface", 11, surface.region_spec, surface), barrow};
+        for (const auto& zone : {stratum_core::Zone{stratum_core::PersistentId{3}, stratum_format::zone_position_type{0, 0, -1}, "barrow_0"},
+            stratum_core::Zone{stratum_core::PersistentId{5}, stratum_format::zone_position_type{0, 0, 0}, "surface_0"},
+            stratum_core::Zone{stratum_core::PersistentId{6}, nullopt, nullopt}, stratum_core::Zone{stratum_core::PersistentId{8}, nullopt, "barrow_2"},
+            stratum_core::Zone{stratum_core::PersistentId{11}, stratum_format::zone_position_type{0, 0, -2}, nullopt}})
+        {
+            world.zones.emplace(zone.zone_id, zone);
+        }
+
         world.entity_zones = {{10, 5}, {12, 3}};
 
         report_written("a world file opens each worldspace with its id, name and seed, then a line per region, which "
-            "opens with its id, parent, name, display name and components, then its spec, then a line per zone, and has a line per "
-            "entry of the world index",
+            "opens with its id, parent, name, display name and components, then its spec, then its zone ids, then a line per zone "
+            "and a line per entry of the world index",
             written(world),
             "{\n"
             "  \"format\": \"quetzal.stratum_game\",\n"
@@ -1212,25 +1219,24 @@ namespace
             "        \"regions\": [\n"
             "          { \"id\": 2, \"name\": \"surface\", \"components\": { \"type\": \"surface\" },\n"
             "            \"spec\": { \"extent\": { \"boxes\": [ { \"x\": 0, \"y\": 0, \"z\": 0 } ] }, \"zone_size\": [40, 30], \"type\": \"surface\" },\n"
-            "            \"zones\": [\n"
-            "              { \"id\": 5, \"name\": \"surface_0\", \"position\": [0, 0, 0] }\n"
-            "            ] }\n"
+            "            \"zone_ids\": [5] }\n"
             "        ] },\n"
             "      { \"id\": 7, \"name\": \"barrow\", \"seed\": \"18446744073709551615\",\n"
             "        \"regions\": [\n"
             "          { \"id\": 4, \"name\": \"barrow\",\n"
             "            \"spec\": { \"extent\": { \"boxes\": [ { \"x\": 0, \"y\": 0, \"z\": -1 } ] }, \"type\": \"dungeon\" },\n"
-            "            \"zones\": [\n"
-            "              { \"id\": 3, \"name\": \"barrow_0\", \"position\": [0, 0, -1] },\n"
-            "              { \"id\": 6 },\n"
-            "              { \"id\": 8, \"name\": \"barrow_2\" }\n"
-            "            ] },\n"
+            "            \"zone_ids\": [3, 6, 8] },\n"
             "          { \"id\": 9, \"parent\": 4, \"name\": \"crypt\", \"display_name\": \"The Crypt\",\n"
             "            \"spec\": { \"type\": \"crypt\" },\n"
-            "            \"zones\": [\n"
-            "              { \"id\": 11, \"position\": [0, 0, -2] }\n"
-            "            ] }\n"
+            "            \"zone_ids\": [11] }\n"
             "        ] }\n"
+            "    ],\n"
+            "    \"zones\": [\n"
+            "      { \"id\": 3, \"name\": \"barrow_0\", \"position\": [0, 0, -1] },\n"
+            "      { \"id\": 5, \"name\": \"surface_0\", \"position\": [0, 0, 0] },\n"
+            "      { \"id\": 6 },\n"
+            "      { \"id\": 8, \"name\": \"barrow_2\" },\n"
+            "      { \"id\": 11, \"position\": [0, 0, -2] }\n"
             "    ],\n"
             "    \"entity_zones\": [\n"
             "      [10, 5],\n"
@@ -1253,7 +1259,7 @@ namespace
         ifstream is(filepath, ios::binary);
         CHECK_CASE("a game file written to a file is identical to one written to a stream", string(istreambuf_iterator<char>(is), {}) == written(world));
 
-        // Each document read back and written again is identical to the first writing
+        // Writing a document that was read back returns the text it was read from
         auto rewritten = [&](const auto& document, const auto& read_back)
         {
             istringstream text(written(document));
@@ -1268,7 +1274,7 @@ namespace
             [](istream& in) { return stratum_format::read_world(in, "world"); }) == written(world));
         CHECK_CASE("and from a file", written(stratum_format::read_world(filepath)) == written(world));
 
-        // Each file with one change made to it, and the error the change raises
+        // Returns true if reading the text throws an error containing error_expected
         auto rejected = [](const auto& read, const string& text, const string& error_expected)
         {
             try
@@ -1348,8 +1354,14 @@ namespace
             "a second entity with the id 4"));
         CHECK_CASE("and one whose zone has its worldspace's id", rejected(read_world, changed(world_text, "\"id\": 8", "\"id\": 7"),
             "a second entity with the id 7"));
-        CHECK_CASE("and one whose world index has an entity in a zone no region lists", rejected(read_world, changed(world_text, "[12, 3]",
-            "[12, 4]"), "zone 4 is in no region"));
+        CHECK_CASE("and one whose world index has an entity in a zone that is not one of the world's zones", rejected(read_world,
+            changed(world_text, "[12, 3]", "[12, 4]"), "zone 4 is not one of the world's zones"));
+        CHECK_CASE("and one whose region has the id of a zone that is not one of the world's zones", rejected(read_world, changed(world_text,
+            "\"zone_ids\": [11]", "\"zone_ids\": [12]"), "zone 12 is not one of the world's zones"));
+        CHECK_CASE("and one whose zone is in two regions", rejected(read_world, changed(world_text, "\"zone_ids\": [11]",
+            "\"zone_ids\": [3]"), "zone 3 is in a second region"));
+        CHECK_CASE("and one whose zone is in no region", rejected(read_world, changed(world_text, "\"zone_ids\": [5]", "\"zone_ids\": []"),
+            "zone 5 is in no region"));
         CHECK_CASE("and one whose world index has an entity twice", rejected(read_world, changed(world_text, "[12, 3]", "[10, 3]"),
             "a second entry for entity 10"));
         CHECK_CASE("and one whose top-level region has a parent", rejected(read_world, changed(world_text, "{ \"id\": 4, ",

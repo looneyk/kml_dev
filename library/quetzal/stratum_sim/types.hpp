@@ -23,13 +23,19 @@ namespace quetzal::stratum_sim
     using stratum_core::value_type;
     using stratum_core::traits_type;
     using stratum_core::point_type;
-    using stratum_core::coord_type;
-    using stratum_core::discrete_vector_type;
-    using stratum_core::discrete_point_type;
-    using stratum_core::seed_type;
-    using stratum_core::zone_position_type;
+    using stratum_core::vector_type;
 
-    using vector_type = point_type::vector_type;
+    using stratum_core::coord_type;
+    using stratum_core::discrete_vector2_type;
+    using stratum_core::discrete_point2_type;
+    using stratum_core::discrete_vector3_type;
+    using stratum_core::discrete_point3_type;
+    using stratum_core::seed_type;
+
+    using stratum_core::discrete_vector_type; // deprecated ...
+    using stratum_core::discrete_point_type; // deprecated ...
+    using stratum_core::zone_position_type; // deprecated ...
+
     using points_type = std::vector<point_type>;
     using polygon_type = geometry::Polygon<traits_type>;
 
@@ -41,7 +47,7 @@ namespace quetzal::stratum_sim
     using vector_projection_type = geometry::MinProjection<vector_type>;
 
     // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
-    using level_type = std::int32_t;
+    using level_type = coord_type; // deprecated ...
 
     using random_type = math::Random<math::portable_random_engine_type>;
 

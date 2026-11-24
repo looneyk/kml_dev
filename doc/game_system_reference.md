@@ -318,10 +318,13 @@ worldspace have one position; zones of different worldspaces may.
 A region groups zones of one worldspace: a dungeon, a crypt, a tower or a house. `stratum_core::Region`
 (`stratum_core/Region.hpp`) is a value too: its `region_id`, its `parent_id` if it is a subregion, its `subregion_ids`,
 its name, its `display_name` if its spec has one, its `components`, a `KeyValueStore`, its resolved `RegionSpec`, and
-`zones`, a `stratum_core::Zone` for each zone created in it, in the order they were created, loaded or not, so its size
-is the region's zone count. A `Zone` has the zone's persistent id, its position when it was listed, if it has one, and its name. A zone is listed when it is generated, loaded from a template, or created
-with a layout. A saved zone read back was listed when it was created, so it is not listed again, and it is how `World`
-finds the region to read an unloaded zone back into.
+`zone_ids`, the persistent id of each zone created in it, in the order they were created, loaded or not, so its size
+is the region's zone count. `World` has every zone of the world, loaded or not, in a `std::map` by persistent id, each a
+`stratum_core::Zone` (`stratum_core/Zone.hpp`): the zone's persistent id, its position when it was added, if it has
+one, and its name. `add_zone(region_id, zone)` adds a zone to the map, replacing the entry of a zone added again, and its
+id to the region's `zone_ids`. A zone is added when it is generated, loaded from a template, or created with a layout. A
+saved zone read back was added when it was created, so it is not added again, and `zone_ids` is how `World` finds the
+region to read an unloaded zone back into. Unloading a worldspace removes its zones from the map.
 
 `stratum_core::RegionTree` (`stratum_core/RegionTree.hpp`) contains a worldspace's regions, rooted in its top-level region, which it is constructed
 with. `regions()` has the top-level region first and each region before its subregions; `root()`,
@@ -474,8 +477,8 @@ document is unpopulated. It throws `std::runtime_error`, having made nothing, if
 rejects the file, `check_buildable` finds a reason, or the file is a saved zone that is already loaded; a template makes a
 new zone each time it is loaded. An empty zone's file, which has no `cells`, is read as an empty zone with the file's
 id, position, name and `zone_spec`. `load_saved_zone(zone_id)` reads a zone of the game that has unloaded back from the
-game directory's `zones/<persistent id>.zone`, into the region whose `zones` lists it, and throws
-`std::runtime_error` if the world has no game directory or no region lists it. `World` handles no doors itself, and neither function unloads anything.
+game directory's `zones/<persistent id>.zone`, into the region whose `zone_ids` has its id, and throws
+`std::runtime_error` if the world has no game directory or the zone is in no region. `World` handles no doors itself, and neither function unloads anything.
 
 `populate(zone)` places the zone's denizens: one denizen at the last open cell in reverse row order, facing west,
 `Blocking`, with a `Speed` and no behavior, so it does not move.
@@ -498,9 +501,9 @@ zone's `make_document` to `zones/<persistent id>.zone` in the game directory, cr
 requires a game directory and a zone built from a document. Leaving a
 zone does not save it, and neither does `unload_zone` nor `unload_worldspace`, which discard what they unload, as clearing a
 game does (`game_file_spec.md`, `## A saved game's files`). `save()` saves every loaded zone and then writes
-`world.json` into the game directory: the worldspaces as they are, in persistent id order,
-and the world index. `open(game_directory)`, on a cleared world, reads `world.json` back: the worldspaces, from
-which it builds each worldspace's `zone_ids` and sets the worldspace count, and the world index. It loads no zone; each loads when it is entered.
+`world.json` into the game directory: the worldspaces as they are, in persistent id order, the zones,
+and the world index. `open(game_directory)`, on a cleared world, reads `world.json` back: the worldspaces and the zones,
+from which it builds each worldspace's `zone_ids` and sets the worldspace count, and the world index. It loads no zone; each loads when it is entered.
 
 `unload_zone(zone)` begins an unload: it adds the zone's id to the zones unloading and deletes the entity. Flecs deletes
 a zone's subtree before the zone itself, and if the deletion is queued on a stage, as it is in readonly mode, it runs
@@ -1181,8 +1184,8 @@ run of three glyphs or more. A document that `read_zone` produces is written bac
 The game, character and world files that `game_file_spec.md` specifies, format `quetzal.stratum_game`, version `0.4`
 (`saved_game_format.hpp`), are each a data structure in a header of its own: `GameDocument`, with the game's next id, world seed, each random engine's state by stream in `random_engines`, and its
 settings; `CharacterDocument`, with the character's id, components, zone, placement, and inventory, whose entities are
-`Entity`s; and `WorldDocument`, with the worldspaces, each a `stratum_core::Worldspace`, and
-`entity_zones`, the world index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
+`Entity`s; and `WorldDocument`, with the worldspaces, each a `stratum_core::Worldspace`, `zones`, each zone's
+`stratum_core::Zone` by its persistent id, and `entity_zones`, the world index. A `write` overload for each, in `write_game.hpp`, `write_character.hpp` and `write_world.hpp`, emits its
 written form, with an absent object written as an empty one. These writers and the zone's, `write_zone`, share the text
 of the written form through `json_util.hpp`, internal to the library in `stratum_format::detail`.
 
@@ -1193,9 +1196,10 @@ and the keys and value types that `game_file_spec.md` specifies. `read_character
 a copy of the character's name, equals the `name` component, and that every entity of the inventory has a unique id
 and a parent, the character or another entity of the inventory, with no cycle, and that it
 is sited on its parent if sited at all, with no address and no access point. `read_world` requires worldspace, region and
-zone ids unique across the world, zone positions unique in each worldspace, a top-level region spec that
+zone ids unique across the world, each zone in exactly one region, each id in a region's `zone_ids` one of the world's
+zones, zone positions unique in each worldspace, a top-level region spec that
 `Worldspace::create` accepts, a string for each region component, and every entry of
-the world index in a zone that a region lists, once. The readers share
+the world index in one of the world's zones, once. The readers share
 the checked reading of values through `checked_values.hpp`, in `stratum_format::detail`. Each file's header is its
 leading keys, `format` and `version`, and in the character file `name` after them; `check_file_header` checks it, and a
 writer emits it with `file_header_sections`.

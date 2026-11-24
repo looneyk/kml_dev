@@ -8,7 +8,6 @@
 #include "checked_values.hpp"
 #include "saved_game_format.hpp"
 #include "quetzal/log/Log.hpp"
-#include <array>
 #include <optional>
 #include <set>
 #include <utility>
@@ -26,7 +25,7 @@ namespace
     using quetzal::stratum_core::Zone;
 
     //--------------------------------------------------------------------------
-    // Adds id to entity_ids, and an id already there is an error
+    // Throws if entity_ids already has the id
     void add_entity_id(std::set<stored_entity_id_type>& entity_ids, stored_entity_id_type id, const std::string& path)
     {
         if (!entity_ids.insert(id).second)
@@ -40,11 +39,50 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads a region and its list of zones. entity_ids has the id of every worldspace, region and zone read so far in the
-    // file, zone_ids the id of every zone, and zone_positions the position of every zone read so far in this worldspace.
-    // The region and its zones are added to them, and a zone with an existing position is an error
+    [[noreturn]] void fail_logged(const std::string& path, const std::string& what)
+    {
+        quetzal::log::logger().error(log_category, "{}: {}", path, what);
+        fail(path, what);
+    }
+
+    //--------------------------------------------------------------------------
+    WorldDocument::zones_type read_zones(const raw_values_type& world, std::set<stored_entity_id_type>& entity_ids)
+    {
+        const std::string zones_path = "world.zones";
+        const raw_values_type& zones = array(required_member(world, "world", "zones"), zones_path);
+        WorldDocument::zones_type read;
+
+        for (size_t i = 0; i < zones.size(); ++i)
+        {
+            const std::string zone_path = element_path(zones_path, i);
+            object(zones[i], zone_path);
+
+            Zone zone{PersistentId{id_value(required_member(zones[i], zone_path, "id"), member_path(zone_path, "id"))}, std::nullopt, std::nullopt};
+            add_entity_id(entity_ids, zone.zone_id.id, member_path(zone_path, "id"));
+
+            if (const raw_values_type* p = member(zones[i], "position"); p != nullptr)
+            {
+                const std::string position_path = member_path(zone_path, "position");
+                const raw_values_type& a = fixed_array(*p, position_path, 3);
+                zone.position = zone_position_type{coord_value(a[0], element_path(position_path, 0)), coord_value(a[1], element_path(position_path, 1)),
+                    coord_value(a[2], element_path(position_path, 2))};
+            }
+
+            if (const raw_values_type* p = member(zones[i], "name"); p != nullptr)
+            {
+                zone.name = string_value(*p, member_path(zone_path, "name"));
+            }
+
+            const PersistentId zone_id = zone.zone_id;
+            read.emplace(zone_id, std::move(zone));
+        }
+
+        return read;
+    }
+
+    //--------------------------------------------------------------------------
     Region read_region(const raw_values_type& v, const std::string& path, std::set<stored_entity_id_type>& entity_ids,
-        std::set<stored_entity_id_type>& zone_ids, std::set<std::array<coord_type, 3>>& zone_positions)
+        const WorldDocument::zones_type& zones, std::set<PersistentId>& zone_ids_in_regions, std::set<zone_position_type>& zone_positions)
     {
         object(v, path);
 
@@ -75,54 +113,39 @@ namespace
 
         region.region_spec = read_region_spec(required_member(v, path, "spec"), member_path(path, "spec"));
 
-        std::string zones_path = member_path(path, "zones");
-        const raw_values_type& zones = array(required_member(v, path, "zones"), zones_path);
+        const std::string zone_ids_path = member_path(path, "zone_ids");
+        const raw_values_type& zone_ids = array(required_member(v, path, "zone_ids"), zone_ids_path);
 
-        for (size_t i = 0; i < zones.size(); ++i)
+        for (size_t i = 0; i < zone_ids.size(); ++i)
         {
-            std::string zone_path = element_path(zones_path, i);
-            object(zones[i], zone_path);
+            const std::string zone_id_path = element_path(zone_ids_path, i);
+            const PersistentId zone_id{id_value(zone_ids[i], zone_id_path)};
 
-            Zone zone{PersistentId{id_value(required_member(zones[i], zone_path, "id"), member_path(zone_path, "id"))}, std::nullopt, std::nullopt};
-
-            add_entity_id(entity_ids, zone.zone_id.id, member_path(zone_path, "id"));
-            zone_ids.insert(zone.zone_id.id);
-
-            if (const raw_values_type* p = member(zones[i], "position"); p != nullptr)
+            auto zone = zones.find(zone_id);
+            if (zone == zones.end())
             {
-                std::string position_path = member_path(zone_path, "position");
-                const raw_values_type& a = fixed_array(*p, position_path, 3);
-                const std::array<coord_type, 3> position{coord_value(a[0], element_path(position_path, 0)),
-                    coord_value(a[1], element_path(position_path, 1)), coord_value(a[2], element_path(position_path, 2))};
-
-                if (!zone_positions.insert(position).second)
-                {
-                    const std::string what = std::format("a second zone of the worldspace at ({}, {}, {})", position[0], position[1], position[2]);
-                    quetzal::log::logger().error(log_category, "{}: {}", position_path, what);
-                    fail(position_path, what);
-                }
-
-                zone.position = zone_position_type{position[0], position[1], position[2]};
+                fail_logged(zone_id_path, std::format("zone {} is not one of the world's zones", zone_id.id));
             }
 
-            if (const raw_values_type* p = member(zones[i], "name"); p != nullptr)
+            if (!zone_ids_in_regions.insert(zone_id).second)
             {
-                zone.name = string_value(*p, member_path(zone_path, "name"));
+                fail_logged(zone_id_path, std::format("zone {} is in a second region", zone_id.id));
             }
 
-            region.zones.push_back(std::move(zone));
+            if (const std::optional<zone_position_type>& position = zone->second.position; position.has_value() && !zone_positions.insert(*position).second)
+            {
+                fail_logged(zone_id_path, std::format("a second zone of the worldspace at ({}, {}, {})", position->x(), position->y(), position->z()));
+            }
+
+            region.zone_ids.push_back(zone_id);
         }
 
         return region;
     }
 
     //--------------------------------------------------------------------------
-    // Reads a worldspace and its regions. entity_ids has the id of every worldspace, region and zone read so far in the file,
-    // and zone_ids the id of every zone. The worldspace, its regions and their zones are added to them. A worldspace without a
-    // region, a top-level region with a parent, or a later region whose parent is not an earlier region of the worldspace is
-    // an error
     Worldspace read_worldspace(const raw_values_type& v, const std::string& path, std::set<stored_entity_id_type>& entity_ids,
-        std::set<stored_entity_id_type>& zone_ids)
+        const WorldDocument::zones_type& zones, std::set<PersistentId>& zone_ids_in_regions)
     {
         object(v, path);
 
@@ -138,9 +161,9 @@ namespace
             fail(regions_path, "a worldspace with no regions");
         }
 
-        std::set<std::array<coord_type, 3>> zone_positions;
+        std::set<zone_position_type> zone_positions;
         const std::string root_path = element_path(regions_path, 0);
-        Region root = read_region(regions[0], root_path, entity_ids, zone_ids, zone_positions);
+        Region root = read_region(regions[0], root_path, entity_ids, zones, zone_ids_in_regions, zone_positions);
         if (root.parent_id.has_value())
         {
             fail(member_path(root_path, "parent"), "a top-level region with a parent");
@@ -152,7 +175,7 @@ namespace
         for (size_t i = 1; i < regions.size(); ++i)
         {
             const std::string region_path = element_path(regions_path, i);
-            Region region = read_region(regions[i], region_path, entity_ids, zone_ids, zone_positions);
+            Region region = read_region(regions[i], region_path, entity_ids, zones, zone_ids_in_regions, zone_positions);
 
             if (!region.parent_id.has_value() || !worldspace.regions.contains(region.parent_id.value()))
             {
@@ -177,11 +200,20 @@ namespace
         const raw_values_type& world = object(required_member(v, "", "world"), "world");
         const raw_values_type& worldspaces = array(required_member(world, "world", "worldspaces"), "world.worldspaces");
         std::set<stored_entity_id_type> entity_ids;
-        std::set<stored_entity_id_type> zone_ids;
+        document.zones = read_zones(world, entity_ids);
+        std::set<PersistentId> zone_ids_in_regions;
 
         for (size_t i = 0; i < worldspaces.size(); ++i)
         {
-            document.worldspaces.push_back(read_worldspace(worldspaces[i], element_path("world.worldspaces", i), entity_ids, zone_ids));
+            document.worldspaces.push_back(read_worldspace(worldspaces[i], element_path("world.worldspaces", i), entity_ids, document.zones, zone_ids_in_regions));
+        }
+
+        for (const auto& [zone_id, zone] : document.zones)
+        {
+            if (!zone_ids_in_regions.contains(zone_id))
+            {
+                fail_logged("world.zones", std::format("zone {} is in no region", zone_id.id));
+            }
         }
 
         const raw_values_type& entity_zones = array(required_member(world, "world", "entity_zones"), "world.entity_zones");
@@ -193,9 +225,9 @@ namespace
             stored_entity_id_type entity_id = id_value(entry[0], element_path(entry_path, 0));
             stored_entity_id_type zone_id = id_value(entry[1], element_path(entry_path, 1));
 
-            if (!zone_ids.contains(zone_id))
+            if (!document.zones.contains(PersistentId{zone_id}))
             {
-                fail(element_path(entry_path, 1), std::format("zone {} is in no region", zone_id));
+                fail_logged(element_path(entry_path, 1), std::format("zone {} is not one of the world's zones", zone_id));
             }
 
             if (!document.entity_zones.emplace(entity_id, zone_id).second)

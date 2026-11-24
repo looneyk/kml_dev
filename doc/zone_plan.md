@@ -146,7 +146,7 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
 - **`World` manages the worldspaces, zones, and regions,** with one flecs world containing their entities.
 - **A zone's flecs parent is its worldspace.** `zone_of` stops at the first ancestor that is a zone, and a zone's
   contents are its subtree (`sim_zone_model.md`, `### Entity ownership and migration`).
-- **A region's list of its zones** is its `zones`, each with its `PersistentId`, and a loaded zone is found by its
+- **A region's list of its zones** is its `zone_ids`, and the zones themselves are in `World`, by `PersistentId`. A loaded zone is found by its
   `PersistentId`.
 - **A zone with no content** is an entity with its name, `zone_position_type`, `ZoneSpec`, and seed, and its layout and
   entities are added when its content is generated.

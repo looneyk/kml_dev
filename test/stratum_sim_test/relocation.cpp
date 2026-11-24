@@ -144,7 +144,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "worldspaces and regions")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
@@ -192,14 +191,14 @@ namespace
         CHECK_CASE("the world index keeps the zone of an entity something refers to, as an unloaded zone's",
             world.zone_of(monk_reference.persistent_id) == chapel_id && !world.entity(monk_reference.persistent_id));
 
-        // A zone's position, from its file or from the region that makes it
+        // A zone's position, from its file or its region
         flecs::entity leveled = load_zone_unpopulated_at(world, world.worldspace_id, stratum_core::zone_position_type{0, 0, -3}, "data/door.zone");
 
         const auto* leveled_position = leveled.try_get<stratum_core::zone_position_type>();
         const map<stratum_core::zone_position_type, stratum_core::PersistentId>& positioned_zone_ids = world.zone_ids(world.worldspace_id);
         CHECK_CASE("a zone loaded at a position has that position", leveled_position != nullptr
             && *leveled_position == stratum_core::zone_position_type{0, 0, -3});
-        CHECK_CASE("and is listed in its worldspace at that position, with a zone at each other position of the extent",
+        CHECK_CASE("and is in its worldspace's zone ids at that position, with a zone at each other position of the extent",
             positioned_zone_ids.size() == test_extent_zone_count
             && positioned_zone_ids.at(stratum_core::zone_position_type{0, 0, -3}) == leveled.get<stratum_core::PersistentId>());
         CHECK_CASE("and none where its file states none", field.try_get<stratum_core::zone_position_type>() == nullptr);
@@ -219,7 +218,7 @@ namespace
         flecs::entity empty = world.entity(world.zone_ids(dungeon_worldspace).at(zone_position_at_level(-1)));
         CHECK_CASE("a worldspace is created with an empty zone at each position of its extent, in its top-level region",
             empty && stratum_sim::empty_zone(empty) && stratum_sim::region_of(empty) == top_level_region(world, dungeon_worldspace)
-            && world.region(top_level_region(world, dungeon_worldspace)).zones.size() == test_extent_zone_count);
+            && world.region(top_level_region(world, dungeon_worldspace)).zone_ids.size() == test_extent_zone_count);
 
         flecs::entity made = world.load_zone_at(dungeon_worldspace, zone_position_at_level(-1));
         CHECK_CASE("loading the zone at a position generates its content from its region spec", made == empty
@@ -252,7 +251,7 @@ namespace
 
         CHECK_CASE("a region tree is rooted in its top-level region, which has no parent",
             regions.root().region_id == stratum_core::PersistentId{1} && !regions.root().parent_id.has_value());
-        CHECK_CASE("a subregion has its parent, and its parent lists it", regions.region(stratum_core::PersistentId{3}).parent_id
+        CHECK_CASE("a subregion has its parent, and its parent has it as a subregion", regions.region(stratum_core::PersistentId{3}).parent_id
             == stratum_core::PersistentId{2} && regions.region(stratum_core::PersistentId{1}).subregion_ids
             == vector<stratum_core::PersistentId>{stratum_core::PersistentId{2}, stratum_core::PersistentId{4}});
         CHECK_CASE("the regions are in the order they were added, each after its parent",
@@ -267,7 +266,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "names")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
@@ -458,7 +456,7 @@ namespace
             && moor_regions.regions()[2].display_name == "The Cairn" && moor_regions.extended_name(moor_regions.regions()[2].region_id) == "/moor/tor/cairn");
         CHECK_CASE("and each zone is in the most specific region whose extent contains its position",
             region_name_at_x(0) == "moor" && region_name_at_x(1) == "tor" && region_name_at_x(2) == "cairn" && region_name_at_x(3) == "moor"
-            && moor_regions.root().zones.size() == 2 && moor_regions.regions()[1].zones.size() == 1);
+            && moor_regions.root().zone_ids.size() == 2 && moor_regions.regions()[1].zone_ids.size() == 1);
         CHECK_CASE("with its name and spec resolved from that region's spec",
             name_of(zone_at_x(1)) == "tor_1" && name_of(zone_at_x(2)) == "cairn_2" && name_of(zone_at_x(3)) == "moor_3"
             && zone_spec_at_x(1).value("parameters.difficulty") == "2" && zone_spec_at_x(3).value("parameters.difficulty") == "1");
@@ -501,7 +499,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "positions")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
@@ -562,7 +559,7 @@ namespace
 
         flecs::entity deep = world.load_zone_at(barrow_worldspace, zone_position_at_level(-4));
         auto barrow_zone_ids = [&]() { return world.zone_ids(barrow_worldspace); };
-        CHECK_CASE("a worldspace lists each of its zones at its position", barrow_zone_ids().size() == 10
+        CHECK_CASE("a worldspace has the id of each of its zones at the zone's position", barrow_zone_ids().size() == 10
             && barrow_zone_ids().at(zone_position_at_level(-4)) == deep.get<stratum_core::PersistentId>());
 
         size_t zone_count = world.zone_count();
@@ -580,7 +577,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "seeds")
     {
         const array<uint64_t, 2> values{1, 3};
@@ -649,7 +645,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "level destinations")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
@@ -709,7 +704,7 @@ namespace
         CHECK_CASE("a destination with a region spec name generates its entry zone in a new worldspace created from that region spec, and named for it, though a zone at the level has a staircase that leads back", made
             && made != field && region_made != dungeon && region_made != world.region_id
             && zone_file_of(world.region(region_made).region_spec) == "data/walls.zone"
-            && world.region(region_made).zones.size() == test_extent_zone_count && level_of(made) == 0
+            && world.region(region_made).zone_ids.size() == test_extent_zone_count && level_of(made) == 0
             && world.worldspace(stratum_sim::worldspace_of(made)).name == "dungeon" && destination == down_of(made)
             && world.worldspaces().size() == worldspaces_before_staircase + 1);
         CHECK_CASE("and the same worldspace again", zone_arrived_in(world.resolve_destination(first_up)) == made
@@ -818,7 +813,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "access points")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
@@ -925,7 +919,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "relocating through an access point")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
@@ -1004,7 +997,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "one-way access points")
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
@@ -1052,7 +1044,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "entering an access point")
     {
         stratum_sim::Game game(g_test_config, g_test_manifest);
@@ -1147,7 +1138,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Reads from data/, so stratum_sim_test runs from its own directory
     TEST_CASE_FIXTURE(WorldFixture, "interacting with an access point")
     {
         stratum_sim::Game game(g_test_config, g_test_manifest);

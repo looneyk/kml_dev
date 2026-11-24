@@ -5,6 +5,7 @@
 // ZoneExtendedName.hpp
 //------------------------------------------------------------------------------
 
+#include "types.hpp"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -28,8 +29,8 @@ namespace quetzal::stratum_core
     // Returns ../[k], the extended name of the zone k zones from the current zone in the same region
     ZoneExtendedName relative_zone_extended_name(std::int32_t k);
 
-    // Extracts the zone offset from a zone extended name (../[k])
-    std::optional<std::int32_t> relative_zone_offset(std::string_view extended_name);
+    // Extracts the offset from an extended name (../[k]) (partial support for vector rather than just z coord offsets)
+    std::optional<discrete_vector3_type> zone_offset(std::string_view extended_name);
 
     // Segment names follow C++ identifier syntax
     bool valid_segment_name(std::string_view text);

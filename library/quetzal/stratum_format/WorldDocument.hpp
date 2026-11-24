@@ -7,6 +7,7 @@
 
 #include "types.hpp"
 #include "quetzal/stratum_core/Worldspace.hpp"
+#include "quetzal/stratum_core/Zone.hpp"
 #include <cstddef>
 #include <map>
 #include <string>
@@ -18,8 +19,11 @@ namespace quetzal::stratum_format
     //--------------------------------------------------------------------------
     struct WorldDocument
     {
+        using zones_type = std::map<stratum_core::PersistentId, stratum_core::Zone>; // <zone_id, zone>
+
         std::string version;
         std::vector<stratum_core::Worldspace> worldspaces;
+        zones_type zones;
         std::map<stored_entity_id_type, stored_entity_id_type> entity_zones; // <entity_id, zone_id>
     };
 
