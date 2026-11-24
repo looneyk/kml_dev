@@ -32,7 +32,7 @@ namespace quetzal::stratum_sim
 
         // The entities in the placement's cell
         entity_ids_type entities_at(const placement_type& placement) const override;
-        entity_ids_type entities_at(const discrete_point_type& cell_position) const;
+        entity_ids_type entities_at(const discrete_point2_type& cell_position) const;
 
         // Visits the cells within a given distance from placement position, or every entity if there are fewer entities than cells
         entity_ids_type entities_within(const placement_type& placement, value_type distance) const override;

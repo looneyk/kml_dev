@@ -20,7 +20,7 @@ namespace quetzal::dungen
 
         using door_ids_type = std::vector<id_type>;
 
-        Room(id_type id, const std::string& name, const box_type& rectangle);
+        Room(id_type id, const std::string& name, const discrete_box2_type& rectangle);
         Room(const Room&) = default;
         ~Room() = default;
 
@@ -31,8 +31,8 @@ namespace quetzal::dungen
         std::string name() const;
         void set_name(const std::string& name);
 
-        const box_type& rectangle() const;
-        void set_rectangle(const box_type& rectangle);
+        const discrete_box2_type& rectangle() const;
+        void set_rectangle(const discrete_box2_type& rectangle);
 
         const door_ids_type& door_ids() const;
         door_ids_type& door_ids();
@@ -45,7 +45,7 @@ namespace quetzal::dungen
 
         id_type m_id;
         std::string m_name;
-        box_type m_rectangle;
+        discrete_box2_type m_rectangle;
         door_ids_type m_door_ids; // not just ids, but also wall attachment, or should room/wall attachment be stored with door? or at all? ...
     };
 

@@ -17,7 +17,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The direction's position in cardinal_directions, which is its bit in a mask and its part of a wall id
-    size_t direction_index(const quetzal::stratum_sim::discrete_vector_type& direction)
+    size_t direction_index(const quetzal::stratum_sim::discrete_vector2_type& direction)
     {
         const auto& directions = quetzal::stratum_sim::cardinal_directions;
 
@@ -36,7 +36,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::DiscreteLayout::DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector_type& extent) :
+quetzal::stratum_sim::DiscreteLayout::DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector2_type& extent) :
     LayoutBase(),
     m_grid{origin, scale, extent},
     m_cells(static_cast<size_t>(extent.x()) * extent.y())
@@ -98,7 +98,7 @@ void quetzal::stratum_sim::DiscreteLayout::set_flats(value_type height_floor, va
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::value_type quetzal::stratum_sim::DiscreteLayout::height(id_type flat_id, const discrete_point_type& cell_position) const
+quetzal::stratum_sim::value_type quetzal::stratum_sim::DiscreteLayout::height(id_type flat_id, const discrete_point2_type& cell_position) const
 {
     const Flat& f = flat(flat_id);
 
@@ -132,46 +132,46 @@ void quetzal::stratum_sim::DiscreteLayout::set_room_count(size_t room_count)
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::DiscreteLayout::room_at(const discrete_point_type& cell_position) const
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::room_at(const discrete_point2_type& cell_position) const
 {
     return cell(cell_position).room_id;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_cell_room(const discrete_point_type& cell_position, id_type room_id)
+void quetzal::stratum_sim::DiscreteLayout::set_cell_room(const discrete_point2_type& cell_position, id_type room_id)
 {
     cell(cell_position).room_id = room_id;
     return;
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::DiscreteLayout::open(const discrete_point_type& cell_position) const
+bool quetzal::stratum_sim::DiscreteLayout::open(const discrete_point2_type& cell_position) const
 {
     return cell(cell_position).open;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_cell_open(const discrete_point_type& cell_position, bool open)
+void quetzal::stratum_sim::DiscreteLayout::set_cell_open(const discrete_point2_type& cell_position, bool open)
 {
     cell(cell_position).open = open;
     return;
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::DirectionMask quetzal::stratum_sim::DiscreteLayout::walls(const discrete_point_type& cell_position) const
+quetzal::stratum_sim::DirectionMask quetzal::stratum_sim::DiscreteLayout::walls(const discrete_point2_type& cell_position) const
 {
     return cell(cell_position).walls;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::DiscreteLayout::set_cell_walls(const discrete_point_type& cell_position, DirectionMask walls)
+void quetzal::stratum_sim::DiscreteLayout::set_cell_walls(const discrete_point2_type& cell_position, DirectionMask walls)
 {
     cell(cell_position).walls = walls;
     return;
 }
 
 //------------------------------------------------------------------------------
-size_t quetzal::stratum_sim::DiscreteLayout::slot(const discrete_point_type& cell_position) const
+size_t quetzal::stratum_sim::DiscreteLayout::slot(const discrete_point2_type& cell_position) const
 {
     const GridMapping& g = grid();
     assert(g.contains(cell_position));
@@ -180,13 +180,13 @@ size_t quetzal::stratum_sim::DiscreteLayout::slot(const discrete_point_type& cel
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::Cell& quetzal::stratum_sim::DiscreteLayout::cell(const discrete_point_type& cell_position) const
+const quetzal::stratum_sim::Cell& quetzal::stratum_sim::DiscreteLayout::cell(const discrete_point2_type& cell_position) const
 {
     return m_cells[slot(cell_position)];
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::Cell& quetzal::stratum_sim::DiscreteLayout::cell(const discrete_point_type& cell_position)
+quetzal::stratum_sim::Cell& quetzal::stratum_sim::DiscreteLayout::cell(const discrete_point2_type& cell_position)
 {
     return m_cells[slot(cell_position)];
 }
@@ -204,13 +204,13 @@ quetzal::stratum_sim::value_type quetzal::stratum_sim::DiscreteLayout::step_dist
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::DiscreteLayout::cell_position_at(const point_type& point) const
+quetzal::stratum_sim::discrete_point2_type quetzal::stratum_sim::DiscreteLayout::cell_position_at(const point_type& point) const
 {
     return grid().cell_position_at(point);
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::position(const discrete_point_type& cell_position) const
+quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::position(const discrete_point2_type& cell_position) const
 {
     point_type result = grid().position(cell_position);
 
@@ -224,7 +224,7 @@ quetzal::stratum_sim::point_type quetzal::stratum_sim::DiscreteLayout::position(
 }
 
 //------------------------------------------------------------------------------
-quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const discrete_point_type& cell_position, const discrete_vector_type& direction) const
+quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const discrete_point2_type& cell_position, const discrete_vector2_type& direction) const
 {
     size_t index = direction_index(direction);
     if (!any(cell(cell_position).walls & direction_mask(static_cast<CardinalDirection>(index))))
@@ -236,35 +236,35 @@ quetzal::id_type quetzal::stratum_sim::DiscreteLayout::wall_toward(const discret
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::DiscreteLayout::wall_cell_position(id_type wall_id) const
+quetzal::stratum_sim::discrete_point2_type quetzal::stratum_sim::DiscreteLayout::wall_cell_position(id_type wall_id) const
 {
     assert(wall_id != nullid);
 
     size_t cell_slot = wall_id / cardinal_directions.size();
     auto width = static_cast<size_t>(grid().extent.x());
 
-    return discrete_point_type{static_cast<coord_type>(cell_slot % width), static_cast<coord_type>(cell_slot / width)};
+    return discrete_point2_type{static_cast<coord_type>(cell_slot % width), static_cast<coord_type>(cell_slot / width)};
 }
 
 //------------------------------------------------------------------------------
-const quetzal::stratum_sim::discrete_vector_type& quetzal::stratum_sim::DiscreteLayout::wall_direction(id_type wall_id) const
+const quetzal::stratum_sim::discrete_vector2_type& quetzal::stratum_sim::DiscreteLayout::wall_direction(id_type wall_id) const
 {
     assert(wall_id != nullid);
     return cardinal_directions[wall_id % cardinal_directions.size()];
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::destination_placement(const Site& site, const discrete_vector_type& egress) const
+quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::destination_placement(const Site& site, const discrete_vector2_type& egress) const
 {
     assert(site.relation == Relation::On && site.address.has_value());
 
-    auto direction = [](const discrete_vector_type& v)
+    auto direction = [](const discrete_vector2_type& v)
     {
         return vector_type(static_cast<value_type>(v.x()), static_cast<value_type>(v.y()), value_type(0));
     };
 
     const auto* wall = std::get_if<WallId>(&*site.address);
-    const discrete_point_type cell_position = wall != nullptr ? wall_cell_position(wall->wall_id)
+    const discrete_point2_type cell_position = wall != nullptr ? wall_cell_position(wall->wall_id)
         : std::get<FlatCellPosition>(*site.address).cell_position;
     const vector_type orientation = wall != nullptr ? direction(-wall_direction(wall->wall_id)) : site.placement.direction();
 
@@ -272,7 +272,7 @@ quetzal::stratum_sim::placement_type quetzal::stratum_sim::DiscreteLayout::desti
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::DiscreteLayout::crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction,
+bool quetzal::stratum_sim::DiscreteLayout::crossable(const discrete_point2_type& cell_position, const discrete_vector2_type& direction,
     const crossable_function_type& is_wall_crossable) const
 {
     id_type wall_id = wall_toward(cell_position, direction);
@@ -292,7 +292,7 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
 {
     MoveResult result{placement, nullid};
 
-    discrete_vector_type step = grid_step(direction);
+    discrete_vector2_type step = grid_step(direction);
     if (step.zero())
     {
         return result;
@@ -301,11 +301,11 @@ quetzal::stratum_sim::MoveResult quetzal::stratum_sim::DiscreteLayout::move(cons
     const GridMapping& g = grid();
     int steps = static_cast<int>(std::lround(distance / g.scale));
 
-    discrete_point_type cell = cell_position_at(placement.position());
+    discrete_point2_type cell = cell_position_at(placement.position());
 
     for (int n = 0; n < steps; ++n)
     {
-        discrete_point_type next = cell + step;
+        discrete_point2_type next = cell + step;
 
         if (!crossable(cell, step, is_wall_crossable))
         {
@@ -394,18 +394,18 @@ quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::Disc
     const crossable_function_type& is_wall_crossable) const
 {
     placements_type result;
-    discrete_point_type cell_position = cell_position_at(placement.position());
+    discrete_point2_type cell_position = cell_position_at(placement.position());
 
     const auto& steps = cardinal_directions;
 
-    for (const discrete_vector_type& step : steps)
+    for (const discrete_vector2_type& step : steps)
     {
         if (!crossable(cell_position, step, is_wall_crossable))
         {
             continue;
         }
 
-        discrete_point_type next = cell_position + step;
+        discrete_point2_type next = cell_position + step;
         assert(open(next));
 
         point_type p = position(next);
@@ -418,8 +418,8 @@ quetzal::stratum_sim::DiscreteLayout::placements_type quetzal::stratum_sim::Disc
 //------------------------------------------------------------------------------
 bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, const placement_type& to, const crossable_function_type& is_wall_crossable) const
 {
-    discrete_point_type cell_position = cell_position_at(from.position());
-    discrete_point_type target = cell_position_at(to.position());
+    discrete_point2_type cell_position = cell_position_at(from.position());
+    discrete_point2_type target = cell_position_at(to.position());
 
     if (cell_position == target)
     {
@@ -460,14 +460,14 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
 
     for (size_t n = 0; n < limit; ++n)
     {
-        discrete_vector_type step = t_i < t_j ? discrete_vector_type(step_i, 0) : discrete_vector_type(0, step_j);
+        discrete_vector2_type step = t_i < t_j ? discrete_vector2_type(step_i, 0) : discrete_vector2_type(0, step_j);
 
         if (!crossable(cell_position, step, is_wall_crossable))
         {
             return false;
         }
 
-        discrete_point_type next = cell_position + step;
+        discrete_point2_type next = cell_position + step;
         assert(open(next));
 
         if (t_i < t_j)
@@ -493,7 +493,7 @@ bool quetzal::stratum_sim::DiscreteLayout::visible(const placement_type& from, c
 //------------------------------------------------------------------------------
 quetzal::id_type quetzal::stratum_sim::DiscreteLayout::ahead(const placement_type& placement) const
 {
-    discrete_vector_type step = grid_step(placement.direction());
+    discrete_vector2_type step = grid_step(placement.direction());
     if (step.zero())
     {
         return nullid;

@@ -62,7 +62,7 @@ bool quetzal::catagen::set_parameter(Parameters& parameters, const std::string& 
     }
     else if (key == "extent")
     {
-        parameters.extent = token_value<vector_type>(key, text);
+        parameters.extent = token_value<discrete_vector2_type>(key, text);
     }
     else if (key == "scale")
     {
@@ -94,11 +94,11 @@ bool quetzal::catagen::set_parameter(Parameters& parameters, const std::string& 
     }
     else if (key == "position")
     {
-        parameters.position = token_value<zone_position_type>(key, text);
+        parameters.position = token_value<discrete_point3_type>(key, text);
     }
     else if (key == "seed")
     {
-        parameters.seed = token_value<Parameters::seed_type>(key, text);
+        parameters.seed = token_value<seed_type>(key, text);
     }
     else
     {

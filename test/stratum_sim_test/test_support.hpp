@@ -87,7 +87,7 @@ namespace stratum_sim_test
     quetzal::stratum_core::ZoneSpec test_zone_spec(quetzal::stratum_sim::level_type level);
 
     // Returns the position of a zone at the level, (0, 0, level)
-    quetzal::stratum_core::zone_position_type zone_position_at_level(quetzal::stratum_sim::level_type level);
+    quetzal::stratum_core::discrete_point3_type zone_position_at_level(quetzal::stratum_sim::level_type level);
 
     // Returns the zone's level, the z of its position
     quetzal::stratum_sim::level_type level_of(flecs::entity zone);
@@ -133,7 +133,7 @@ namespace stratum_sim_test
 
     // Fills the empty zone at the position in the worldspace from a zone file, with its doors and without denizens, and returns it
     flecs::entity load_zone_unpopulated_at(quetzal::stratum_sim::World& world, quetzal::stratum_core::PersistentId worldspace_id,
-        const quetzal::stratum_core::zone_position_type& position, const std::string& filepath);
+        const quetzal::stratum_core::discrete_point3_type& position, const std::string& filepath);
 
     // The access point type the test cases enter zones at, and the level offset its access point targets: a staircase leading up
     flecs::entity test_entry_type(const quetzal::stratum_sim::Session& session);

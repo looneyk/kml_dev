@@ -92,7 +92,7 @@ namespace
             level.remove_prefix(1);
         }
 
-        return integer_value<std::int32_t>(level).has_value();
+        return integer_value<quetzal::stratum_core::coord_type>(level).has_value();
     }
 
     //--------------------------------------------------------------------------
@@ -151,7 +151,7 @@ std::optional<quetzal::stratum_core::ZoneExtendedName> quetzal::stratum_core::pa
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_core::ZoneExtendedName quetzal::stratum_core::relative_zone_extended_name(std::int32_t k)
+quetzal::stratum_core::ZoneExtendedName quetzal::stratum_core::relative_zone_extended_name(coord_type k)
 {
     return ZoneExtendedName{std::format("{}{:+}{}", relative_zone_prefix, k, relative_zone_suffix)};
 }

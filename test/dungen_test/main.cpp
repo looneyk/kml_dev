@@ -294,7 +294,7 @@ namespace
 
         // A position, when given, is written into the layout and the parameters both
         dungen::Parameters positioned = scenarios().front().parameters;
-        positioned.position = dungen::zone_position_type{3, -4, -2};
+        positioned.position = dungen::discrete_point3_type{3, -4, -2};
         stratum_format::ZoneDocument positioned_document = document_of(zone_text(positioned));
 
         CHECK_CASE("a zone given a position has it in its layout", positioned_document.position == positioned.position);
@@ -568,7 +568,7 @@ namespace
     // Swept over seeds as well as the checked in zone files, as a placement fault depends on where the rooms are
     TEST_CASE("doorway placement")
     {
-        constexpr dungen::Parameters::seed_type seed_count = 64;
+        constexpr dungen::seed_type seed_count = 64;
 
         for (const Scenario& scenario : scenarios())
         {
@@ -590,7 +590,7 @@ namespace
             size_t failures = 0;
             size_t unplaced = 0;
 
-            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            for (dungen::seed_type seed = 1; seed <= seed_count; ++seed)
             {
                 dungen::Parameters parameters = scenario.parameters;
                 parameters.seed = seed;
@@ -634,7 +634,7 @@ namespace
             size_t failures = 0;
             size_t unplaced = 0;
 
-            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            for (dungen::seed_type seed = 1; seed <= seed_count; ++seed)
             {
                 dungen::Parameters parameters;
                 parameters.algorithm = dungen::Algorithm::Grid1;
@@ -686,7 +686,7 @@ namespace
 
         const dungen::Zone& zone = *generated;
 
-        vector<set<stratum_format::discrete_point_type>> cells_expected(zone.rooms().size());
+        vector<set<stratum_format::discrete_point2_type>> cells_expected(zone.rooms().size());
         auto [nx, ny] = zone.extent().rep();
 
         for (dungen::coord_type y = 0; y < ny; ++y)
@@ -708,7 +708,7 @@ namespace
         ostringstream os;
         dungen::write_zone(os, zone, parameters);
 
-        vector<set<stratum_format::discrete_point_type>> cells;
+        vector<set<stratum_format::discrete_point2_type>> cells;
 
         try
         {
@@ -741,7 +741,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("barriers")
     {
-        constexpr dungen::Parameters::seed_type seed_count = 64;
+        constexpr dungen::seed_type seed_count = 64;
 
         struct Variant
         {
@@ -760,7 +760,7 @@ namespace
             string detail;
             size_t failures = 0;
 
-            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            for (dungen::seed_type seed = 1; seed <= seed_count; ++seed)
             {
                 dungen::Parameters parameters;
                 parameters.algorithm = variant.algorithm;
@@ -806,8 +806,8 @@ namespace
     bool staircases_placed_and_faced(const string& zone, const dungen::Parameters& parameters, string& detail)
     {
         using stratum_format::coord_type;
-        using stratum_format::discrete_point_type;
-        using stratum_format::discrete_vector_type;
+        using stratum_format::discrete_point2_type;
+        using stratum_format::discrete_vector2_type;
 
         stratum_format::ZoneDocument document;
 
@@ -824,18 +824,18 @@ namespace
         const stratum_format::Cells& cells = document.cells.value();
         const auto& directions = geometry::cardinal_directions<coord_type, 2>;
 
-        map<discrete_point_type, size_t> room_of;
-        vector<set<discrete_point_type>> rooms = stratum_format::room_cells(document);
+        map<discrete_point2_type, size_t> room_of;
+        vector<set<discrete_point2_type>> rooms = stratum_format::room_cells(document);
 
         for (size_t room_id = 0; room_id < rooms.size(); ++room_id)
         {
-            for (const discrete_point_type& cell_position : rooms[room_id])
+            for (const discrete_point2_type& cell_position : rooms[room_id])
             {
                 room_of[cell_position] = room_id;
             }
         }
 
-        auto glyph = [&cells](const discrete_point_type& cell_position)
+        auto glyph = [&cells](const discrete_point2_type& cell_position)
         {
             return stratum_format::on_grid(cells, cell_position)
                 ? cells.rows[cells.rows.size() - 1 - static_cast<size_t>(cell_position.y())][static_cast<size_t>(cell_position.x())] : '#';
@@ -845,7 +845,7 @@ namespace
 
         dungen::Zone generated = dungen::generate(0, "zone", parameters);
 
-        auto space = [&](const discrete_point_type& cell_position)
+        auto space = [&](const discrete_point2_type& cell_position)
         {
             if (glyph(cell_position) == '>' || glyph(cell_position) == '<')
             {
@@ -858,7 +858,7 @@ namespace
         };
 
         // A door cell, or a cell in no room beside a room's floor, is a doorway
-        auto doorway = [&](const discrete_point_type& cell_position)
+        auto doorway = [&](const discrete_point2_type& cell_position)
         {
             if (glyph(cell_position) == '+')
             {
@@ -866,13 +866,13 @@ namespace
             }
 
             return floor_stair(glyph(cell_position)) && !space(cell_position).has_value() && any_of(directions.begin(), directions.end(),
-                [&](const discrete_vector_type& direction) { return floor_stair(glyph(cell_position + direction)) && space(cell_position + direction).has_value(); });
+                [&](const discrete_vector2_type& direction) { return floor_stair(glyph(cell_position + direction)) && space(cell_position + direction).has_value(); });
         };
 
-        auto stair_doorway = [&](const discrete_point_type& cell_position)
+        auto stair_doorway = [&](const discrete_point2_type& cell_position)
         {
             return doorway(cell_position) || any_of(directions.begin(), directions.end(),
-                [&](const discrete_vector_type& direction) { return doorway(cell_position + direction); });
+                [&](const discrete_vector2_type& direction) { return doorway(cell_position + direction); });
         };
 
         // Returns the cell an entity is sited on the floor of, or nothing if it is sited elsewhere
@@ -884,8 +884,8 @@ namespace
         };
 
         // Each floor, staircase and doorway cell is reachable from every other, a door being passable once opened
-        auto passable = [&](const discrete_point_type& cell_position) { return floor_stair(glyph(cell_position)) || glyph(cell_position) == '+'; };
-        set<discrete_point_type> passable_cells;
+        auto passable = [&](const discrete_point2_type& cell_position) { return floor_stair(glyph(cell_position)) || glyph(cell_position) == '+'; };
+        set<discrete_point2_type> passable_cells;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
@@ -898,8 +898,8 @@ namespace
             }
         }
 
-        set<discrete_point_type> reached;
-        vector<discrete_point_type> pending;
+        set<discrete_point2_type> reached;
+        vector<discrete_point2_type> pending;
 
         if (!passable_cells.empty())
         {
@@ -909,10 +909,10 @@ namespace
 
         while (!pending.empty())
         {
-            discrete_point_type cell_position = pending.back();
+            discrete_point2_type cell_position = pending.back();
             pending.pop_back();
 
-            for (const discrete_vector_type& direction : directions)
+            for (const discrete_vector2_type& direction : directions)
             {
                 if (passable(cell_position + direction) && reached.insert(cell_position + direction).second)
                 {
@@ -922,7 +922,7 @@ namespace
         }
 
         // maze1 can leave corridor that no door reaches, so is not held to this yet
-        for (const discrete_point_type& cell_position : passable_cells)
+        for (const discrete_point2_type& cell_position : passable_cells)
         {
             if (parameters.algorithm != dungen::Algorithm::Maze1 && !reached.contains(cell_position))
             {
@@ -933,13 +933,13 @@ namespace
 
         size_t down_count = 0;
         size_t up_count = 0;
-        set<discrete_point_type> staircase_cells;
+        set<discrete_point2_type> staircase_cells;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position{i, j};
+                discrete_point2_type cell_position{i, j};
                 if (glyph(cell_position) != '>' && glyph(cell_position) != '<')
                 {
                     continue;
@@ -966,7 +966,7 @@ namespace
 
                     ++floor_access_point_count;
 
-                    const optional<discrete_vector_type>& orientation = entity.site->orientation;
+                    const optional<discrete_vector2_type>& orientation = entity.site->orientation;
                     if (!orientation.has_value() || find(directions.begin(), directions.end(), *orientation) == directions.end())
                     {
                         detail = format("staircase at {}, {} has no orientation in a cardinal direction", i, j);
@@ -1004,12 +1004,12 @@ namespace
             return false;
         }
 
-        set<discrete_point_type> access_point_cells;
+        set<discrete_point2_type> access_point_cells;
 
         for (stratum_format::stored_entity_id_type id : document.access_points)
         {
             auto entity = find_if(document.entities.begin(), document.entities.end(), [id](const stratum_format::Entity& e) { return e.id == id; });
-            const optional<discrete_point_type> cell_position = entity != document.entities.end() ? floor_site(*entity) : nullopt;
+            const optional<discrete_point2_type> cell_position = entity != document.entities.end() ? floor_site(*entity) : nullopt;
 
             if (cell_position.has_value())
             {
@@ -1029,7 +1029,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("staircases")
     {
-        constexpr dungen::Parameters::seed_type seed_count = 64;
+        constexpr dungen::seed_type seed_count = 64;
 
         for (const Scenario& scenario : scenarios())
         {
@@ -1044,7 +1044,7 @@ namespace
             size_t failures = 0;
             size_t unplaced = 0;
 
-            for (dungen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+            for (dungen::seed_type seed = 1; seed <= seed_count; ++seed)
             {
                 dungen::Parameters parameters = scenario.parameters;
                 parameters.seed = seed;
@@ -1087,7 +1087,7 @@ namespace
 
         // Returns the error place_staircases throws, or an empty string if it places what it can. Adds the messages of the
         // warnings it writes to the process-wide log under dungen's category to warnings
-        auto placing = [](dungen::Zone& zone, const vector<dungen::point_type>& candidates, math::Interval<size_t> up, math::Interval<size_t> down,
+        auto placing = [](dungen::Zone& zone, const vector<dungen::discrete_point2_type>& candidates, math::Interval<size_t> up, math::Interval<size_t> down,
             vector<string>& warnings)
         {
             dungen::random_type random(1u);
@@ -1119,7 +1119,7 @@ namespace
 
             CHECK_CASE("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
                 && zone.transit_endpoints().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
-            CHECK_CASE("oriented toward the floor beside it", !zone.transit_endpoints().empty() && zone.transit_endpoints()[0].egress_direction == dungen::vector_type{1, 0});
+            CHECK_CASE("oriented toward the floor beside it", !zone.transit_endpoints().empty() && zone.transit_endpoints()[0].egress_direction == dungen::discrete_vector2_type{1, 0});
             CHECK_CASE("a staircase's cell gets no second staircase", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 

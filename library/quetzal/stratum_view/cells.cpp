@@ -17,14 +17,14 @@ namespace
 {
 
     using quetzal::stratum_view::coord_type;
-    using quetzal::stratum_view::point_type;
-    using quetzal::stratum_view::vector_type;
+    using quetzal::stratum_view::discrete_point2_type;
+    using quetzal::stratum_view::discrete_vector2_type;
 
     //--------------------------------------------------------------------------
     // Cell (i, j) is at (2i + 1, 2j + 1), and the wall on its side in a direction is one position further that way
-    point_type lattice_position(const point_type& cell_position)
+    discrete_point2_type lattice_position(const discrete_point2_type& cell_position)
     {
-        return 2 * cell_position + vector_type{1, 1};
+        return 2 * cell_position + discrete_vector2_type{1, 1};
     }
 
     //--------------------------------------------------------------------------
@@ -63,8 +63,8 @@ namespace
     //--------------------------------------------------------------------------
     // Returns true if a door occupies the cell beyond rather than lying on the edge between the two. A
     // door in a cell has a wall on one side only
-    bool door_in_cell(const sim::DiscreteLayout& layout, const sim::discrete_point_type& beyond,
-        const sim::discrete_vector_type& direction)
+    bool door_in_cell(const sim::DiscreteLayout& layout, const sim::discrete_point2_type& beyond,
+        const sim::discrete_vector2_type& direction)
     {
         return layout.open(beyond) && layout.wall_toward(beyond, -direction) == quetzal::nullid;
     }
@@ -80,19 +80,19 @@ namespace
         {
             for (coord_type i = 0; i < grid.extent.x(); ++i)
             {
-                sim::discrete_point_type cell_position{i, j};
+                sim::discrete_point2_type cell_position{i, j};
 
                 if (!layout.open(cell_position))
                 {
                     continue;
                 }
 
-                for (const sim::discrete_vector_type& direction : directions)
+                for (const sim::discrete_vector2_type& direction : directions)
                 {
                     quetzal::id_type wall_id = layout.wall_toward(cell_position, direction);
                     flecs::entity way = wall_id != quetzal::nullid ? visible_access_attachment(zone, wall_id, viewer) : flecs::entity();
 
-                    sim::discrete_point_type beyond = cell_position + direction;
+                    sim::discrete_point2_type beyond = cell_position + direction;
 
                     if (way && door_in_cell(layout, beyond, direction))
                     {
@@ -143,7 +143,7 @@ namespace
                 }
 
                 quetzal::id_type wall_id = std::get<sim::WallId>(*site.address).wall_id;
-                sim::discrete_point_type beyond = layout.wall_cell_position(wall_id) + layout.wall_direction(wall_id);
+                sim::discrete_point2_type beyond = layout.wall_cell_position(wall_id) + layout.wall_direction(wall_id);
 
                 if (layout.grid().contains(beyond) && !layout.open(beyond))
                 {
@@ -170,7 +170,7 @@ namespace
                     return; // Placed relative to its address
                 }
 
-                sim::discrete_point_type cell_position = layout.cell_position_at(site.placement.position());
+                sim::discrete_point2_type cell_position = layout.cell_position_at(site.placement.position());
                 if (grid.contains(cell_position))
                 {
                     f(cell_position);
@@ -195,24 +195,24 @@ quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& worl
     {
         for (coord_type i = 0; i < grid.extent.x(); ++i)
         {
-            if (layout.open(sim::discrete_point_type{i, j}))
+            if (layout.open(sim::discrete_point2_type{i, j}))
             {
                 cells.set({i, j}, Place{PlaceType::Floor});
             }
         }
     }
 
-    each_door_cell(layout, zone, viewer, [&](const sim::discrete_point_type& cell_position, State state)
+    each_door_cell(layout, zone, viewer, [&](const sim::discrete_point2_type& cell_position, State state)
     {
         cells.set(cell_position, Place{PlaceType::Door, state});
     });
 
-    each_stairs_cell(layout, zone, [&](const sim::discrete_point_type& cell_position, PlaceType type)
+    each_stairs_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position, PlaceType type)
     {
         cells.set(cell_position, Place{type});
     });
 
-    each_actor_cell(layout, zone, [&](const sim::discrete_point_type& cell_position)
+    each_actor_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position)
     {
         Place place = cells.at(cell_position);
         place.actor = true;
@@ -232,14 +232,14 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
     auto w = grid.extent.x();
     auto h = grid.extent.y();
 
-    Lattice lattice(vector_type{2 * w + 1, 2 * h + 1}, Place{});
+    Lattice lattice(discrete_vector2_type{2 * w + 1, 2 * h + 1}, Place{});
 
     // Every wall faces an open cell, so visiting the open cells reaches every wall
     for (coord_type j = 0; j < h; ++j)
     {
         for (coord_type i = 0; i < w; ++i)
         {
-            sim::discrete_point_type cell_position{i, j};
+            sim::discrete_point2_type cell_position{i, j};
 
             if (!layout.open(cell_position))
             {
@@ -248,7 +248,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
 
             lattice.set(lattice_position(cell_position), Place{PlaceType::Floor});
 
-            for (const sim::discrete_vector_type& direction : directions)
+            for (const sim::discrete_vector2_type& direction : directions)
             {
                 id_type wall_id = layout.wall_toward(cell_position, direction);
 
@@ -268,7 +268,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
                 Place place{PlaceType::Door, state_of(way)};
 
                 // Placed once however many ways into the cell there are
-                sim::discrete_point_type beyond = cell_position + direction;
+                sim::discrete_point2_type beyond = cell_position + direction;
 
                 if (door_in_cell(layout, beyond, direction))
                 {
@@ -299,7 +299,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
     }
 
     // Returns true if a position is part of a wall line. A cell never is, so a door occupying one is a gap in the line
-    auto line = [&](const point_type& position)
+    auto line = [&](const discrete_point2_type& position)
     {
         if (!lattice.contains(position) || (position.x() % 2 == 1 && position.y() % 2 == 1))
         {
@@ -312,7 +312,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
 
     // Returns true if every cell a position touches is closed: a cell touches itself, an edge the two it lies between and a corner
     // the four meeting at it. Positions beyond the grid count as closed
-    auto solid = [&](const point_type& position)
+    auto solid = [&](const discrete_point2_type& position)
     {
         coord_type x = position.x();
         coord_type y = position.y();
@@ -324,7 +324,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         {
             for (coord_type i = i0; i <= i0 + (x % 2 == 1 ? 0 : 1); ++i)
             {
-                if (i >= 0 && j >= 0 && i < w && j < h && layout.open(sim::discrete_point_type{i, j}))
+                if (i >= 0 && j >= 0 && i < w && j < h && layout.open(sim::discrete_point2_type{i, j}))
                 {
                     return false;
                 }
@@ -338,7 +338,7 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
     {
         for (coord_type x = 0; x <= 2 * w; ++x)
         {
-            point_type position{x, y};
+            discrete_point2_type position{x, y};
             Place place = lattice.at(position);
 
             place.mask = DirectionMask::None;
@@ -357,16 +357,16 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         }
     }
 
-    each_stairs_cell(layout, zone, [&](const sim::discrete_point_type& cell_position, PlaceType type)
+    each_stairs_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position, PlaceType type)
     {
         Place place = lattice.at(lattice_position(cell_position));
         place.type = type;
         lattice.set(lattice_position(cell_position), place);
     });
 
-    each_actor_cell(layout, zone, [&](const sim::discrete_point_type& cell_position)
+    each_actor_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position)
     {
-        point_type position = lattice_position(cell_position);
+        discrete_point2_type position = lattice_position(cell_position);
 
         Place place = lattice.at(position);
         place.actor = true;

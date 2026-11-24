@@ -25,7 +25,7 @@ namespace quetzal::stratum_view
         using value_type = T;
 
         Buffer() = default;
-        Buffer(const vector_type& extent, T fill = T());
+        Buffer(const discrete_vector2_type& extent, T fill = T());
         Buffer(const Buffer&) = default;
         Buffer(Buffer&&) noexcept = default;
         ~Buffer() = default;
@@ -33,11 +33,11 @@ namespace quetzal::stratum_view
         Buffer& operator=(const Buffer&) = default;
         Buffer& operator=(Buffer&&) noexcept = default;
 
-        const vector_type& extent() const;
-        bool contains(const point_type& position) const;
+        const discrete_vector2_type& extent() const;
+        bool contains(const discrete_point2_type& position) const;
 
-        T at(const point_type& position) const;
-        void set(const point_type& position, T value);
+        T at(const discrete_point2_type& position) const;
+        void set(const discrete_point2_type& position, T value);
 
         void fill(T value);
 
@@ -46,9 +46,9 @@ namespace quetzal::stratum_view
 
     private:
 
-        size_t offset(const point_type& position) const;
+        size_t offset(const discrete_point2_type& position) const;
 
-        vector_type m_extent;
+        discrete_vector2_type m_extent;
         std::vector<T> m_values;
     };
 
@@ -56,7 +56,7 @@ namespace quetzal::stratum_view
     // A run of cells within one row
     struct Span
     {
-        point_type position;
+        discrete_point2_type position;
         coord_type count = 0;
 
         friend bool operator==(const Span&, const Span&) = default;
@@ -73,7 +73,7 @@ namespace quetzal::stratum_view
 
 //------------------------------------------------------------------------------
 template<typename T>
-quetzal::stratum_view::Buffer<T>::Buffer(const vector_type& extent, T fill) :
+quetzal::stratum_view::Buffer<T>::Buffer(const discrete_vector2_type& extent, T fill) :
     m_extent(extent),
     m_values(static_cast<size_t>(extent.x() * extent.y()), fill)
 {
@@ -81,14 +81,14 @@ quetzal::stratum_view::Buffer<T>::Buffer(const vector_type& extent, T fill) :
 
 //------------------------------------------------------------------------------
 template<typename T>
-const quetzal::stratum_view::vector_type& quetzal::stratum_view::Buffer<T>::extent() const
+const quetzal::stratum_view::discrete_vector2_type& quetzal::stratum_view::Buffer<T>::extent() const
 {
     return m_extent;
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-bool quetzal::stratum_view::Buffer<T>::contains(const point_type& position) const
+bool quetzal::stratum_view::Buffer<T>::contains(const discrete_point2_type& position) const
 {
     return position.x() >= 0 && position.x() < m_extent.x()
         && position.y() >= 0 && position.y() < m_extent.y();
@@ -96,14 +96,14 @@ bool quetzal::stratum_view::Buffer<T>::contains(const point_type& position) cons
 
 //------------------------------------------------------------------------------
 template<typename T>
-T quetzal::stratum_view::Buffer<T>::at(const point_type& position) const
+T quetzal::stratum_view::Buffer<T>::at(const discrete_point2_type& position) const
 {
     return m_values[offset(position)];
 }
 
 //------------------------------------------------------------------------------
 template<typename T>
-void quetzal::stratum_view::Buffer<T>::set(const point_type& position, T value)
+void quetzal::stratum_view::Buffer<T>::set(const discrete_point2_type& position, T value)
 {
     m_values[offset(position)] = value;
     return;
@@ -139,7 +139,7 @@ std::string quetzal::stratum_view::Buffer<T>::to_string() const requires std::sa
 
 //------------------------------------------------------------------------------
 template<typename T>
-size_t quetzal::stratum_view::Buffer<T>::offset(const point_type& position) const
+size_t quetzal::stratum_view::Buffer<T>::offset(const discrete_point2_type& position) const
 {
     assert(contains(position));
     return static_cast<size_t>(position.y() * m_extent.x() + position.x());
@@ -151,7 +151,7 @@ quetzal::stratum_view::spans_type quetzal::stratum_view::difference(const Buffer
 {
     spans_type spans;
 
-    const vector_type& extent = b.extent();
+    const discrete_vector2_type& extent = b.extent();
 
     if (a.extent() != extent)
     {

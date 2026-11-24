@@ -20,14 +20,14 @@ namespace
     using grid_type = vector<bool>;
 
     //--------------------------------------------------------------------------
-    size_t slot(vector_type size, coord_type x, coord_type y)
+    size_t slot(discrete_vector2_type size, coord_type x, coord_type y)
     {
         return static_cast<size_t>(y * size.x() + x);
     }
 
     //--------------------------------------------------------------------------
     // Off the grid counts as solid
-    bool solid(const grid_type& grid, vector_type size, coord_type x, coord_type y)
+    bool solid(const grid_type& grid, discrete_vector2_type size, coord_type x, coord_type y)
     {
         if (x < 0 || y < 0 || x >= size.x() || y >= size.y())
         {
@@ -38,7 +38,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    size_t solid_neighbors(const grid_type& grid, vector_type size, coord_type x, coord_type y)
+    size_t solid_neighbors(const grid_type& grid, discrete_vector2_type size, coord_type x, coord_type y)
     {
         size_t n = 0;
 
@@ -58,7 +58,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Every cell drawn solid or open at random, the border left solid
-    grid_type noise(vector_type size, double fill, random_type& random)
+    grid_type noise(discrete_vector2_type size, double fill, random_type& random)
     {
         auto [nx, ny] = size;
         grid_type grid(static_cast<size_t>(nx * ny), true);
@@ -77,7 +77,7 @@ namespace
     //--------------------------------------------------------------------------
     // One automaton pass over every cell off the border: a solid cell stays solid with at least survival_threshold solid
     // neighbors, and an open cell turns solid with at least birth_threshold. Every cell is computed from the input grid
-    grid_type smooth(const grid_type& grid, vector_type size, const Cave1Parameters& cave1)
+    grid_type smooth(const grid_type& grid, discrete_vector2_type size, const Cave1Parameters& cave1)
     {
         auto [nx, ny] = size;
         grid_type result = grid;
@@ -96,14 +96,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // The cells of the largest connected area of open cells
-    vector<point_type> largest_area(const grid_type& grid, vector_type size)
+    vector<discrete_point2_type> largest_area(const grid_type& grid, discrete_vector2_type size)
     {
         auto [nx, ny] = size;
 
         vector<bool> seen(static_cast<size_t>(nx * ny), false);
-        vector<point_type> largest;
-        vector<point_type> area;
-        vector<point_type> pending;
+        vector<discrete_point2_type> largest;
+        vector<discrete_point2_type> area;
+        vector<discrete_point2_type> pending;
 
         for (coord_type y = 0; y < ny; ++y)
         {
@@ -115,18 +115,18 @@ namespace
                 }
 
                 area.clear();
-                pending.assign(1, point_type{x, y});
+                pending.assign(1, discrete_point2_type{x, y});
                 seen[slot(size, x, y)] = true;
 
                 while (!pending.empty())
                 {
-                    point_type position = pending.back();
+                    discrete_point2_type position = pending.back();
                     pending.pop_back();
                     area.push_back(position);
 
                     for (const auto& direction : cardinal_directions)
                     {
-                        point_type neighbor = position + direction;
+                        discrete_point2_type neighbor = position + direction;
                         if (solid(grid, size, neighbor.x(), neighbor.y()) || seen[slot(size, neighbor.x(), neighbor.y())])
                         {
                             continue;
@@ -168,7 +168,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_cave1(id_type id, const string& 
     Zone zone(id, name, parameters.extent, CellType::Solid);
 
     // Only the largest area is kept, so every open cell is reachable from every other
-    vector<point_type> area = largest_area(grid, parameters.extent);
+    vector<discrete_point2_type> area = largest_area(grid, parameters.extent);
     if (!area.empty())
     {
         zone.create_room(area);

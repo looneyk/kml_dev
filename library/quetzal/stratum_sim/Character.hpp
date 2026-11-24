@@ -22,8 +22,8 @@ namespace quetzal::stratum_sim
     struct CharacterPlacement
     {
         PersistentId zone_id;
-        discrete_point_type cell_position;
-        discrete_vector_type orientation;
+        discrete_point2_type cell_position;
+        discrete_vector2_type orientation;
     };
 
     //--------------------------------------------------------------------------

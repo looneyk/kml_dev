@@ -49,6 +49,18 @@ Each box is one commit point. An item too large for one commit is split into box
 starts. When a box's work is done and every test passes, the box is ticked and that is the moment to commit. The ticked
 boxes are removed at the start of the next piece of work, since the reference documents then describe what they built.
 
+## Types and terms
+
+- [x] **Dimensioned type aliases:** every stratum library, application, tool, and test, `dungen` and `catagen` included,
+      uses `discrete_point2_type`, `discrete_vector2_type`, and `discrete_point3_type` in place of
+      `discrete_point_type`, `discrete_vector_type`, and `zone_position_type`, and those aliases are removed from
+      `stratum_core/types.hpp` and the `dungen` and `catagen` `types.hpp`.
+- [ ] **Zone offsets as vectors, and no levels:** an offset from one zone to another is a `discrete_vector3_type`, as
+      `zone_offset` returns, wherever an offset is computed, passed, or compared: in `resolve_destination`, in
+      `entry_point`, `accepts_arrival`, and `targets_level`, and in `relative_zone_extended_name`. `level_type` is
+      removed, and every identifier, comment, and document that uses "level" for a zone's z or for an offset is renamed
+      or reworded for the position or the offset it means. "Level" stays only as a descriptive word in an example.
+
 ## Generators
 
 - [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a

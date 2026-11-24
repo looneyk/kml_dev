@@ -20,7 +20,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_surface1(id_type id, const strin
     auto [nx, ny] = parameters.extent;
 
     Zone zone(id, name, parameters.extent, CellType::Solid);
-    vector<point_type> open_cells;
+    vector<discrete_point2_type> open_cells;
 
     for (coord_type y = 1; y < ny - 1; ++y)
     {

@@ -126,12 +126,12 @@ stratum_core::PersistentId stratum_sim_test::top_level_region(const stratum_sim:
 stratum_core::ZoneSpec stratum_sim_test::test_zone_spec(stratum_sim::level_type level)
 {
     stratum_core::ZoneSpec zone_spec;
-    zone_spec.set_position(stratum_core::zone_position_type{0, 0, level});
+    zone_spec.set_position(stratum_core::discrete_point3_type{0, 0, level});
     return zone_spec;
 }
 
 //------------------------------------------------------------------------------
-stratum_core::zone_position_type stratum_sim_test::zone_position_at_level(stratum_sim::level_type level)
+stratum_core::discrete_point3_type stratum_sim_test::zone_position_at_level(stratum_sim::level_type level)
 {
     return {0, 0, level};
 }
@@ -139,7 +139,7 @@ stratum_core::zone_position_type stratum_sim_test::zone_position_at_level(stratu
 //------------------------------------------------------------------------------
 stratum_sim::level_type stratum_sim_test::level_of(flecs::entity zone)
 {
-    return zone.get<stratum_core::zone_position_type>().z();
+    return zone.get<stratum_core::discrete_point3_type>().z();
 }
 
 //------------------------------------------------------------------------------
@@ -167,9 +167,9 @@ stratum_sim_test::WallCounts stratum_sim_test::wall_counts(const stratum_sim::Di
     {
         for (stratum_sim::coord_type i = 0; i < grid.extent.x(); ++i)
         {
-            stratum_sim::discrete_point_type cell_position{i, j};
+            stratum_sim::discrete_point2_type cell_position{i, j};
 
-            for (const stratum_sim::discrete_vector_type& direction : stratum_sim::cardinal_directions)
+            for (const stratum_sim::discrete_vector2_type& direction : stratum_sim::cardinal_directions)
             {
                 if (layout.wall_toward(cell_position, direction) == nullid)
                 {
@@ -178,7 +178,7 @@ stratum_sim_test::WallCounts stratum_sim_test::wall_counts(const stratum_sim::Di
 
                 ++counts.sides;
 
-                stratum_sim::discrete_point_type beyond = cell_position + direction;
+                stratum_sim::discrete_point2_type beyond = cell_position + direction;
                 counts.both_sides += grid.contains(beyond) && layout.wall_toward(beyond, -direction) != nullid ? 1 : 0;
             }
         }
@@ -219,7 +219,7 @@ flecs::entity stratum_sim_test::load_zone_unpopulated(TestWorld& world, const st
 
 //------------------------------------------------------------------------------
 flecs::entity stratum_sim_test::load_zone_unpopulated_at(stratum_sim::World& world, stratum_core::PersistentId worldspace_id,
-    const stratum_core::zone_position_type& position, const string& filepath)
+    const stratum_core::discrete_point3_type& position, const string& filepath)
 {
     flecs::entity zone = world.entity(world.zone_ids(worldspace_id).at(position));
     stratum_format::ZoneDocument document = stratum_format::read_zone(filepath);

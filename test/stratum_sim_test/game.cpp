@@ -79,7 +79,7 @@ namespace
         flecs::entity carried = world.entities().entity();
         stratum_sim::set_parent(carried, character);
 
-        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace({{.region_spec = named_region_spec(test_region_spec("door"), "door")}}, test_worldspace_seed), stratum_core::zone_position_type{});
+        flecs::entity elsewhere = world.load_zone_at(world.create_worldspace({{.region_spec = named_region_spec(test_region_spec("door"), "door")}}, test_worldspace_seed), stratum_core::discrete_point3_type{});
         world.make_reference(world.create_entity(elsewhere, stratum_sim::placement_type()));
 
         played.clear();
@@ -120,7 +120,7 @@ namespace
         CHECK_CASE("and the character, with the spec's name and the first id", persistent_id_of(first_character) == 0
             && name_of(first_character) == "Ailis");
         CHECK_CASE("and starts play in a worldspace made from the spec, named for it, in the zone and at the cell the start settings state",
-            sequence_session.loaded() && first_zone.get<stratum_core::zone_position_type>() == stratum_core::zone_position_type{0, 0, -1}
+            sequence_session.loaded() && first_zone.get<stratum_core::discrete_point3_type>() == stratum_core::discrete_point3_type{0, 0, -1}
             && zone_file_of(first_region.region_spec) == "data/walls.zone" && first_worldspace.name == region_spec_name
             && stratum_sim::placement_of(first_character).position()
                 == stratum_sim::start_placement(first_zone, stratum_sim::center_start).position());
@@ -305,7 +305,7 @@ namespace
         {
             stratum_format::ZoneDocument saved_document = stratum_format::read_zone(zone_file(saving_first_id));
             saved_back = saved_document.zone_id == saving_first_id.id
-                && saved_document.position == stratum_format::zone_position_type{0, 0, -1};
+                && saved_document.position == stratum_format::discrete_point3_type{0, 0, -1};
         }
 
         CHECK_CASE("a zone the world unloads is saved first, as a saved zone in the game directory's zones",
@@ -371,7 +371,7 @@ namespace
 
         stratum_format::raw_values_type character_json = read_json(save_directory / "character.json");
         const stratum_sim::placement_type& character_placement = stratum_sim::placement_of(saving_character);
-        stratum_sim::discrete_point_type character_cell = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(saving_world.layout(
+        stratum_sim::discrete_point2_type character_cell = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(saving_world.layout(
             stratum_sim::zone_of(saving_character))).cell_position_at(character_placement.position());
         CHECK_CASE("character.json has the character's id, components, zone and cell, and an empty inventory", !character_json.is_discarded()
             && character_json["character"]["id"] == saving_character.get<stratum_core::PersistentId>().id
@@ -488,8 +488,8 @@ namespace
         CHECK_CASE("and the worldspace, with its name and its zones by position, loaded or not", region_opened
             && saving_world.worldspaces().front().worldspace_id == worldspace_id && saving_world.worldspace(worldspace_id).name == region_spec_name
             && saving_world.zone_ids(worldspace_id).size() == test_extent_zone_count
-            && saving_world.zone_ids(worldspace_id).at(stratum_core::zone_position_type{0, 0, -1}) == saving_first_id
-            && saving_world.zone_ids(worldspace_id).at(stratum_core::zone_position_type{0, 0, -2}) == saving_second_id);
+            && saving_world.zone_ids(worldspace_id).at(stratum_core::discrete_point3_type{0, 0, -1}) == saving_first_id
+            && saving_world.zone_ids(worldspace_id).at(stratum_core::discrete_point3_type{0, 0, -2}) == saving_second_id);
         CHECK_CASE("and the region's name", region_opened && saving_world.region(region_id).name == region_spec_name);
         CHECK_CASE("and ids continue past every id in the game", saving_world.next_id().id > largest_id.id);
 

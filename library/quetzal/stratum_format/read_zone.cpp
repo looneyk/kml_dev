@@ -37,8 +37,6 @@ namespace
     using namespace quetzal::stratum_format::detail;
     using quetzal::id_type;
 
-    using discrete_box_type = quetzal::geometry::DiscreteBox<coord_type, 2>;
-
     //--------------------------------------------------------------------------
     // A barrier with a normal is one face of the cell; without one it is the whole cell
     Barrier read_barrier(const raw_values_type& v, const std::string& path)
@@ -129,7 +127,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void check_on_grid(const Cells& cells, const discrete_point_type& cell_position, const std::string& path)
+    void check_on_grid(const Cells& cells, const discrete_point2_type& cell_position, const std::string& path)
     {
         if (!on_grid(cells, cell_position))
         {
@@ -153,7 +151,7 @@ namespace
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position{i, j};
+                discrete_point2_type cell_position{i, j};
                 if (!floor_cell(cells, cell_position))
                 {
                     continue;
@@ -161,7 +159,7 @@ namespace
 
                 for (const auto& direction : quetzal::geometry::cardinal_directions<coord_type, 2>)
                 {
-                    discrete_point_type neighbor = cell_position + direction;
+                    discrete_point2_type neighbor = cell_position + direction;
                     bool neighbor_on_grid = on_grid(cells, neighbor);
 
                     if ((neighbor_on_grid && floor_cell(cells, neighbor)) || has_wall(cells, cell_position, direction))
@@ -315,13 +313,13 @@ namespace
     // floor/door cell, or a virtual wall between two floor/door cells
     void check_perimeter(const Cells& cells, const Perimeter& perimeter, const std::string& path)
     {
-        const std::vector<discrete_point_type>& junctions = perimeter.junctions;
+        const std::vector<discrete_point2_type>& junctions = perimeter.junctions;
         size_t n = junctions.size();
 
         for (size_t k = 0; k < n; ++k)
         {
-            const discrete_point_type& a = junctions[k];
-            const discrete_point_type& b = junctions[(k + 1) % n];
+            const discrete_point2_type& a = junctions[k];
+            const discrete_point2_type& b = junctions[(k + 1) % n];
 
             if (a.x() < 0 || a.y() < 0 || a.x() > cells.extent.x() || a.y() > cells.extent.y())
             {
@@ -343,13 +341,13 @@ namespace
 
         for (size_t k = 0; k < n; ++k)
         {
-            const discrete_point_type& a = junctions[k];
-            const discrete_point_type& b = junctions[(k + 1) % n];
+            const discrete_point2_type& a = junctions[k];
+            const discrete_point2_type& b = junctions[(k + 1) % n];
 
             for (size_t m = k + 1; m < n; ++m)
             {
-                const discrete_point_type& c = junctions[m];
-                const discrete_point_type& d = junctions[(m + 1) % n];
+                const discrete_point2_type& c = junctions[m];
+                const discrete_point2_type& d = junctions[(m + 1) % n];
 
                 if (m == k + 1 || (k == 0 && m == n - 1))
                 {
@@ -374,8 +372,8 @@ namespace
         std::int64_t twice_area = 0;
         for (size_t k = 0; k < n; ++k)
         {
-            const discrete_point_type& a = junctions[k];
-            const discrete_point_type& b = junctions[(k + 1) % n];
+            const discrete_point2_type& a = junctions[k];
+            const discrete_point2_type& b = junctions[(k + 1) % n];
             twice_area += static_cast<std::int64_t>(a.x()) * b.y() - static_cast<std::int64_t>(b.x()) * a.y();
         }
 
@@ -387,18 +385,18 @@ namespace
         // cell, also passes, and a check of the enclosed area is needed to reject it ...
         for (size_t k = 0; k < n; ++k)
         {
-            const discrete_point_type& a = junctions[k];
-            const discrete_point_type& b = junctions[(k + 1) % n];
+            const discrete_point2_type& a = junctions[k];
+            const discrete_point2_type& b = junctions[(k + 1) % n];
 
-            discrete_vector_type step{sign(b.x() - a.x()), sign(b.y() - a.y())};
-            discrete_vector_type inward{-turn * step.y(), turn * step.x()};
-            discrete_vector_type outward{-inward.x(), -inward.y()};
+            discrete_vector2_type step{sign(b.x() - a.x()), sign(b.y() - a.y())};
+            discrete_vector2_type inward{-turn * step.y(), turn * step.x()};
+            discrete_vector2_type outward{-inward.x(), -inward.y()};
 
-            for (discrete_point_type junction = a; junction != b; junction += step)
+            for (discrete_point2_type junction = a; junction != b; junction += step)
             {
-                discrete_point_type lower{std::min(junction.x(), junction.x() + step.x()), std::min(junction.y(), junction.y() + step.y())};
-                discrete_point_type inside{lower.x() - (inward.x() < 0 ? 1 : 0), lower.y() - (inward.y() < 0 ? 1 : 0)};
-                discrete_point_type outside = inside + outward;
+                discrete_point2_type lower{std::min(junction.x(), junction.x() + step.x()), std::min(junction.y(), junction.y() + step.y())};
+                discrete_point2_type inside{lower.x() - (inward.x() < 0 ? 1 : 0), lower.y() - (inward.y() < 0 ? 1 : 0)};
+                discrete_point2_type outside = inside + outward;
 
                 assert(on_grid(cells, inside));
 
@@ -502,7 +500,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns true if a barrier closes off the whole cell, leaving a fill nowhere to start
-    bool location_barred(const std::vector<Barrier>& barriers, const discrete_point_type& cell_position)
+    bool location_barred(const std::vector<Barrier>& barriers, const discrete_point2_type& cell_position)
     {
         return std::ranges::any_of(barriers, [&](const Barrier& barrier) { return !barrier.normal.has_value() && barrier.cell_position == cell_position; });
     }
@@ -520,17 +518,17 @@ namespace
             }
         }
 
-        std::vector<std::set<discrete_point_type>> covers = room_cells(document);
+        std::vector<std::set<discrete_point2_type>> covers = room_cells(document);
 
-        std::vector<discrete_box_type> bounds;
+        std::vector<discrete_box2_type> bounds;
         bounds.reserve(covers.size());
 
         for (const auto& cover : covers)
         {
-            discrete_box_type box;
+            discrete_box2_type box;
             for (const auto& cell_position : cover)
             {
-                box = quetzal::geometry::op_union(box, discrete_box_type(cell_position, discrete_vector_type{1, 1}));
+                box = quetzal::geometry::op_union(box, discrete_box2_type(cell_position, discrete_vector2_type{1, 1}));
             }
 
             bounds.push_back(box);
@@ -643,7 +641,7 @@ namespace
                 object(a[i], cell_path);
 
                 std::string position_path = member_path(cell_path, "cell_position");
-                discrete_point_type cell_position = read_cell_position(required_member(a[i], cell_path, "cell_position"), position_path);
+                discrete_point2_type cell_position = read_cell_position(required_member(a[i], cell_path, "cell_position"), position_path);
                 check_on_grid(cells, cell_position, position_path);
 
                 if (!flat.cells.emplace(cell_position, read_flat_properties(a[i], cell_path)).second)
@@ -697,7 +695,7 @@ namespace
         else if (const raw_values_type* p = member(v, "cell_position"); p != nullptr)
         {
             std::string cell_path = member_path(path, "cell_position");
-            discrete_point_type cell_position = read_cell_position(*p, cell_path);
+            discrete_point2_type cell_position = read_cell_position(*p, cell_path);
             check_on_grid(cells, cell_position, cell_path);
 
             if (!floor_door_cell(cells, cell_position))
@@ -779,7 +777,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns the zone's position if the layout's components have one
-    std::optional<zone_position_type> read_zone_position(const raw_values_type& components)
+    std::optional<discrete_point3_type> read_zone_position(const raw_values_type& components)
     {
         const raw_values_type* p = components.is_object() ? member(components, "position") : nullptr;
         if (p == nullptr)
@@ -789,7 +787,7 @@ namespace
 
         const std::string path = "layout.components.position";
         const raw_values_type& a = fixed_array(*p, path, 3);
-        return zone_position_type{coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1)),
+        return discrete_point3_type{coord_value(a[0], element_path(path, 0)), coord_value(a[1], element_path(path, 1)),
             coord_value(a[2], element_path(path, 2))};
     }
 
@@ -822,7 +820,7 @@ namespace
         {
             const std::string egress_path = member_path(path, "egress");
             const raw_values_type& a = fixed_array(*egress, egress_path, 2);
-            access_point.egress = discrete_vector_type{coord_value(a[0], element_path(egress_path, 0)), coord_value(a[1], element_path(egress_path, 1))};
+            access_point.egress = discrete_vector2_type{coord_value(a[0], element_path(egress_path, 0)), coord_value(a[1], element_path(egress_path, 1))};
         }
 
         if (const raw_values_type* automatic_entry = member(v, "automatic_entry"); automatic_entry != nullptr)
@@ -1221,15 +1219,15 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    std::vector<discrete_point_type> stair_cell_positions(const Cells& cells)
+    std::vector<discrete_point2_type> stair_cell_positions(const Cells& cells)
     {
-        std::vector<discrete_point_type> result;
+        std::vector<discrete_point2_type> result;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                if (discrete_point_type cell_position{i, j}; stair_cell(cells, cell_position))
+                if (discrete_point2_type cell_position{i, j}; stair_cell(cells, cell_position))
                 {
                     result.push_back(cell_position);
                 }
@@ -1246,10 +1244,10 @@ namespace
     //--------------------------------------------------------------------------
     // Each stair glyph is one access point sited on the floor of its cell. The glyphs are visual aids, so a discrepancy is
     // a warning
-    void check_stair_glyphs(const ZoneDocument& document, const std::vector<discrete_point_type>& stair_cells, const warn_type& warn)
+    void check_stair_glyphs(const ZoneDocument& document, const std::vector<discrete_point2_type>& stair_cells, const warn_type& warn)
     {
         // <cell position, slots of the access points sited on its floor>
-        std::map<discrete_point_type, std::vector<size_t>> floor_access_points;
+        std::map<discrete_point2_type, std::vector<size_t>> floor_access_points;
         for (size_t slot = 0; slot < document.entities.size(); ++slot)
         {
             const Entity& entity = document.entities[slot];
@@ -1260,7 +1258,7 @@ namespace
             }
         }
 
-        for (const discrete_point_type& cell_position : stair_cells)
+        for (const discrete_point2_type& cell_position : stair_cells)
         {
             auto i = floor_access_points.find(cell_position);
 
@@ -1281,7 +1279,7 @@ namespace
     //--------------------------------------------------------------------------
     // The cell in which an actor arriving at an access point is placed: the cell of the wall or the flat cell that it is
     // sited on, plus its egress
-    discrete_point_type destination_cell_position(const Site& site, const quetzal::stratum_core::AccessPoint& access_point)
+    discrete_point2_type destination_cell_position(const Site& site, const quetzal::stratum_core::AccessPoint& access_point)
     {
         const auto* wall = std::get_if<WallPlacement>(&*site.address);
         return (wall != nullptr ? wall->cell_position : std::get<FlatCell>(*site.address).cell_position) + access_point.egress;
@@ -1344,7 +1342,7 @@ namespace
                 warn(point_path, "an entity sited on a wall that is not a door's wall");
             }
 
-            const discrete_point_type destination = destination_cell_position(*entity.site, access_point);
+            const discrete_point2_type destination = destination_cell_position(*entity.site, access_point);
             if (!on_grid(document.cells.value(), destination) || !floor_door_cell(document.cells.value(), destination))
             {
                 fail(member_path(components_path, "site"), "an access point at which an arriving actor is placed in a cell it cannot stand in");

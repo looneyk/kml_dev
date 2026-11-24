@@ -62,7 +62,7 @@ namespace
         {
             for (stratum_sim::coord_type i = 0; i < a.grid().extent.x(); ++i)
             {
-                stratum_sim::discrete_point_type cell_position{i, j};
+                stratum_sim::discrete_point2_type cell_position{i, j};
                 if (a.open(cell_position) != b.open(cell_position) || a.walls(cell_position) != b.walls(cell_position))
                 {
                     return false;
@@ -84,17 +84,17 @@ namespace
 
         flecs::entity crypt = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity moor = world.create_zone(world.region_id, make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
-            1.0f, stratum_sim::discrete_vector_type(4, 4)));
+            1.0f, stratum_sim::discrete_vector2_type(4, 4)));
 
         CHECK_CASE_EQUAL("zones are created", filled_zone_count(world), 2);
         CHECK_CASE("a zone is found by its persistent id", world.entity(crypt.get<stratum_core::PersistentId>()) == crypt);
         CHECK_CASE("each zone has its own layout", &world.layout(crypt) != &world.layout(moor));
 
-        CHECK_CASE("a zone has the layout it was created with", zone_layout(world, crypt).grid().extent == stratum_sim::discrete_vector_type(6, 5));
+        CHECK_CASE("a zone has the layout it was created with", zone_layout(world, crypt).grid().extent == stratum_sim::discrete_vector2_type(6, 5));
         CHECK_CASE("the other stays empty", zone_layout(world, moor).flat_store_count() == 0);
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
-        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point_type{2, 2}), east);
+        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point2_type{2, 2}), east);
 
         flecs::entity monster = world.create_entity(crypt, where);
         CHECK_CASE("an entity is placed in its zone", stratum_sim::zone_of(monster) == crypt);
@@ -170,11 +170,11 @@ namespace
 
         auto door_east_of_start = [&](flecs::entity zone)
         {
-            return stratum_sim::find_access_attachment(zone, zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type{1, 1},
+            return stratum_sim::find_access_attachment(zone, zone_layout(world, zone).wall_toward(stratum_sim::discrete_point2_type{1, 1},
                 cardinal_direction(CardinalDirection::East)));
         };
 
-        flecs::entity generated = world.load_zone_at(world.create_worldspace({{.region_spec = named_region_spec(test_region_spec("door"), "door")}}, test_worldspace_seed), stratum_core::zone_position_type{});
+        flecs::entity generated = world.load_zone_at(world.create_worldspace({{.region_spec = named_region_spec(test_region_spec("door"), "door")}}, test_worldspace_seed), stratum_core::discrete_point3_type{});
         stratum_sim::World::entities_type generated_denizens = denizens_in(generated);
 
         CHECK_CASE("a generated zone has its doors", door_east_of_start(generated).is_alive());
@@ -271,7 +271,7 @@ namespace
         flecs::entity crypt = load_zone_unpopulated(world, "data/room.zone");
         flecs::entity moor = load_zone_unpopulated(world, "data/corridor.zone");
 
-        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point_type{2, 2}),
+        stratum_sim::placement_type where(zone_layout(world, crypt).position(stratum_sim::discrete_point2_type{2, 2}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f));
         flecs::entity monster = world.create_entity(crypt, where);
         flecs::entity chest = world.create_entity(crypt, where);
@@ -358,7 +358,7 @@ namespace
         flecs::entity g = corridor();
 
         flecs::entity kept = world.create_entity(e, stratum_sim::placement_type(
-            zone_layout(world, e).position(stratum_sim::discrete_point_type{1, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+            zone_layout(world, e).position(stratum_sim::discrete_point2_type{1, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
         stratum_sim::EntityReference kept_reference = world.make_reference(kept);
         stratum_core::PersistentId e_id = e.get<stratum_core::PersistentId>();
 
@@ -435,15 +435,15 @@ namespace
         flecs::entity zone = world.load_zone(world.region_id, "data/door.zone");
 
         flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(zone,
-            zone_layout(world, zone).wall_toward(stratum_sim::discrete_point_type{1, 1}, cardinal_direction(CardinalDirection::East))));
+            zone_layout(world, zone).wall_toward(stratum_sim::discrete_point2_type{1, 1}, cardinal_direction(CardinalDirection::East))));
         door.set<stratum_sim::Access>(stratum_sim::Access{stratum_sim::AccessState::Open});
         stratum_core::PersistentId door_id = door.get<stratum_core::PersistentId>();
 
         flecs::entity pursuer;
         world.entities().each([&](flecs::entity e, const stratum_sim::Speed&) { pursuer = e; });
         stratum_core::PersistentId pursuer_id = pursuer.get<stratum_core::PersistentId>();
-        stratum_sim::discrete_point_type pursuer_cell = zone_layout(world, zone).cell_position_at(stratum_sim::placement_of(pursuer).position());
-        pursuer.set<stratum_sim::Pursue>(stratum_sim::Pursue{world.make_reference(door), zone_layout(world, zone).position(stratum_sim::discrete_point_type{1, 1}), true});
+        stratum_sim::discrete_point2_type pursuer_cell = zone_layout(world, zone).cell_position_at(stratum_sim::placement_of(pursuer).position());
+        pursuer.set<stratum_sim::Pursue>(stratum_sim::Pursue{world.make_reference(door), zone_layout(world, zone).position(stratum_sim::discrete_point2_type{1, 1}), true});
 
         bool door_open = false;
         bool pursuer_kept = false;
@@ -487,13 +487,13 @@ namespace
         const stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         stratum_sim::vector_type west(-1.0f, 0.0f, 0.0f);
-        auto at = [&](int i) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{i, 1}), east); };
+        auto at = [&](int i) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{i, 1}), east); };
         auto cell_of = [&](flecs::entity e) { return layout.cell_position_at(stratum_sim::placement_of(e).position()); };
 
         flecs::entity character = world.create_entity(zone, at(1));
         character.add<stratum_sim::Blocking>();
 
-        flecs::entity monster = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{5, 1}), west));
+        flecs::entity monster = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{5, 1}), west));
         monster.add<stratum_sim::Blocking>();
         monster.set<stratum_sim::Pursue>(stratum_sim::Pursue{world.make_reference(character), stratum_sim::point_type(), false});
 
@@ -529,7 +529,7 @@ namespace
             round();
         }
 
-        CHECK_CASE("it closed the distance", cell_of(monster) == stratum_sim::discrete_point_type(2, 1));
+        CHECK_CASE("it closed the distance", cell_of(monster) == stratum_sim::discrete_point2_type(2, 1));
 
         // It does not walk into what it is chasing, occupancy blocking it as a wall would
         for (int n = 0; n < 3; ++n)
@@ -537,8 +537,8 @@ namespace
             round();
         }
 
-        CHECK_CASE("and stops where its target stands", cell_of(monster) == stratum_sim::discrete_point_type(2, 1));
-        CHECK_CASE("which is the target's own cell it did not take", cell_of(character) == stratum_sim::discrete_point_type(1, 1));
+        CHECK_CASE("and stops where its target stands", cell_of(monster) == stratum_sim::discrete_point2_type(2, 1));
+        CHECK_CASE("which is the target's own cell it did not take", cell_of(character) == stratum_sim::discrete_point2_type(1, 1));
 
         // A target gone unseen is sought where it was last seen
         flecs::entity gone = world.create_entity(zone, at(4));
@@ -546,7 +546,7 @@ namespace
         gone.destruct();
 
         flecs::entity blind = world.create_entity(zone, at(5));
-        blind.set<stratum_sim::Pursue>(stratum_sim::Pursue{gone_reference, layout.position(stratum_sim::discrete_point_type{3, 1}), true});
+        blind.set<stratum_sim::Pursue>(stratum_sim::Pursue{gone_reference, layout.position(stratum_sim::discrete_point2_type{3, 1}), true});
 
         stratum_sim::think(world, controlled);
         CHECK_CASE("a pursuer whose target is gone still goes where it last looked",
@@ -580,7 +580,7 @@ namespace
             game_created.generation() = test_generation();
             game_created.character().create(stratum_sim::CharacterSpec{});
             created.enter(game_created.world().load_zone_at(game_created.world().create_worldspace({{.region_spec = named_region_spec(test_region_spec("door"), "door")}}, test_worldspace_seed),
-                stratum_core::zone_position_type{}), test_entry_type(created), test_entry_offset);
+                stratum_core::discrete_point3_type{}), test_entry_type(created), test_entry_offset);
 
             CHECK_CASE("a constructed zone is loaded", created.loaded());
             CHECK_CASE("with a character in it", created.character().entity().is_alive());
@@ -588,7 +588,7 @@ namespace
             // A door on the doorway shows the reported walls were built
             CHECK_CASE("its doors are attached to the walls the generator reported",
                 stratum_sim::find_access_attachment(created.zone(), stratum_sim::layout_as<stratum_sim::DiscreteLayout>(
-                    created.layout()).wall_toward(stratum_sim::discrete_point_type{1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
+                    created.layout()).wall_toward(stratum_sim::discrete_point2_type{1, 1}, cardinal_direction(CardinalDirection::East))).is_alive());
 
             // Reading the same geometry from a file produces the same zone
             stratum_sim::Game game_loaded(g_test_config, g_test_manifest);
@@ -615,11 +615,11 @@ namespace
 
         // Off the staircase, into the denizen's sight along the corridor
         game.world().relocate(session.character().entity(), session.zone(), stratum_sim::placement_type(
-            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).position(stratum_sim::discrete_point_type{1, 1}),
+            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).position(stratum_sim::discrete_point2_type{1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::EventQueue session_events;
-        stratum_sim::discrete_point_type before = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
+        stratum_sim::discrete_point2_type before = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
 
         // The controlled entity waits
         for (int n = 0; n < 3; ++n)
@@ -627,7 +627,7 @@ namespace
             session.scheduler().spend(session.advance(session_events));
         }
 
-        stratum_sim::discrete_point_type after = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
+        stratum_sim::discrete_point2_type after = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session.layout()).cell_position_at(stratum_sim::placement_of(hunter).position());
         CHECK_CASE("and given a pursuit, it closes on the controlled entity while the host only waits", after.x() < before.x());
         CHECK_CASE("the character is the game's, in the zone without being its child",
             !session.character().entity().parent() && session.character().entity().target<stratum_sim::InZone>() == session.zone());
@@ -642,7 +642,7 @@ namespace
 
         flecs::entity zone_entered = session.zone();
         flecs::entity closed = game.world().create_zone(stratum_sim::region_of(session.zone()), make_unique<stratum_sim::DiscreteLayout>(stratum_sim::point_type(0.0f, 0.0f, 0.0f),
-            1.0f, stratum_sim::discrete_vector_type(2, 2)));
+            1.0f, stratum_sim::discrete_vector2_type(2, 2)));
 
         bool thrown = false;
 

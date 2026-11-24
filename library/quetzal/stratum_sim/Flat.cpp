@@ -55,14 +55,14 @@ void quetzal::stratum_sim::Flat::set_room_height(id_type room_id, value_type hei
 }
 
 //------------------------------------------------------------------------------
-std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::cell_height(const discrete_point_type& cell_position) const
+std::optional<quetzal::stratum_sim::value_type> quetzal::stratum_sim::Flat::cell_height(const discrete_point2_type& cell_position) const
 {
     auto i = m_cell_heights.find(cell_position);
     return i != m_cell_heights.end() ? std::optional<value_type>(i->second) : std::nullopt;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::stratum_sim::Flat::set_cell_height(const discrete_point_type& cell_position, value_type height)
+void quetzal::stratum_sim::Flat::set_cell_height(const discrete_point2_type& cell_position, value_type height)
 {
     m_cell_heights[cell_position] = height;
     return;

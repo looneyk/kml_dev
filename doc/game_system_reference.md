@@ -43,17 +43,20 @@ The layout computes where a move ends, and a caller passes it the direction and 
 `vector_type`, `points_type` and `polygon_type`. `placement_type` is `geometry::DirectedPoint<traits_type>`, a position
 and a facing direction.
 
-`coord_type` is `std::int32_t`. `discrete_vector_type` is `math::DiscreteVector<coord_type, 2>`, a displacement on
-the grid, and `discrete_point_type` is `geometry::DiscretePoint<coord_type, 2>`, a cell position. A cell position is
-moved by adding a `discrete_vector_type`, the difference of two cell positions is the displacement between them, and
-adding two does not compile. `cardinal_directions` are the four unit vectors `East`, `North`, `West` and `South`, in
+`coord_type` is `std::int32_t`. `discrete_vector2_type` is `math::DiscreteVector<coord_type, 2>`, a displacement on
+the grid, and `discrete_point2_type` is `geometry::DiscretePoint<coord_type, 2>`, a cell position. `discrete_vector3_type`
+and `discrete_point3_type` are their three-coordinate counterparts, an offset from one zone to another and a zone's
+position in its worldspace. `discrete_box2_type` and `discrete_box3_type` are `geometry::DiscreteBox`, a half-open box,
+and `discrete_directed_point2_type` and `discrete_directed_point3_type` are `geometry::DiscreteDirectedPoint`, a
+position and a direction. A cell position is moved by adding a `discrete_vector2_type`, the difference of two cell
+positions is the displacement between them, and adding two does not compile. `cardinal_directions` are the four unit vectors `East`, `North`, `West` and `South`, in
 `CardinalDirection` order, and `cardinal_direction(d)` returns one of them.
 
 `point_projection_type` and `vector_projection_type` are `geometry::MinProjection` along the z axis onto the xy plane.
 `grid_step(vector)` returns the cardinal direction nearest a direction.
 
-`value_type`, `traits_type`, `point_type`, `coord_type`, `discrete_vector_type`, `discrete_point_type`, `seed_type`,
-`zone_position_type` and `PersistentId` are `stratum_core`'s (`## Core types`), and `types.hpp` declares them in
+`value_type`, `traits_type`, `point_type`, `vector_type`, `coord_type`, the discrete vector, point, box, and directed
+point types, `random_type`, `seed_type` and `PersistentId` are `stratum_core`'s (`## Core types`), and `types.hpp` declares them in
 `stratum_sim` with using-declarations. `World.hpp` does the same for
 `Region`, `RegionTree` and `Worldspace`, `RegionSpec.hpp` for `RegionSpec`, and `ZoneSpec.hpp` for `ZoneSpec`.
 
@@ -105,7 +108,7 @@ the grid. Entities refer into it by id.
 | `Cell` | One square of the grid. `open` is true if an actor may stand there, `walls` is a `DirectionMask` of the sides that have a wall facing into the cell, and `room_id` is the room that contains the cell, or `nullid`. |
 | `DirectionMask` | A set of the four cardinal directions, one bit each in `CardinalDirection` order, with `direction_mask(direction)`. The view uses it for the directions in which a wall line continues. |
 | `Flat` | The floor or the ceiling, which differ only by `ceiling`. Its height is given for the whole flat, per room (`room_height`) and per cell (`cell_height`), each overriding the one before; the per-room and per-cell tables are sparse. |
-| `GridMapping` | `origin`, the corner of cell `(0, 0)`; `scale`; and `extent`, the cell count along each axis as a `discrete_vector_type`. It has `contains(cell_position)`, `cell_position_at(point)` and `position(cell_position)`, which returns the cell center. |
+| `GridMapping` | `origin`, the corner of cell `(0, 0)`; `scale`; and `extent`, the cell count along each axis as a `discrete_vector2_type`. It has `contains(cell_position)`, `cell_position_at(point)` and `position(cell_position)`, which returns the cell center. |
 | `MoveResult` | The placement reached, possibly short of the distance asked for, and the `blocking_wall_id` or `blocking_entity_id` that stopped it. Only one of them is set, and both are `nullid` if nothing stopped it. Declared in `LayoutBase.hpp`. |
 
 A layout is constructed with its origin, scale and extent, and sizes its cell table from them. Cells run from `(0, 0)`
@@ -275,7 +278,7 @@ A top-level `RegionSpec`'s `extent` and `zone_size` define its worldspace's coor
 whole range. A worldspace's extent is `Boxes` with a single box with every axis, and a worldspace with no zone size is
 not a grid.
 
-`ZoneSpec::position()` returns a spec's position, a `zone_position_type`, each coordinate it does not have 0, and throws `std::runtime_error`
+`ZoneSpec::position()` returns a spec's position, a `discrete_point3_type`, each coordinate it does not have 0, and throws `std::runtime_error`
 for one that is not an integer; `ZoneSpec::set_position` writes one. The zone file, the generators' parameters and
 `ZoneRequest` state a position.
 
@@ -302,7 +305,7 @@ game, owned by `Game`, and it cannot be copied or moved.
 
 A worldspace is the coordinate system of its zones: the surface, a dungeon, a cave or a tower (`zone_plan.md`).
 `stratum_core::Worldspace` (`stratum_core/Worldspace.hpp`) is a value, not an entity: its `worldspace_id`, a `PersistentId`, its name, its `seed`, its `extent`,
-an `extent_type`, a half-open `geometry::DiscreteBox<coord_type, 3>`, its `zone_size` if it is a grid, and `regions`, its `RegionTree`.
+an `extent_type`, a `discrete_box3_type`, its `zone_size` if it is a grid, and `regions`, its `RegionTree`.
 `contains(position)` returns true if the extent contains a zone position. `Worldspace::create(worldspace_id, name, seed,
 region_spec, root_region)` returns a worldspace with the seed, the region spec's worldspace extent and zone size, each
 inclusive range converted to the box's half-open range, the top-level region, and no zones. It throws
@@ -310,7 +313,7 @@ inclusive range converted to the box's half-open range, the top-level region, an
 every axis. `World` has its worldspaces in a vector,
 `worldspaces()`, in the order they were created, which is id order. `worldspace(worldspace_id)` and `region(region_id)`
 return one, each a linear search, and a reference to either is valid until a worldspace is created or unloaded. A zone's
-position is its `zone_position_type` component. `zone_ids(worldspace_id)` returns a `zone_ids_type`, the persistent id of
+position is its `discrete_point3_type` component. `zone_ids(worldspace_id)` returns a `zone_ids_type`, the persistent id of
 each zone of the worldspace that has a position, by its position, loaded or not. `World` builds it, and it is never
 written. An observer of the position lists a zone at its position when the position is set, so no two zones of a
 worldspace have one position; zones of different worldspaces may.
@@ -427,9 +430,9 @@ generator passes on, with nothing filled. `load_template(worldspace_id, position
 the position from a zone template file in the same way, and throws `std::runtime_error` for a saved zone's file or a zone
 at the position that is not empty.
 
-A zone's level, a `level_type` (`std::int32_t`), is the z of its `zone_position_type`. Access point destinations in the zone
-data state levels, and `resolve_destination` matches zones by them. The loader sets a zone's `zone_position_type` from the
-file's `position`, and a zone whose file has none has no `zone_position_type`; `make_document` writes the position back. A
+A zone's level, a `level_type` (`std::int32_t`), is the z of its position. Access point destinations in the zone
+data state levels, and `resolve_destination` matches zones by them. The loader sets a zone's position from the
+file's `position`, and a zone whose file has none has no position; `make_document` writes the position back. A
 zone built from a document whose position is outside its worldspace's extent, or is another zone's position in its
 worldspace, throws `std::runtime_error` before anything is built.
 
@@ -462,7 +465,7 @@ moves nothing.
 
 `random_type` is `math::Random<math::portable_random_engine_type>`, xoshiro256** seeded through splitmix64, with
 distributions and a shuffle implemented in `math::Random`, so one seed draws the same values with every standard library;
-`gaussian` uses the platform's `std::log`. dungen and catagen draw through the same type. `state()` returns the random
+`gaussian` uses the platform's `std::log`. It is `stratum_core`'s, and dungen and catagen draw through it too. `state()` returns the random
 engine's state as text, and `set_state(text)` restores it, throwing `std::invalid_argument` if the text is not a state
 of the random engine. `math::random_seed()` draws a 64-bit seed from `std::random_device`.
 
@@ -1106,9 +1109,11 @@ through an access point costs one action, and an `Enter` with nothing to enter c
 their operations, and has no file format and no ECS. It links `quetzal_common` and `quetzal_math`, and `quetzal_log`
 privately, and includes the `quetzal/geometry` headers.
 
-- `types.hpp`: `log_category`, `value_type`, `traits_type`, `point_type`, `coord_type`, `discrete_vector_type`,
-  `discrete_point_type`, `zone_position_type`, a `geometry::DiscretePoint<coord_type, 3>` that is a position in its
-  worldspace, and `seed_type`.
+- `types.hpp`: `log_category`, `value_type`, `traits_type`, `point_type`, `vector_type`, `coord_type`,
+  `discrete_vector2_type`, a displacement on the grid, `discrete_point2_type`, a cell position, `discrete_vector3_type`,
+  an offset from one zone to another, `discrete_point3_type`, a zone's position in its worldspace, `discrete_box2_type`,
+  `discrete_box3_type`, `discrete_directed_point2_type`, `discrete_directed_point3_type`, `random_type`, and
+  `seed_type`. `stratum_sim`, `stratum_format`, `stratum_view`, dungen, and catagen declare them with using-declarations.
 - `PersistentId`, an entity's identity in a world, with its `std::hash`.
 - `AccessPoint` and `RegionSpecName`, `ZoneExtendedName`, `TransitEndpoint`, `Directionality` and `Notation`, which
   `## Zone file format` describes.
@@ -1134,7 +1139,7 @@ entity's `site`, `parent` and `access_point` file components, which the reader v
 `WallPlacement`, a `FlatCell`, or a `ZoneCell`, a cell of the zone that an entity such as an actor is in, with the
 relation `in` and an orientation required. An entity's `access_point` is a `stratum_core::AccessPoint`
 (`stratum_core/AccessPoint.hpp`), which the world sets on the entity as it is. The layout's `access_points` are `ZoneDocument::access_points`, a list of entity
-ids, its optional `position` is `ZoneDocument::position`, a `zone_position_type` (`geometry::DiscretePoint` of three
+ids, its optional `position` is `ZoneDocument::position`, a `discrete_point3_type` (`geometry::DiscretePoint` of three
 coordinates), and its `unpopulated` flag is `ZoneDocument::is_unpopulated`, false if
 absent. The `generator` section is `ZoneDocument::generator`, an optional `Generator` with its name and its parameters'
 tokens, a `KeyValueStore`. Every other file component is `raw_values_type`, nlohmann's `ordered_json`, as

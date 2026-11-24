@@ -24,8 +24,6 @@ namespace quetzal::stratum_sim
     {
     public:
 
-        using random_type = ScriptSandbox::random_type;
-
         // The symbols are the globals of the sandbox the patterns are evaluated in
         // Throws std::runtime_error if a symbol is an entry of another symbol that is not a table
         PatternResolver(const KeyValueStore& symbols, random_type random, seed_type world_seed, const ScriptLimits& limits);

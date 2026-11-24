@@ -9,7 +9,7 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Door::Door(id_type id, const string& name, point_type position) :
+quetzal::dungen::Door::Door(id_type id, const string& name, discrete_point2_type position) :
     m_id(id),
     m_name(name),
     m_position(position)
@@ -36,13 +36,13 @@ void quetzal::dungen::Door::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::point_type quetzal::dungen::Door::position() const
+quetzal::dungen::discrete_point2_type quetzal::dungen::Door::position() const
 {
     return m_position;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Door::set_position(point_type position)
+void quetzal::dungen::Door::set_position(discrete_point2_type position)
 {
     m_position = position;
     return;

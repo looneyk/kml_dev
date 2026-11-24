@@ -145,7 +145,7 @@ const quetzal::stratum_view::Glyphs& quetzal::stratum_view::lattice_glyphs()
 //------------------------------------------------------------------------------
 quetzal::stratum_view::Console quetzal::stratum_view::render(const Cells& cells, const Glyphs& glyphs)
 {
-    const vector_type& extent = cells.extent();
+    const discrete_vector2_type& extent = cells.extent();
     Console console(extent, ' ');
 
     for (coord_type j = 0; j < extent.y(); ++j)
@@ -168,7 +168,7 @@ quetzal::stratum_view::Console quetzal::stratum_view::render(const sim::World& w
 //------------------------------------------------------------------------------
 quetzal::stratum_view::Console quetzal::stratum_view::render_lattice(const Lattice& lattice, const Glyphs& glyphs)
 {
-    const vector_type& extent = lattice.extent();
+    const discrete_vector2_type& extent = lattice.extent();
     Console console(extent, ' ');
 
     for (coord_type j = 0; j < extent.y(); ++j)

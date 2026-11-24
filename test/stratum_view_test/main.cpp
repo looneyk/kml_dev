@@ -181,7 +181,7 @@ namespace
         CHECK_CASE("no actor before one exists", !cells.at({3, 1}).actor);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{3, 1}),
+        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{3, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::cells(world, zone, no_viewer);
@@ -328,8 +328,8 @@ namespace
         // The door is concealed, then found by one actor. The view shows what the viewer perceives
         const stratum_sim::DiscreteLayout& walls_layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(zone,
-            walls_layout.wall_toward(stratum_sim::discrete_point_type{1, 2}, stratum_sim::cardinal_direction(stratum_sim::CardinalDirection::East))));
-        flecs::entity finder = world.create_entity(zone, stratum_sim::placement_type(walls_layout.position(stratum_sim::discrete_point_type{1, 2}),
+            walls_layout.wall_toward(stratum_sim::discrete_point2_type{1, 2}, stratum_sim::cardinal_direction(stratum_sim::CardinalDirection::East))));
+        flecs::entity finder = world.create_entity(zone, stratum_sim::placement_type(walls_layout.position(stratum_sim::discrete_point2_type{1, 2}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         door.set<stratum_sim::Detection>(stratum_sim::Detection{stratum_sim::DetectionState::Concealed,
@@ -370,7 +370,7 @@ namespace
         CHECK_CASE("two open cells of one area are not", cells.at({4, 3}).type == stratum_view::PlaceType::None);
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(block.layout(corridor));
-        block.create_entity(corridor, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{1, 1}),
+        block.create_entity(corridor, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         cells = stratum_view::lattice(block, corridor, no_viewer);
@@ -400,7 +400,7 @@ namespace
 
         // An actor draws over the floor it stands on
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
+        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{3, 1}), stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render(world, zone, no_viewer);
         CHECK_CASE("an actor draws over its floor", console.at({3, 1}) == '@');
@@ -408,7 +408,7 @@ namespace
 
         // An access point on the floor is drawn as stairs, down if its directionality is down and up otherwise
         flecs::entity hatch = stratum_sim::create_access_point(zone, stratum_sim::entity_type(world.entities(), "portal"),
-            stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::FlatCellPosition{layout.floor_id(), stratum_sim::discrete_point_type{2, 1}}, {}},
+            stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::FlatCellPosition{layout.floor_id(), stratum_sim::discrete_point2_type{2, 1}}, {}},
             stratum_core::AccessPoint{.destination = stratum_core::parse_access_point_destination("../[+1]")});
         CHECK_CASE("an access point on the floor with no directionality draws as stairs up", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '<');
 
@@ -446,7 +446,7 @@ namespace
         CHECK_CASE("and one a run passes through is the run", console.at({4, 2}) == '-');
 
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
-        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{1, 1}),
+        world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{1, 1}),
             stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         console = stratum_view::render_lattice(world, zone, no_viewer);
@@ -530,7 +530,7 @@ namespace
 
         stratum_view::Console console = stratum_view::render(world, zone, no_viewer);
 
-        const stratum_view::vector_type& extent = console.extent();
+        const stratum_view::discrete_vector2_type& extent = console.extent();
 
         CHECK_CASE_EQUAL("the console is as wide as the file", extent.x(), 31);
         CHECK_CASE_EQUAL("and as tall", extent.y(), 31);
@@ -616,7 +616,7 @@ namespace
     {
         if (const stratum_sim::Moved* pevent = event.try_get<stratum_sim::Moved>())
         {
-            stratum_sim::discrete_point_type cell_position = layout.cell_position_at(pevent->placement.position());
+            stratum_sim::discrete_point2_type cell_position = layout.cell_position_at(pevent->placement.position());
             return format("moved to ({}, {})", cell_position.x(), cell_position.y());
         }
 
@@ -656,7 +656,7 @@ namespace
     {
         const stratum_sim::DiscreteLayout& layout = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(world.layout(zone));
         const stratum_sim::placement_type& placement = stratum_sim::placement_of(player);
-        stratum_sim::discrete_point_type cell_position = layout.cell_position_at(placement.position());
+        stratum_sim::discrete_point2_type cell_position = layout.cell_position_at(placement.position());
 
         string s = format("-- {}\n", label);
         s += view == View::Lattice ? stratum_view::render_lattice(world, zone, no_viewer).to_string()
@@ -675,7 +675,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Plays a fixed command sequence, rendering after each, and returns every frame
-    string play(const string& filepath, const stratum_sim::discrete_point_type& start, const string& script, View view)
+    string play(const string& filepath, const stratum_sim::discrete_point2_type& start, const string& script, View view)
     {
         stratum_sim::CountingIdAllocator id_allocator(stratum_core::PersistentId{});
         TestWorld world(id_allocator);
@@ -713,7 +713,7 @@ namespace
         {
             string name;
             string zone;
-            stratum_sim::discrete_point_type start;
+            stratum_sim::discrete_point2_type start;
             string script;
             View view;
         };

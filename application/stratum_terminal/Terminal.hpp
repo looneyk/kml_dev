@@ -12,15 +12,15 @@ namespace stratum_terminal
 {
 
     using quetzal::stratum_view::coord_type;
-    using quetzal::stratum_view::vector_type;
+    using quetzal::stratum_view::discrete_vector2_type;
 
     // The terminal's text area in columns by rows, zero in both when it cannot be determined,
     // as when output is a pipe rather than a console
-    vector_type terminal_size();
+    discrete_vector2_type terminal_size();
 
     // Requests a text area of this size, clamped to the screen. False when the request could not be made; outside
     // Windows, true does not confirm the terminal complied
-    bool set_terminal_size(const vector_type& size);
+    bool set_terminal_size(const discrete_vector2_type& size);
 
     //--------------------------------------------------------------------------
     // Writes a Console to a character terminal, emitting only the cells changed since the last frame
@@ -45,9 +45,9 @@ namespace stratum_terminal
     private:
 
         quetzal::stratum_view::Console m_console_previous;
-        vector_type m_size_previous;
-        vector_type m_size_original; // Before sizing to the zone
-        vector_type m_size_set;      // After sizing to the zone, to detect a manual resize
+        discrete_vector2_type m_size_previous;
+        discrete_vector2_type m_size_original; // Before sizing to the zone
+        discrete_vector2_type m_size_set;      // After sizing to the zone, to detect a manual resize
         bool m_incremental;
         bool m_sized = false; // The zone's size is not known until the first frame arrives
     };

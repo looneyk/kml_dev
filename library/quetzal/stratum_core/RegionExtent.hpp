@@ -33,7 +33,7 @@ namespace quetzal::stratum_core
 
         Arrangement arrangement = Arrangement::Boxes;
         std::vector<Box> boxes;
-        std::vector<zone_position_type> positions;
+        std::vector<discrete_point3_type> positions;
     };
 
 } // namespace quetzal::stratum_core

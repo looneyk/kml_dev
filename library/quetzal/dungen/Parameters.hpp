@@ -9,7 +9,6 @@
 #include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/math/Interval.hpp"
-#include "quetzal/math/Random.hpp"
 #include <optional>
 #include <string>
 #include <cstddef>
@@ -43,7 +42,7 @@ namespace quetzal::dungen
     // solid cells between
     struct Grid1Parameters
     {
-        vector_type divisions{3, 3}; // Sectors across and up
+        discrete_vector2_type divisions{3, 3}; // Sectors across and up
 
         // Fraction of sectors with a room. A sector without one joins its neighbors through a single cell
         double room_density = 1.0;
@@ -72,10 +71,8 @@ namespace quetzal::dungen
     // algorithm's group is read
     struct Parameters
     {
-        using seed_type = random_type::seed_type;
-
         Algorithm algorithm = Algorithm::Maze1;
-        vector_type extent{32, 32};
+        discrete_vector2_type extent{32, 32};
 
         // How many staircases lead down and how many up, each a count drawn from its closed range
         math::Interval<size_t> staircase_down_count{1, 1};
@@ -90,7 +87,7 @@ namespace quetzal::dungen
         Cave1Parameters cave1;
 
         // The zone's position in its region, written into the zone file if assigned
-        std::optional<zone_position_type> position;
+        std::optional<discrete_point3_type> position;
 
         // Empty until assigned; validate rejects an empty seed
         std::optional<seed_type> seed;

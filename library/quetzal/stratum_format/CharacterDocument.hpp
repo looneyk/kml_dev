@@ -22,7 +22,7 @@ namespace quetzal::stratum_format
         stored_entity_id_type id = 0;
         raw_values_type components;
         stored_entity_id_type zone_id = 0;
-        discrete_directed_point_type placement;
+        discrete_directed_point2_type placement;
         std::vector<Entity> inventory;
     };
 

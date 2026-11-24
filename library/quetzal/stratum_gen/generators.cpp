@@ -10,12 +10,6 @@
 #include "quetzal/dungen/generate.hpp"
 #include "quetzal/dungen/Parameters.hpp"
 #include "quetzal/dungen/write_zone.hpp"
-#include <type_traits>
-
-static_assert(std::is_same_v<quetzal::stratum_gen::zone_position_type, quetzal::dungen::zone_position_type>);
-static_assert(std::is_same_v<quetzal::stratum_gen::seed_type, quetzal::dungen::Parameters::seed_type>);
-static_assert(std::is_same_v<quetzal::stratum_gen::zone_position_type, quetzal::catagen::zone_position_type>);
-static_assert(std::is_same_v<quetzal::stratum_gen::seed_type, quetzal::catagen::Parameters::seed_type>);
 
 //------------------------------------------------------------------------------
 quetzal::stratum_format::ZoneDocument quetzal::stratum_gen::generate_dungen(const ZoneRequest& request)

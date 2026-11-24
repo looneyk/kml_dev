@@ -42,7 +42,7 @@ namespace
     // Compares regardless of key order
     using map_type = nlohmann::json;
 
-    constexpr catagen::Parameters::seed_type seed_count = 64;
+    constexpr catagen::seed_type seed_count = 64;
 
     //--------------------------------------------------------------------------
     // Returns the wall an entity is sited on, or null if it is sited on a flat cell or on its parent
@@ -270,8 +270,8 @@ namespace
     bool staircases_placed_and_faced(const string& zone, const catagen::Parameters& parameters, string& detail)
     {
         using stratum_format::coord_type;
-        using stratum_format::discrete_point_type;
-        using stratum_format::discrete_vector_type;
+        using stratum_format::discrete_point2_type;
+        using stratum_format::discrete_vector2_type;
 
         stratum_format::ZoneDocument document;
 
@@ -291,23 +291,23 @@ namespace
         // In the written grid, a cell is at its odd position and the edge on each side one position from it
         auto glyph_at = [&cells](coord_type x, coord_type y) { return cells.rows[cells.rows.size() - 1 - static_cast<size_t>(y)][static_cast<size_t>(x)]; };
 
-        auto cell_glyph = [&](const discrete_point_type& cell_position)
+        auto cell_glyph = [&](const discrete_point2_type& cell_position)
         {
             return stratum_format::on_grid(cells, cell_position) ? glyph_at(2 * cell_position.x() + 1, 2 * cell_position.y() + 1) : ' ';
         };
 
-        auto edge_glyph = [&](const discrete_point_type& cell_position, const discrete_vector_type& direction)
+        auto edge_glyph = [&](const discrete_point2_type& cell_position, const discrete_vector2_type& direction)
         {
             return glyph_at(2 * cell_position.x() + 1 + direction.x(), 2 * cell_position.y() + 1 + direction.y());
         };
 
-        auto blocks_doorway = [&](const discrete_point_type& cell_position)
+        auto blocks_doorway = [&](const discrete_point2_type& cell_position)
         {
-            return any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return edge_glyph(cell_position, direction) == '+'; });
+            return any_of(directions.begin(), directions.end(), [&](const discrete_vector2_type& direction) { return edge_glyph(cell_position, direction) == '+'; });
         };
 
         // With every stair block in place, each floor cell is reachable from every other, a door being passable once opened
-        set<discrete_point_type> floor_cells;
+        set<discrete_point2_type> floor_cells;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
@@ -320,8 +320,8 @@ namespace
             }
         }
 
-        set<discrete_point_type> reached;
-        vector<discrete_point_type> pending;
+        set<discrete_point2_type> reached;
+        vector<discrete_point2_type> pending;
 
         if (!floor_cells.empty())
         {
@@ -331,12 +331,12 @@ namespace
 
         while (!pending.empty())
         {
-            discrete_point_type cell_position = pending.back();
+            discrete_point2_type cell_position = pending.back();
             pending.pop_back();
 
-            for (const discrete_vector_type& direction : directions)
+            for (const discrete_vector2_type& direction : directions)
             {
-                discrete_point_type neighbor = cell_position + direction;
+                discrete_point2_type neighbor = cell_position + direction;
                 char edge = edge_glyph(cell_position, direction);
 
                 if (cell_glyph(neighbor) == '.' && (edge == ' ' || edge == '+') && reached.insert(neighbor).second)
@@ -346,7 +346,7 @@ namespace
             }
         }
 
-        for (const discrete_point_type& cell_position : floor_cells)
+        for (const discrete_point2_type& cell_position : floor_cells)
         {
             if (!reached.contains(cell_position))
             {
@@ -358,7 +358,7 @@ namespace
         catagen::Zone generated = catagen::generate({}, parameters);
 
         // Open in the zone generated, before the stair cell's walls were written, and with floor beyond
-        auto open_to_floor = [&](const discrete_point_type& cell_position, const discrete_vector_type& direction)
+        auto open_to_floor = [&](const discrete_point2_type& cell_position, const discrete_vector2_type& direction)
         {
             size_t index = static_cast<size_t>(find(directions.begin(), directions.end(), direction) - directions.begin());
             return generated.wall(cell_position, static_cast<geometry::CardinalDirection>(index)) == catagen::WallType::Open
@@ -367,13 +367,13 @@ namespace
 
         size_t down_count = 0;
         size_t up_count = 0;
-        set<discrete_point_type> staircase_cells;
+        set<discrete_point2_type> staircase_cells;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                discrete_point_type cell_position{i, j};
+                discrete_point2_type cell_position{i, j};
                 if (cell_glyph(cell_position) != '>' && cell_glyph(cell_position) != '<')
                 {
                     continue;
@@ -382,7 +382,7 @@ namespace
                 ++(cell_glyph(cell_position) == '>' ? down_count : up_count);
                 staircase_cells.insert(cell_position);
 
-                for (const discrete_vector_type& direction : directions)
+                for (const discrete_vector2_type& direction : directions)
                 {
                     if (cell_glyph(cell_position + direction) == '.' && edge_glyph(cell_position, direction) == ' ')
                     {
@@ -391,7 +391,7 @@ namespace
                     }
                 }
 
-                if (blocks_doorway(cell_position) && any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction)
+                if (blocks_doorway(cell_position) && any_of(directions.begin(), directions.end(), [&](const discrete_vector2_type& direction)
                     {
                         return open_to_floor(cell_position, direction) && !blocks_doorway(cell_position + direction);
                     }))
@@ -400,7 +400,7 @@ namespace
                     return false;
                 }
 
-                vector<discrete_vector_type> open_sides;
+                vector<discrete_vector2_type> open_sides;
 
                 for (const stratum_format::Entity& entity : document.entities)
                 {
@@ -433,8 +433,8 @@ namespace
                     return false;
                 }
 
-                const discrete_vector_type& open_side = open_sides.front();
-                bool floor_beside = any_of(directions.begin(), directions.end(), [&](const discrete_vector_type& direction) { return open_to_floor(cell_position, direction); });
+                const discrete_vector2_type& open_side = open_sides.front();
+                bool floor_beside = any_of(directions.begin(), directions.end(), [&](const discrete_vector2_type& direction) { return open_to_floor(cell_position, direction); });
 
                 if (!(open_to_floor(cell_position, open_side) || (edge_glyph(cell_position, open_side) == '+' && !floor_beside)))
                 {
@@ -455,7 +455,7 @@ namespace
             return false;
         }
 
-        set<discrete_point_type> access_point_cells;
+        set<discrete_point2_type> access_point_cells;
 
         for (stratum_format::stored_entity_id_type id : document.access_points)
         {
@@ -582,7 +582,7 @@ TEST_SUITE("parameters reproduce their zone")
     TEST_CASE("a zone given a position has it in its layout and its parameters, from which it regenerates")
     {
         catagen::Parameters positioned = scenarios().front().parameters;
-        positioned.position = catagen::zone_position_type{-1, 2, 1};
+        positioned.position = catagen::discrete_point3_type{-1, 2, 1};
         stratum_format::ZoneDocument positioned_document = document_of(zone_text(positioned));
 
         CHECK_MESSAGE((positioned_document.position == positioned.position), "a zone given a position has it in its layout");
@@ -790,7 +790,7 @@ TEST_SUITE("doors")
         {
             SUBCASE(format("{} writes a door entity at each door over {} seeds", scenario.name, seed_count))
             {
-                for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+                for (catagen::seed_type seed = 1; seed <= seed_count; ++seed)
                 {
                     CAPTURE(seed);
                     catagen::Parameters parameters = scenario.parameters;
@@ -838,7 +838,7 @@ TEST_SUITE("staircases")
         {
             SUBCASE(format("{} places and faces ranges of staircases over {} seeds", scenario.name, seed_count))
             {
-                for (catagen::Parameters::seed_type seed = 1; seed <= seed_count; ++seed)
+                for (catagen::seed_type seed = 1; seed <= seed_count; ++seed)
                 {
                     CAPTURE(seed);
                     catagen::Parameters parameters = scenario.parameters;

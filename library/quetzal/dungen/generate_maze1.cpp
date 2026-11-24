@@ -27,7 +27,7 @@ namespace
 
     using connection_type = array<id_type, 2>;
     using connections_type = set<connection_type>;
-    using directions_type = array<vector_type, 4>;
+    using directions_type = array<discrete_vector2_type, 4>;
 
     const CellType N = CellType::Null;
     const CellType S = CellType::Solid;
@@ -68,7 +68,7 @@ namespace
     const Pattern replacer_loop = {replacement_loop, {1, 1}, {0, 2}};
 
     //--------------------------------------------------------------------------
-    bool contains(const Zone& zone, point_type position)
+    bool contains(const Zone& zone, discrete_point2_type position)
     {
         return zone.cells().contains(position);
     }
@@ -84,23 +84,23 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    box_type room_dimensions(const Zone& zone, function<coord_type()> dimensionalizer, random_type& random)
+    discrete_box2_type room_dimensions(const Zone& zone, function<coord_type()> dimensionalizer, random_type& random)
     {
         auto [nx, ny] = zone.extent();
 
         coord_type dx = dimensionalizer() | 1;
         coord_type dy = dimensionalizer() | 1;
-        vector_type size = {dx, dy};
+        discrete_vector2_type size = {dx, dy};
 
         coord_type x = random.random(nx - dx) | 1;
         coord_type y = random.random(ny - dy) | 1;
-        point_type position = {x, y};
+        discrete_point2_type position = {x, y};
 
         return {position, size};
     }
 
     //--------------------------------------------------------------------------
-    set<size_t> room_intersections(const Zone& zone, const box_type& rectangle)
+    set<size_t> room_intersections(const Zone& zone, const discrete_box2_type& rectangle)
     {
         set<size_t> intersections;
 
@@ -122,7 +122,7 @@ namespace
     //--------------------------------------------------------------------------
     bool attempt_room_placement(Zone& zone, function<coord_type()> dimensionalizer, bool room_merge, random_type& random)
     {
-        box_type rectangle = room_dimensions(zone, dimensionalizer, random);
+        discrete_box2_type rectangle = room_dimensions(zone, dimensionalizer, random);
         auto intersections = room_intersections(zone, rectangle);
         if (intersections.size() > 1)
         {
@@ -168,7 +168,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Given a door position, determine if it connects two rooms
-    tuple<bool, connection_type> room_connection(const Zone& zone, point_type position)
+    tuple<bool, connection_type> room_connection(const Zone& zone, discrete_point2_type position)
     {
         Cell cell_left = zone.cell({position.x() - 1, position.y()});
         Cell cell_right = zone.cell({position.x() + 1, position.y()});
@@ -188,12 +188,12 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    tuple<vector<point_type>, size_t> door_candidates(const Zone& zone, const Room& room)
+    tuple<vector<discrete_point2_type>, size_t> door_candidates(const Zone& zone, const Room& room)
     {
-        vector<point_type> candidates;
+        vector<discrete_point2_type> candidates;
 
-        point_type position0 = room.rectangle().lower();
-        point_type position1 = room.rectangle().upper();
+        discrete_point2_type position0 = room.rectangle().lower();
+        discrete_point2_type position1 = room.rectangle().upper();
 
         size_t n_existing = 0;
 
@@ -310,7 +310,7 @@ namespace
     }
 
     //------------------------------------------------------------------------------
-    bool available(const Zone& zone, point_type position)
+    bool available(const Zone& zone, discrete_point2_type position)
     {
         if (!zone.cells().contains(position))
         {
@@ -321,7 +321,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void excavate(Zone& zone, point_type position_from, point_type position_to)
+    void excavate(Zone& zone, discrete_point2_type position_from, discrete_point2_type position_to)
     {
         zone.cell(position_from + (position_to - position_from) / 2).set_type(CellType::Corridor);
         zone.cell(position_to).set_type(CellType::Corridor);
@@ -329,7 +329,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool attempt_excavate(Zone& zone, point_type position_from, point_type position_to)
+    bool attempt_excavate(Zone& zone, discrete_point2_type position_from, discrete_point2_type position_to)
     {
         if (available(zone, position_to))
         {
@@ -341,7 +341,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    void excavate_cell(Zone& zone, point_type position_from, directions_type directions, double corridor_straightness, random_type& random)
+    void excavate_cell(Zone& zone, discrete_point2_type position_from, directions_type directions, double corridor_straightness, random_type& random)
     {
         auto first = directions.begin();
         if (random.random() < corridor_straightness)
@@ -352,7 +352,7 @@ namespace
 
         for (auto direction : directions)
         {
-            point_type position_to = position_from + direction;
+            discrete_point2_type position_to = position_from + direction;
             if (attempt_excavate(zone, position_from, position_to))
             {
                 for (size_t i = 1; i < 4; ++i)
@@ -401,16 +401,16 @@ namespace
 
     //------------------------------------------------------------------------------
     // Returns the dead ends before pruning, or the center cell of each room if rooms and loops have left no dead ends
-    vector<point_type> staircase_candidates(const Zone& zone)
+    vector<discrete_point2_type> staircase_candidates(const Zone& zone)
     {
-        vector<point_type> candidates;
+        vector<discrete_point2_type> candidates;
 
         auto [nx, ny] = zone.extent();
         for (coord_type y = 1; y < ny; y += 2)
         {
             for (coord_type x = 1; x < nx; x += 2)
             {
-                point_type position = {x, y};
+                discrete_point2_type position = {x, y};
                 if (match(zone.cells(), position, matcher_end))
                 {
                     candidates.push_back(position);
@@ -425,8 +425,8 @@ namespace
 
         for (const auto& room : zone.rooms())
         {
-            point_type lower = room.rectangle().lower();
-            vector_type extent = room.rectangle().extent();
+            discrete_point2_type lower = room.rectangle().lower();
+            discrete_vector2_type extent = room.rectangle().extent();
             candidates.push_back({lower.x() + extent.x() / 2, lower.y() + extent.y() / 2});
         }
 
@@ -449,7 +449,7 @@ namespace
         {
             for (coord_type y = 1; y < ny; y += 2)
             {
-                point_type position = {x, y};
+                discrete_point2_type position = {x, y};
                 bool again = true;
                 while (again && contains(zone, position) && zone.cell(position).type() == CellType::Corridor)
                 {
@@ -484,7 +484,7 @@ namespace
         {
             for (coord_type y = 1; y < ny; y += 2)
             {
-                point_type position = {x, y};
+                discrete_point2_type position = {x, y};
                 bool again = true;
                 while (again && contains(zone, position) && zone.cell(position).type() == CellType::Solid)
                 {

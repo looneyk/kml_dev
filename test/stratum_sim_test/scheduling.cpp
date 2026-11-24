@@ -265,7 +265,7 @@ namespace
 
         stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         flecs::entity character = world.create_entity(zone,
-            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{1, 1}),
+            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{1, 1}),
                 stratum_sim::vector_type(1.0f, 0.0f, 0.0f)));
 
         stratum_sim::Scheduler scheduler;
@@ -296,14 +296,14 @@ namespace
         intend(1.0f, 0.0f);
         id_type after = clock.run(events, controlled);
         CHECK_CASE("running the only actor leaves nobody ready", after == nullid);
-        CHECK_CASE("and it moved", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type{2, 1});
+        CHECK_CASE("and it moved", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type{2, 1});
         CHECK_CASE_EQUAL("its turn was charged", scheduler.energy(character.id()), 0);
         CHECK_CASE("the intent was spent", character.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
         // An intent lasts one action, so a second turn on the same one does nothing
         clock.grant_turn();
         CHECK_CASE("a spent intent is not acted on again", clock.run(events, controlled) == controlled);
-        CHECK_CASE("and it did not move", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type{2, 1});
+        CHECK_CASE("and it did not move", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type{2, 1});
 
         // Facing is taken before movement, so the two are one action each
         events.clear();
@@ -314,11 +314,11 @@ namespace
         CHECK_CASE("facing is taken first", stratum_sim::placement_of(character).direction().y() == 1.0f);
         CHECK_CASE("and the movement asked for is still owed", character.get<stratum_sim::Intent>().direction.x() == 1.0f);
         CHECK_CASE("which remains until a turn is granted for it",
-            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type{2, 1});
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type{2, 1});
 
         clock.grant_turn();
         clock.run(events, controlled);
-        CHECK_CASE("the movement follows on the next turn", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type{3, 1});
+        CHECK_CASE("the movement follows on the next turn", layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type{3, 1});
 
         // An action that achieves nothing costs no turn, so walking into a wall is free
         clock.grant_turn();
@@ -345,9 +345,9 @@ namespace
             stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
 
             flecs::entity driven = world_two.create_entity(zone_two,
-                stratum_sim::placement_type(layout_two.position(stratum_sim::discrete_point_type{1, 1}), east));
+                stratum_sim::placement_type(layout_two.position(stratum_sim::discrete_point2_type{1, 1}), east));
             flecs::entity other = world_two.create_entity(zone_two,
-                stratum_sim::placement_type(layout_two.position(stratum_sim::discrete_point_type{3, 1}), east));
+                stratum_sim::placement_type(layout_two.position(stratum_sim::discrete_point2_type{3, 1}), east));
 
             stratum_sim::Scheduler scheduler_two;
             scheduler_two.add(driven.id(), 100);
@@ -364,7 +364,7 @@ namespace
             CHECK_CASE("every ready actor ran", ran == nullid);
             CHECK_CASE("the one asking for nothing waited", scheduler_two.energy(other.id()) < stratum_sim::Scheduler::action_cost);
             CHECK_CASE("and the controlled actor acted even though it was the less ready",
-                layout_two.cell_position_at(stratum_sim::placement_of(driven).position()) == stratum_sim::discrete_point_type{2, 1});
+                layout_two.cell_position_at(stratum_sim::placement_of(driven).position()) == stratum_sim::discrete_point2_type{2, 1});
         }
 
         return;
@@ -382,7 +382,7 @@ namespace
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
 
         flecs::entity character = world.create_entity(zone,
-            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{1, 1}), east));
+            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{1, 1}), east));
 
         stratum_sim::Scheduler scheduler;
         scheduler.add(character.id(), 100);
@@ -435,9 +435,9 @@ namespace
         character.set<stratum_sim::Intent>(stratum_sim::Intent{east, 1.0f, stratum_sim::vector_type()});
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
         CHECK_CASE("an actor made ready by elapsed time acts",
-            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(2, 1));
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type(2, 1));
 
-        auto place = [&](const stratum_sim::discrete_point_type& cell, const stratum_sim::vector_type& direction)
+        auto place = [&](const stratum_sim::discrete_point2_type& cell, const stratum_sim::vector_type& direction)
         {
             stratum_sim::set_placement(character, stratum_sim::placement_type(layout.position(cell), east));
             character.set<stratum_sim::Intent>(stratum_sim::Intent{direction, 1.0f, stratum_sim::vector_type()});
@@ -445,7 +445,7 @@ namespace
 
         // A held direction keeps the actor moving
         restart(2.0);
-        place(stratum_sim::discrete_point_type{1, 1}, east);
+        place(stratum_sim::discrete_point2_type{1, 1}, east);
 
         for (int n = 0; n < 3; ++n)
         {
@@ -453,14 +453,14 @@ namespace
         }
 
         CHECK_CASE("a direction held keeps stepping as the time is earned",
-            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(4, 1));
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type(4, 1));
         CHECK_CASE("and is still being asked for", character.get<stratum_sim::Intent>().direction.x() == 1.0f);
 
         // Turn-based clears the Intent after one move
         scheduler.clear();
         scheduler.add(character.id(), 100);
         clock.set_driver(stratum_sim::Driver::TurnBased);
-        place(stratum_sim::discrete_point_type{1, 1}, east);
+        place(stratum_sim::discrete_point2_type{1, 1}, east);
 
         for (int n = 0; n < 3; ++n)
         {
@@ -468,15 +468,15 @@ namespace
         }
 
         CHECK_CASE("turn-based takes one step from one intent",
-            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(2, 1));
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type(2, 1));
 
         // Against a wall the Intent is cleared; the case is that this returns at all
         restart(2.0);
-        place(stratum_sim::discrete_point_type{1, 1}, stratum_sim::vector_type(-1.0f, 0.0f, 0.0f));
+        place(stratum_sim::discrete_point2_type{1, 1}, stratum_sim::vector_type(-1.0f, 0.0f, 0.0f));
         clock.advance(events, controlled, stratum_sim::Clock::duration_type(0.5));
 
         CHECK_CASE("a mover held against a wall does not move",
-            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point_type(1, 1));
+            layout.cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type(1, 1));
         CHECK_CASE("and stops asking for what it could not have",
             character.get<stratum_sim::Intent>().direction.x() == 0.0f);
 
@@ -504,7 +504,7 @@ namespace
 
         stratum_sim::Character& character_door = session_door.character();
         game_door.world().relocate(character_door.entity(), session_door.zone(), stratum_sim::placement_type(
-            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session_door.layout()).position(stratum_sim::discrete_point_type{1, 1}),
+            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session_door.layout()).position(stratum_sim::discrete_point2_type{1, 1}),
             stratum_sim::vector_type(0.0f, -1.0f, 0.0f)));
         character_door.set_intent(stratum_sim::Intent{stratum_sim::vector_type(), 1.0f, stratum_sim::vector_type(1.0f, 0.0f, 0.0f)});
         session_door.advance(session_events);
@@ -515,7 +515,7 @@ namespace
 
         session_door.advance(session_events);
         flecs::entity door = stratum_sim::access_entity(stratum_sim::find_access_attachment(session_door.zone(),
-            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session_door.layout()).wall_toward(stratum_sim::discrete_point_type{1, 1},
+            stratum_sim::layout_as<stratum_sim::DiscreteLayout>(session_door.layout()).wall_toward(stratum_sim::discrete_point2_type{1, 1},
                 cardinal_direction(CardinalDirection::East))));
         CHECK_CASE("and is taken the next time the character is ready", stratum_sim::access(door) == stratum_sim::AccessState::Open
             && !character_door.entity().has<stratum_sim::PendingCommand>());
@@ -534,7 +534,7 @@ namespace
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         stratum_sim::vector_type north(0.0f, 1.0f, 0.0f);
 
-        flecs::entity actor = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{1, 2}), east));
+        flecs::entity actor = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{1, 2}), east));
 
         stratum_sim::CommandQueue commands;
         stratum_sim::EventQueue events;
@@ -545,7 +545,7 @@ namespace
         commands.push(actor.id(), stratum_sim::Step{stratum_sim::vector_type(0.0f, 0.0f, 0.0f), 1.0f});
         stratum_sim::apply(world, commands, events);
 
-        CHECK_CASE("a step moves the actor", cell_of() == stratum_sim::discrete_point_type(2, 2));
+        CHECK_CASE("a step moves the actor", cell_of() == stratum_sim::discrete_point2_type(2, 2));
         CHECK_CASE_EQUAL("and reports one event", events.size(), 1);
         CHECK_CASE("which is a move", events.front().is<stratum_sim::Moved>());
         CHECK_CASE("naming the actor", events.front().get<stratum_sim::Moved>().entity_id == actor.id());
@@ -557,7 +557,7 @@ namespace
         commands.push(actor.id(), stratum_sim::Step{north, 5.0f});
         stratum_sim::apply(world, commands, events);
 
-        CHECK_CASE("a blocked step does not move", cell_of() == stratum_sim::discrete_point_type(2, 3));
+        CHECK_CASE("a blocked step does not move", cell_of() == stratum_sim::discrete_point2_type(2, 3));
         CHECK_CASE("it moved as far as it could", events.front().is<stratum_sim::Moved>());
         CHECK_CASE("and reported what stopped it", events.events().back().is<stratum_sim::Blocked>());
         CHECK_CASE("what stopped it is a wall of the layout", events.events().back().get<stratum_sim::Blocked>().blocking_wall_id != nullid);
@@ -572,39 +572,39 @@ namespace
         events.clear();
 
         // A move costs in proportion to the distance traveled
-        auto place = [&](const stratum_sim::discrete_point_type& cell, const stratum_sim::vector_type& direction)
+        auto place = [&](const stratum_sim::discrete_point2_type& cell, const stratum_sim::vector_type& direction)
         {
             stratum_sim::set_placement(actor, stratum_sim::placement_type(layout.position(cell), direction));
         };
 
-        place(stratum_sim::discrete_point_type{1, 1}, east);
+        place(stratum_sim::discrete_point2_type{1, 1}, east);
         stratum_sim::Command one(actor.id(), stratum_sim::Step{east, 1.0f});
         CHECK_CASE_EQUAL("a one cell step costs one action",
             static_cast<size_t>(stratum_sim::apply(world, one, events)), static_cast<size_t>(stratum_sim::Scheduler::action_cost));
 
         events.clear();
 
-        place(stratum_sim::discrete_point_type{1, 1}, east);
+        place(stratum_sim::discrete_point2_type{1, 1}, east);
         stratum_sim::Command two(actor.id(), stratum_sim::Step{east, 2.0f});
         CHECK_CASE_EQUAL("a two cell step costs two",
             static_cast<size_t>(stratum_sim::apply(world, two, events)), static_cast<size_t>(2 * stratum_sim::Scheduler::action_cost));
-        CHECK_CASE("and crossed them in one command", cell_of() == stratum_sim::discrete_point_type(3, 1));
+        CHECK_CASE("and crossed them in one command", cell_of() == stratum_sim::discrete_point2_type(3, 1));
 
         events.clear();
 
         // Stopped short, it is charged for the distance traveled
-        place(stratum_sim::discrete_point_type{1, 1}, east);
+        place(stratum_sim::discrete_point2_type{1, 1}, east);
         stratum_sim::Command overreach(actor.id(), stratum_sim::Step{east, 4.0f});
         int cost_short = stratum_sim::apply(world, overreach, events);
 
         CHECK_CASE("a step stopped short costs less than the full distance",
             cost_short > 0 && cost_short < 4 * stratum_sim::Scheduler::action_cost);
-        CHECK_CASE("and stopped where the wall is", cell_of() == stratum_sim::discrete_point_type(3, 1));
+        CHECK_CASE("and stopped where the wall is", cell_of() == stratum_sim::discrete_point2_type(3, 1));
         CHECK_CASE_EQUAL("charged an action per cell it did reach",
             static_cast<size_t>(cost_short), static_cast<size_t>(2 * stratum_sim::Scheduler::action_cost));
 
         events.clear();
-        place(stratum_sim::discrete_point_type{2, 3}, east);
+        place(stratum_sim::discrete_point2_type{2, 3}, east);
 
         // Turning
         commands.push(actor.id(), stratum_sim::TurnTo{
@@ -613,7 +613,7 @@ namespace
 
         CHECK_CASE("turning right from east faces south", stratum_sim::placement_of(actor).direction().y() == -1.0f);
         CHECK_CASE("and reports a turn", events.front().is<stratum_sim::Turned>());
-        CHECK_CASE("turning does not move", cell_of() == stratum_sim::discrete_point_type(2, 3));
+        CHECK_CASE("turning does not move", cell_of() == stratum_sim::discrete_point2_type(2, 3));
 
         events.clear();
 
@@ -624,7 +624,7 @@ namespace
 
         // Face the doorway and interact
         stratum_sim::set_placement(world.entities().entity(actor.id()),
-            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{3, 2}), east));
+            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{3, 2}), east));
         stratum_sim::Command interact_door(actor.id(), stratum_sim::Interact{});
 
         CHECK_CASE("interacting with a wall costs an action", stratum_sim::apply(world, interact_door, events) == stratum_sim::Scheduler::action_cost);

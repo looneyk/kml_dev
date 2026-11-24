@@ -9,7 +9,6 @@
 #include "quetzal/geometry/DirectedPoint.hpp"
 #include "quetzal/geometry/MinProjection.hpp"
 #include "quetzal/geometry/Polygon.hpp"
-#include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_core/PersistentId.hpp"
 #include "quetzal/stratum_core/types.hpp"
 #include <vector>
@@ -30,11 +29,12 @@ namespace quetzal::stratum_sim
     using stratum_core::discrete_point2_type;
     using stratum_core::discrete_vector3_type;
     using stratum_core::discrete_point3_type;
+    using stratum_core::discrete_box2_type;
+    using stratum_core::discrete_box3_type;
+    using stratum_core::discrete_directed_point2_type;
+    using stratum_core::discrete_directed_point3_type;
+    using stratum_core::random_type;
     using stratum_core::seed_type;
-
-    using stratum_core::discrete_vector_type; // deprecated ...
-    using stratum_core::discrete_point_type; // deprecated ...
-    using stratum_core::zone_position_type; // deprecated ...
 
     using points_type = std::vector<point_type>;
     using polygon_type = geometry::Polygon<traits_type>;
@@ -49,22 +49,20 @@ namespace quetzal::stratum_sim
     // A zone's position relative to the surface: 0 at the surface, negative going down and positive going up
     using level_type = coord_type; // deprecated ...
 
-    using random_type = math::Random<math::portable_random_engine_type>;
-
     using geometry::CardinalDirection;
 
     inline const auto& cardinal_directions = geometry::cardinal_directions<coord_type, 2>;
 
-    inline const discrete_vector_type& cardinal_direction(CardinalDirection direction)
+    inline const discrete_vector2_type& cardinal_direction(CardinalDirection direction)
     {
         return geometry::cardinal_direction<coord_type, 2>(direction);
     }
 
     // The cardinal direction nearest the given direction
-    inline discrete_vector_type grid_step(const vector_type& direction)
+    inline discrete_vector2_type grid_step(const vector_type& direction)
     {
         static const vector_projection_type project;
-        return math::direction<discrete_vector_type>(project(direction));
+        return math::direction<discrete_vector2_type>(project(direction));
     }
 
 } // namespace quetzal::stratum_sim

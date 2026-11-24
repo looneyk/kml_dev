@@ -90,7 +90,7 @@ namespace
     // Temporary, until region specs' zone keys set every zone's extent: the worldspace's zone size is the game's
     void add_temporary_zone_size(stratum_sim::RegionSpec& region_spec)
     {
-        region_spec.zone_size =stratum_sim::discrete_vector_type(
+        region_spec.zone_size =stratum_sim::discrete_vector2_type(
             static_cast<stratum_sim::coord_type>(settings::store().value<int64_t>("world.zone_size.x")),
             static_cast<stratum_sim::coord_type>(settings::store().value<int64_t>("world.zone_size.y")));
         return;
@@ -518,7 +518,7 @@ void stratum_terminal::Application::draw_menu_lines(const std::vector<std::strin
 
     // Row 0 is the lowest, so the first line is written to the highest row
     const stratum_view::coord_type height = static_cast<stratum_view::coord_type>(lines.size());
-    stratum_view::Console console(stratum_view::vector_type(width, height), ' ');
+    stratum_view::Console console(stratum_view::discrete_vector2_type(width, height), ' ');
 
     for (stratum_view::coord_type j = 0; j < height; ++j)
     {
@@ -526,7 +526,7 @@ void stratum_terminal::Application::draw_menu_lines(const std::vector<std::strin
 
         for (stratum_view::coord_type i = 0; i < static_cast<stratum_view::coord_type>(line.size()); ++i)
         {
-            console.set(stratum_view::point_type(i, j), line[static_cast<size_t>(i)]);
+            console.set(stratum_view::discrete_point2_type(i, j), line[static_cast<size_t>(i)]);
         }
     }
 
@@ -753,7 +753,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
         else if (event.is<stratum_sim::Relocated>())
         {
             // A level is shown as its distance from the surface
-            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<stratum_core::zone_position_type>().z()));
+            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<stratum_core::discrete_point3_type>().z()));
         }
         else if (event.is<stratum_sim::Died>())
         {
@@ -768,7 +768,7 @@ void stratum_terminal::Application::report(const quetzal::stratum_sim::EventQueu
 std::string stratum_terminal::Application::status() const
 {
     const stratum_sim::placement_type& placement = stratum_sim::placement_of(m_session.character().entity());
-    stratum_sim::discrete_point_type cell_position = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
+    stratum_sim::discrete_point2_type cell_position = stratum_sim::layout_as<stratum_sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     // The message shares this line so that the frame keeps its height as it comes and goes
     return std::format("cell ({}, {})  facing {}  turn {}  {}", cell_position.x(), cell_position.y(), name_of(placement.direction()), m_session.scheduler().elapsed(), m_message);

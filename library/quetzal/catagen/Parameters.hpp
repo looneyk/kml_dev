@@ -8,7 +8,6 @@
 #include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
 #include "quetzal/math/Interval.hpp"
-#include "quetzal/math/Random.hpp"
 #include <optional>
 #include <string>
 #include <string_view>
@@ -36,10 +35,8 @@ namespace quetzal::catagen
     // density and loop are partition1's
     struct Parameters
     {
-        using seed_type = math::Random<math::portable_random_engine_type>::seed_type;
-
         Algorithm algorithm = Algorithm::Partition1;
-        vector_type extent{48, 32}; // The size of the zone, in cells
+        discrete_vector2_type extent{48, 32}; // The size of the zone, in cells
 
         // Target room size in cells. The partition splits while a room exceeds the upper bound
         // and never below the lower, so a room falls within the range unless the range is too
@@ -62,7 +59,7 @@ namespace quetzal::catagen
         std::optional<std::string> staircase_down_region_spec;
 
         // The zone's position in its region, written into the zone file if assigned
-        std::optional<zone_position_type> position;
+        std::optional<discrete_point3_type> position;
 
         // Empty until assigned; validate rejects an empty seed
         std::optional<seed_type> seed;

@@ -5,6 +5,8 @@
 // types.hpp
 //------------------------------------------------------------------------------
 
+#include "quetzal/geometry/DiscreteBox.hpp"
+#include "quetzal/geometry/DiscreteDirectedPoint.hpp"
 #include "quetzal/geometry/DiscretePoint.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/math/CartesianTraits.hpp"
@@ -28,12 +30,13 @@ namespace quetzal::stratum_core
     using discrete_point2_type = geometry::DiscretePoint<coord_type, 2>;
     using discrete_vector3_type = math::DiscreteVector<coord_type, 3>;
     using discrete_point3_type = geometry::DiscretePoint<coord_type, 3>;
+    using discrete_box2_type = geometry::DiscreteBox<coord_type, 2>;
+    using discrete_box3_type = geometry::DiscreteBox<coord_type, 3>;
+    using discrete_directed_point2_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
+    using discrete_directed_point3_type = geometry::DiscreteDirectedPoint<coord_type, 3>;
 
-    using discrete_vector_type = math::DiscreteVector<coord_type, 2>; // deprecated ...
-    using discrete_point_type = geometry::DiscretePoint<coord_type, 2>; // deprecated ...
-    using zone_position_type = geometry::DiscretePoint<coord_type, 3>; // deprecated ...
-
-    using seed_type = math::Random<math::portable_random_engine_type>::seed_type;
+    using random_type = math::Random<math::portable_random_engine_type>;
+    using seed_type = random_type::seed_type;
 
 } // namespace quetzal::stratum_core
 

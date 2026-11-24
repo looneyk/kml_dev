@@ -32,7 +32,7 @@ flecs::entity quetzal::stratum_sim::flat_room_entity(flecs::entity zone, id_type
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point_type& cell_position)
+flecs::entity quetzal::stratum_sim::flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point2_type& cell_position)
 {
     return layout_entity(zone, FlatCellPosition{flat_id, cell_position});
 }
@@ -74,7 +74,7 @@ flecs::entity quetzal::stratum_sim::ensure_flat_room_entity(flecs::entity zone, 
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::ensure_flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point_type& cell_position)
+flecs::entity quetzal::stratum_sim::ensure_flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point2_type& cell_position)
 {
     assert(flat_id != nullid);
     return ensure_layout_entity(zone, FlatCellPosition{flat_id, cell_position});

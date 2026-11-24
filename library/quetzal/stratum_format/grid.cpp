@@ -22,7 +22,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    char cell_glyph(const Cells& cells, const discrete_point_type& cell_position)
+    char cell_glyph(const Cells& cells, const discrete_point2_type& cell_position)
     {
         bool wall = cells.notation == quetzal::stratum_core::Notation::Wall;
         size_t x = static_cast<size_t>(wall ? 2 * cell_position.x() + 1 : cell_position.x());
@@ -33,7 +33,7 @@ namespace
     //--------------------------------------------------------------------------
     // The edge on a cell's side in a direction, as its position in the wall notation's written grid, which identifies it
     // in either notation
-    discrete_point_type edge_position(const discrete_point_type& cell_position, const discrete_vector_type& direction)
+    discrete_point2_type edge_position(const discrete_point2_type& cell_position, const discrete_vector2_type& direction)
     {
         return {2 * cell_position.x() + 1 + direction.x(), 2 * cell_position.y() + 1 + direction.y()};
     }
@@ -42,8 +42,8 @@ namespace
     // The places where a fill stops, besides the grid's own walls: edges, by their edge_position, and whole cells
     struct FillBarriers
     {
-        std::set<discrete_point_type> edge_positions;
-        std::set<discrete_point_type> cell_positions;
+        std::set<discrete_point2_type> edge_positions;
+        std::set<discrete_point2_type> cell_positions;
     };
 
     //--------------------------------------------------------------------------
@@ -68,33 +68,33 @@ namespace
 
     //--------------------------------------------------------------------------
     // Fills from the location across every edge that has no wall, no door, and no barrier of the layout or the room
-    std::set<discrete_point_type> fill(const Cells& cells, const RoomLocator& locator, const FillBarriers& layout_barriers)
+    std::set<discrete_point2_type> fill(const Cells& cells, const RoomLocator& locator, const FillBarriers& layout_barriers)
     {
         FillBarriers room_barriers = fill_barriers(locator.barriers);
 
-        auto barred_edge = [&](const discrete_point_type& position)
+        auto barred_edge = [&](const discrete_point2_type& position)
         {
             return layout_barriers.edge_positions.contains(position) || room_barriers.edge_positions.contains(position);
         };
 
-        auto barred_cell = [&](const discrete_point_type& cell_position)
+        auto barred_cell = [&](const discrete_point2_type& cell_position)
         {
             return layout_barriers.cell_positions.contains(cell_position) || room_barriers.cell_positions.contains(cell_position);
         };
 
         assert(!barred_cell(locator.cell_position));
 
-        std::set<discrete_point_type> result{locator.cell_position};
-        std::vector<discrete_point_type> pending{locator.cell_position};
+        std::set<discrete_point2_type> result{locator.cell_position};
+        std::vector<discrete_point2_type> pending{locator.cell_position};
 
         while (!pending.empty())
         {
-            discrete_point_type cell_position = pending.back();
+            discrete_point2_type cell_position = pending.back();
             pending.pop_back();
 
             for (const auto& direction : quetzal::geometry::cardinal_directions<coord_type, 2>)
             {
-                discrete_point_type neighbor = cell_position + direction;
+                discrete_point2_type neighbor = cell_position + direction;
 
                 if (has_wall(cells, cell_position, direction) || barred_edge(edge_position(cell_position, direction)) || barred_cell(neighbor))
                 {
@@ -115,15 +115,15 @@ namespace
 
     //--------------------------------------------------------------------------
     // Fills row by row between the vertical edges that cross each row
-    std::set<discrete_point_type> enclosed(const Cells& cells, const Perimeter& perimeter)
+    std::set<discrete_point2_type> enclosed(const Cells& cells, const Perimeter& perimeter)
     {
-        const std::vector<discrete_point_type>& junctions = perimeter.junctions;
+        const std::vector<discrete_point2_type>& junctions = perimeter.junctions;
         size_t n = junctions.size();
 
         auto [lowest, highest] = std::minmax_element(junctions.begin(), junctions.end(),
-            [](const discrete_point_type& a, const discrete_point_type& b) { return a.y() < b.y(); });
+            [](const discrete_point2_type& a, const discrete_point2_type& b) { return a.y() < b.y(); });
 
-        std::set<discrete_point_type> result;
+        std::set<discrete_point2_type> result;
 
         for (coord_type j = lowest->y(); j < highest->y(); ++j)
         {
@@ -131,8 +131,8 @@ namespace
 
             for (size_t k = 0; k < n; ++k)
             {
-                const discrete_point_type& a = junctions[k];
-                const discrete_point_type& b = junctions[(k + 1) % n];
+                const discrete_point2_type& a = junctions[k];
+                const discrete_point2_type& b = junctions[(k + 1) % n];
 
                 if (a.x() == b.x() && std::min(a.y(), b.y()) <= j && j < std::max(a.y(), b.y()))
                 {
@@ -161,40 +161,40 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_format::on_grid(const Cells& cells, const discrete_point_type& cell_position)
+bool quetzal::stratum_format::on_grid(const Cells& cells, const discrete_point2_type& cell_position)
 {
     return cell_position.x() >= 0 && cell_position.y() >= 0 && cell_position.x() < cells.extent.x() && cell_position.y() < cells.extent.y();
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_format::floor_cell(const Cells& cells, const discrete_point_type& cell_position)
+bool quetzal::stratum_format::floor_cell(const Cells& cells, const discrete_point2_type& cell_position)
 {
     return cell_glyph(cells, cell_position) == '.' || (cells.notation == quetzal::stratum_core::Notation::Block && stair_cell(cells, cell_position));
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_format::floor_door_cell(const Cells& cells, const discrete_point_type& cell_position)
+bool quetzal::stratum_format::floor_door_cell(const Cells& cells, const discrete_point2_type& cell_position)
 {
     return floor_cell(cells, cell_position) || cell_glyph(cells, cell_position) == '+';
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_format::stair_cell(const Cells& cells, const discrete_point_type& cell_position)
+bool quetzal::stratum_format::stair_cell(const Cells& cells, const discrete_point2_type& cell_position)
 {
     char glyph = cell_glyph(cells, cell_position);
     return glyph == '<' || glyph == '>';
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_format::has_wall(const Cells& cells, const discrete_point_type& cell_position, const discrete_vector_type& direction)
+bool quetzal::stratum_format::has_wall(const Cells& cells, const discrete_point2_type& cell_position, const discrete_vector2_type& direction)
 {
     if (cells.notation == quetzal::stratum_core::Notation::Wall)
     {
-        discrete_point_type position = edge_position(cell_position, direction);
+        discrete_point2_type position = edge_position(cell_position, direction);
         return glyph_at(cells, static_cast<size_t>(position.x()), static_cast<size_t>(position.y())) != ' ';
     }
 
-    discrete_point_type neighbor = cell_position + direction;
+    discrete_point2_type neighbor = cell_position + direction;
     if (!on_grid(cells, neighbor))
     {
         return true;
@@ -206,11 +206,11 @@ bool quetzal::stratum_format::has_wall(const Cells& cells, const discrete_point_
 }
 
 //------------------------------------------------------------------------------
-std::vector<std::set<quetzal::stratum_format::discrete_point_type>> quetzal::stratum_format::room_cells(const ZoneDocument& document)
+std::vector<std::set<quetzal::stratum_format::discrete_point2_type>> quetzal::stratum_format::room_cells(const ZoneDocument& document)
 {
     FillBarriers layout_barriers = fill_barriers(document.barriers);
 
-    std::vector<std::set<discrete_point_type>> result;
+    std::vector<std::set<discrete_point2_type>> result;
     result.reserve(document.rooms.size());
 
     for (const Room& room : document.rooms)
@@ -232,11 +232,11 @@ std::vector<std::set<quetzal::stratum_format::discrete_point_type>> quetzal::str
 std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratum_format::door_walls(const Cells& cells)
 {
     const auto& directions = quetzal::geometry::cardinal_directions<coord_type, 2>;
-    auto floor_on_grid = [&](const discrete_point_type& cell_position) { return on_grid(cells, cell_position) && floor_cell(cells, cell_position); };
+    auto floor_on_grid = [&](const discrete_point2_type& cell_position) { return on_grid(cells, cell_position) && floor_cell(cells, cell_position); };
 
     std::vector<std::vector<WallPlacement>> result;
 
-    auto add = [&](std::vector<WallPlacement>& walls, const discrete_point_type& cell_position, const discrete_vector_type& normal)
+    auto add = [&](std::vector<WallPlacement>& walls, const discrete_point2_type& cell_position, const discrete_vector2_type& normal)
     {
         if (floor_on_grid(cell_position))
         {
@@ -257,8 +257,8 @@ std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratu
                 }
 
                 std::vector<WallPlacement> walls;
-                discrete_vector_type across = x % 2 == 0 ? directions[0] : directions[1];
-                discrete_point_type after{x / 2, y / 2};
+                discrete_vector2_type across = x % 2 == 0 ? directions[0] : directions[1];
+                discrete_point2_type after{x / 2, y / 2};
 
                 add(walls, after - across, -across);
                 add(walls, after, across);
@@ -277,7 +277,7 @@ std::vector<std::vector<quetzal::stratum_format::WallPlacement>> quetzal::stratu
     {
         for (coord_type i = 0; i < cells.extent.x(); ++i)
         {
-            discrete_point_type cell_position{i, j};
+            discrete_point2_type cell_position{i, j};
             if (cell_glyph(cells, cell_position) != '+')
             {
                 continue;

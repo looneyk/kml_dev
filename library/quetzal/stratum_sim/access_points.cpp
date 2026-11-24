@@ -142,8 +142,8 @@ flecs::entity quetzal::stratum_sim::find_entered_access_point(flecs::entity zone
     }
 
     const DiscreteLayout& layout = layout_as<DiscreteLayout>(*zone.get<Layout>().layout);
-    const discrete_vector_type& toward_wall = layout.wall_direction(wall.wall_id);
-    const discrete_point_type beyond = layout.wall_cell_position(wall.wall_id) + toward_wall;
+    const discrete_vector2_type& toward_wall = layout.wall_direction(wall.wall_id);
+    const discrete_point2_type beyond = layout.wall_cell_position(wall.wall_id) + toward_wall;
 
     if (!layout.grid().contains(beyond))
     {

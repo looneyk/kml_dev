@@ -17,7 +17,7 @@ namespace quetzal::stratum_core
     struct Zone
     {
         PersistentId zone_id;
-        std::optional<zone_position_type> position;
+        std::optional<discrete_point3_type> position;
         std::optional<std::string> name;
     };
 

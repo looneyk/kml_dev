@@ -72,7 +72,7 @@ The work that follows is `world_structure_plan.md`, step 7.
 **The classes**
 
 AccessPoint: one end of a translocation pair, a component of the object it is on
-    discrete_vector_type egress // the offset from the object position upon arriving
+    discrete_vector2_type egress // the offset from the object position upon arriving
     AccessPointDestination
 
 The object, a staircase, ladder, portal, ..., has the placement (position, orientation) and optional directionality.

@@ -39,7 +39,7 @@ namespace
     // Temporary, until region specs' zone keys set every zone's extent: the worldspace's zone size is the game's
     void add_temporary_zone_size(sim::RegionSpec& region_spec)
     {
-        region_spec.zone_size =sim::discrete_vector_type(
+        region_spec.zone_size =sim::discrete_vector2_type(
             static_cast<sim::coord_type>(quetzal::settings::store().value<int64_t>("world.zone_size.x")),
             static_cast<sim::coord_type>(quetzal::settings::store().value<int64_t>("world.zone_size.y")));
         return;
@@ -348,7 +348,7 @@ godot::Vector2i StratumWorld::cell() const
     }
 
     const sim::placement_type& placement = sim::placement_of(m_session.character().entity());
-    sim::discrete_point_type cell_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
+    sim::discrete_point2_type cell_position = sim::layout_as<sim::DiscreteLayout>(m_session.layout()).cell_position_at(placement.position());
 
     return godot::Vector2i(cell_position.x(), cell_position.y());
 }
@@ -376,7 +376,7 @@ godot::PackedByteArray StratumWorld::cells() const
 
     view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.character().entity());
 
-    const view::vector_type& extent = cells.extent();
+    const view::discrete_vector2_type& extent = cells.extent();
     codes.resize(static_cast<int64_t>(extent.x()) * extent.y());
 
     for (view::coord_type j = 0; j < extent.y(); ++j)
@@ -404,7 +404,7 @@ godot::PackedByteArray StratumWorld::actors() const
 
     view::Cells cells = view::cells(m_session.world(), m_session.zone(), m_session.character().entity());
 
-    const view::vector_type& extent = cells.extent();
+    const view::discrete_vector2_type& extent = cells.extent();
     flags.resize(static_cast<int64_t>(extent.x()) * extent.y());
 
     godot::Vector2i player_cell = cell();
@@ -514,7 +514,7 @@ void StratumWorld::advance()
         else if (event.is<sim::Relocated>())
         {
             // A level is shown as its distance from the surface
-            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<quetzal::stratum_core::zone_position_type>().z()));
+            m_message = std::format("You arrive on level {}.", std::abs(m_session.zone().get<quetzal::stratum_core::discrete_point3_type>().z()));
         }
         else if (event.is<sim::Died>())
         {

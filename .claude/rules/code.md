@@ -74,6 +74,9 @@ These rules apply to C++ throughout the repository, alongside the Conventions in
 - **Constrained template parameters:** Prefer `template<std::integral T>` and `template<Concept T>` instead of `requires`
   when possible.
 - **Range-for variables should generally be auto.** For conciseness, and the type should be obvious from the container type.
+- **`auto` where it makes the code more readable** (LLVM): where the type is visible on the same line, as from a cast or
+  `make_unique`, or is an implementation type such as an iterator or a lambda. Elsewhere the type or its alias is
+  written.
 - **Every function ends with an explicit return,** `return;` in a void function, a doctest `TEST_CASE` body, and a void
   lambda included, and after a final loop or if/else. Constructors and destructors are the exception. A return that
   cannot be reached, as after a `while (true)` loop, is MSVC's C4702 at /W4; the loop has a condition instead.

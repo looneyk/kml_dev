@@ -127,13 +127,13 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    map_type cell_position_map(const stratum_format::discrete_point_type& cell_position)
+    map_type cell_position_map(const stratum_format::discrete_point2_type& cell_position)
     {
         return map_type::array({cell_position.x(), cell_position.y()});
     }
 
     //--------------------------------------------------------------------------
-    map_type direction_map(const stratum_format::discrete_vector_type& direction)
+    map_type direction_map(const stratum_format::discrete_vector2_type& direction)
     {
         return map_type::array({direction.x(), direction.y()});
     }
@@ -400,14 +400,14 @@ namespace
         CHECK_CASE("the first row written is the highest", cells.rows[1] == "|. .| |>|");
 
         CHECK_CASE_EQUAL("one barrier", document.barriers.size(), 1);
-        CHECK_CASE("the barrier is an edge", document.barriers[0].normal == stratum_format::discrete_vector_type{1, 0});
+        CHECK_CASE("the barrier is an edge", document.barriers[0].normal == stratum_format::discrete_vector2_type{1, 0});
 
         CHECK_CASE_EQUAL("two rooms", document.rooms.size(), 2);
         const auto* perimeter = get_if<stratum_format::Perimeter>(&document.rooms[0].identification);
         CHECK_CASE("the first room is identified by its perimeter", perimeter != nullptr && perimeter->junctions.size() == 4);
         const auto* locator = get_if<stratum_format::RoomLocator>(&document.rooms[1].identification);
         CHECK_CASE("the second room is identified by a cell in it",
-            locator != nullptr && locator->cell_position == stratum_format::discrete_point_type {3, 1});
+            locator != nullptr && locator->cell_position == stratum_format::discrete_point2_type {3, 1});
         CHECK_CASE("a style is a component kept as written", document.rooms[0].components["style"]["terrain"] == "water");
 
         CHECK_CASE("the wall placement's normal points into its cell",
@@ -435,10 +435,10 @@ namespace
         const auto& stair_site = document.entities[3].site;
         const auto* stair_cell = stair_site.has_value() && stair_site->address.has_value() ? get_if<stratum_format::FlatCell>(&*stair_site->address) : nullptr;
         CHECK_CASE("a staircase is sited on the floor of its stair block", stair_cell != nullptr
-            && stair_cell->role == stratum_format::FlatRole::Floor && stair_cell->cell_position == stratum_format::discrete_point_type{3, 2});
+            && stair_cell->role == stratum_format::FlatRole::Floor && stair_cell->cell_position == stratum_format::discrete_point2_type{3, 2});
         const auto& stair_access_point = document.entities[3].access_point;
         CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
-            && stair_access_point->order == 0 && stair_access_point->egress == stratum_format::discrete_vector_type{0, -1}
+            && stair_access_point->order == 0 && stair_access_point->egress == stratum_format::discrete_vector2_type{0, -1}
             && stair_access_point->destination.has_value()
             && *stair_access_point->destination == stratum_core::AccessPoint::destination_type{stratum_core::ZoneExtendedName{"../[-1]"}}
             && !document.entities[3].components.contains("access_point"));
@@ -448,8 +448,8 @@ namespace
             ? get_if<stratum_format::FlatCell>(&*chest_site->address) : nullptr;
         CHECK_CASE("a chest is sited on a flat cell, with an orientation",
             flat_cell != nullptr && flat_cell->role == stratum_format::FlatRole::Floor
-            && flat_cell->cell_position == stratum_format::discrete_point_type {0, 2}
-            && document.entities[5].site->orientation == stratum_format::discrete_vector_type {1, 0}
+            && flat_cell->cell_position == stratum_format::discrete_point2_type {0, 2}
+            && document.entities[5].site->orientation == stratum_format::discrete_vector2_type {1, 0}
             && document.entities[5].site->relation == stratum_format::Relation::On);
 
         CHECK_CASE("a key is in its parent chest, with no address of its own",
@@ -464,7 +464,7 @@ namespace
             && document.generator->parameters.value("extent") == "4,3" && document.generator->parameters.value("scale") == "3-7");
         CHECK_CASE("layout components are kept as written", document.components["difficulty"] == 3 && document.components["style"] == "cistern");
         CHECK_CASE("the access points are decoded out of them", !document.access_points.empty() && !document.components.contains("access_points"));
-        CHECK_CASE("and so is the position", document.position == stratum_format::zone_position_type{0, 0, -2}
+        CHECK_CASE("and so is the position", document.position == stratum_format::discrete_point3_type{0, 0, -2}
             && !document.components.contains("position"));
         CHECK_CASE("and so is the unpopulated flag", document.is_unpopulated && !document.components.contains("unpopulated"));
 
@@ -1033,7 +1033,7 @@ namespace
     {
         stratum_format::ZoneDocument document;
         document.zone_id = 7;
-        document.position = stratum_format::zone_position_type{0, 0, -2};
+        document.position = stratum_format::discrete_point3_type{0, 0, -2};
         document.zone_spec = KeyValueStore{{"seed", "12"}, {"parameters.denizens", "few"}};
 
         ostringstream os;
@@ -1041,7 +1041,7 @@ namespace
         istringstream is(os.str());
         const stratum_format::ZoneDocument read = stratum_format::read_zone(is, "empty zone");
         CHECK_CASE("an empty zone written reads back with its id, its position and its zone spec, and no cells", !read.cells.has_value()
-            && read.zone_id == 7 && read.position == stratum_format::zone_position_type{0, 0, -2} && read.access_points.empty()
+            && read.zone_id == 7 && read.position == stratum_format::discrete_point3_type{0, 0, -2} && read.access_points.empty()
             && read.zone_spec.has_value() && read.zone_spec->value("seed") == "12" && read.zone_spec->value("parameters.denizens") == "few",
             os.str());
 
@@ -1121,7 +1121,7 @@ namespace
         character.components["name"] = "Ailis";
         character.components["speed"] = 100;
         character.zone_id = 3;
-        character.placement = stratum_format::discrete_directed_point_type({3, 1}, {0, 1});
+        character.placement = stratum_format::discrete_directed_point2_type({3, 1}, {0, 1});
 
         report_written("a character file has its name third, and with no inventory has an empty one", written(character),
             "{\n"
@@ -1173,7 +1173,7 @@ namespace
         surface.components.insert("type", "surface");
         surface.region_spec.store.insert("type", "surface");
         surface.region_spec.extent = one_zone_extent(0);
-        surface.region_spec.zone_size = stratum_format::discrete_vector_type(40, 30);
+        surface.region_spec.zone_size = stratum_format::discrete_vector2_type(40, 30);
         surface.zone_ids = {stratum_core::PersistentId{5}};
 
         stratum_core::Region dungeon;
@@ -1196,10 +1196,10 @@ namespace
 
         stratum_format::WorldDocument world;
         world.worldspaces = {stratum_core::Worldspace::create(stratum_core::PersistentId{1}, "surface", 11, surface.region_spec, surface), barrow};
-        for (const auto& zone : {stratum_core::Zone{stratum_core::PersistentId{3}, stratum_format::zone_position_type{0, 0, -1}, "barrow_0"},
-            stratum_core::Zone{stratum_core::PersistentId{5}, stratum_format::zone_position_type{0, 0, 0}, "surface_0"},
+        for (const auto& zone : {stratum_core::Zone{stratum_core::PersistentId{3}, stratum_format::discrete_point3_type{0, 0, -1}, "barrow_0"},
+            stratum_core::Zone{stratum_core::PersistentId{5}, stratum_format::discrete_point3_type{0, 0, 0}, "surface_0"},
             stratum_core::Zone{stratum_core::PersistentId{6}, nullopt, nullopt}, stratum_core::Zone{stratum_core::PersistentId{8}, nullopt, "barrow_2"},
-            stratum_core::Zone{stratum_core::PersistentId{11}, stratum_format::zone_position_type{0, 0, -2}, nullopt}})
+            stratum_core::Zone{stratum_core::PersistentId{11}, stratum_format::discrete_point3_type{0, 0, -2}, nullopt}})
         {
             world.zones.emplace(zone.zone_id, zone);
         }
@@ -1677,9 +1677,9 @@ namespace
             && surface.store.value("zone.name") == "&region_name .. '_' .. x .. '_' .. y" && surface.store.size() == 1);
         CHECK_CASE("and its members with a type of their own", surface.seed == 42u && surface.extent.has_value()
             && surface.extent->boxes.size() == 1 && range_is(surface.extent->boxes[0].x_extent, 0, 9) && range_is(surface.extent->boxes[0].z_extent, 0, 0)
-            && surface.zone_size == stratum_format::discrete_vector_type(64, 32) && islands.parent == "surface"
+            && surface.zone_size == stratum_format::discrete_vector2_type(64, 32) && islands.parent == "surface"
             && islands.extent.has_value() && islands.extent->arrangement == stratum_core::RegionExtent::Arrangement::Positions
-            && islands.extent->positions.size() == 2 && islands.extent->positions[1] == stratum_format::zone_position_type {4, 4, 0});
+            && islands.extent->positions.size() == 2 && islands.extent->positions[1] == stratum_format::discrete_point3_type {4, 4, 0});
         CHECK_CASE("and a spec with neither", crypt.store.empty() && !crypt.name.has_value() && !crypt.extent.has_value()
             && !crypt.zone_size.has_value());
 

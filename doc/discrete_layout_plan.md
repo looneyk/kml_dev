@@ -84,7 +84,7 @@ There are two per zone, the floor and the ceiling, each storing the three levels
         bool m_ceiling = false;
         value_type m_height = value_type(0);
         std::map<id_type, value_type> m_heights_room;
-        std::map<discrete_point_type, value_type> m_heights_cell;
+        std::map<discrete_point2_type, value_type> m_heights_cell;
     };
 ```
 

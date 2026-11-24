@@ -148,12 +148,12 @@ Worldspaces, zones, and regions are identified in two contexts, by a name in des
   contents are its subtree (`sim_zone_model.md`, `### Entity ownership and migration`).
 - **A region's list of its zones** is its `zone_ids`, and the zones themselves are in `World`, by `PersistentId`. A loaded zone is found by its
   `PersistentId`.
-- **A zone with no content** is an entity with its name, `zone_position_type`, `ZoneSpec`, and seed, and its layout and
+- **A zone with no content** is an entity with its name, position, `ZoneSpec`, and seed, and its layout and
   entities are added when its content is generated.
 - **A zone's list of its access points** is `layout.components.access_points`, and a pregenerated zone's name is its
   `layout.components.name`. A zone's display name is its `DisplayName`, a component separate from its name.
 - **The specs are `RegionSpec` and `ZoneSpec`.** A region spec's name is its key in the game's region specs.
-- **A zone's position in its worldspace is its `zone_position_type`,** from the zone file's `layout.components.position` or
+- **A zone has a position in its worldspace,** from the zone file's `layout.components.position` or
   the `ZoneSpec`.
 - **An access point is the `AccessPoint` component** of a staircase, a door facing, a portal, or a waypoint, and its
   position is the site of that entity, on a wall or a flat cell (`access_point_plan.md`). An actor arrives at an access

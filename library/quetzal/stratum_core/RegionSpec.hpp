@@ -25,7 +25,7 @@ namespace quetzal::stratum_core
         std::optional<seed_type> seed;
 
         std::optional<RegionExtent> extent;
-        std::optional<discrete_vector_type> zone_size;
+        std::optional<discrete_vector2_type> zone_size;
 
         KeyValueStore store;
     };

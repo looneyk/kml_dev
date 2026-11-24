@@ -64,7 +64,7 @@ namespace
             {
                 const std::string position_path = member_path(zone_path, "position");
                 const raw_values_type& a = fixed_array(*p, position_path, 3);
-                zone.position = zone_position_type{coord_value(a[0], element_path(position_path, 0)), coord_value(a[1], element_path(position_path, 1)),
+                zone.position = discrete_point3_type{coord_value(a[0], element_path(position_path, 0)), coord_value(a[1], element_path(position_path, 1)),
                     coord_value(a[2], element_path(position_path, 2))};
             }
 
@@ -82,7 +82,7 @@ namespace
 
     //--------------------------------------------------------------------------
     Region read_region(const raw_values_type& v, const std::string& path, std::set<stored_entity_id_type>& entity_ids,
-        const WorldDocument::zones_type& zones, std::set<PersistentId>& zone_ids_in_regions, std::set<zone_position_type>& zone_positions)
+        const WorldDocument::zones_type& zones, std::set<PersistentId>& zone_ids_in_regions, std::set<discrete_point3_type>& zone_positions)
     {
         object(v, path);
 
@@ -132,7 +132,7 @@ namespace
                 fail_logged(zone_id_path, std::format("zone {} is in a second region", zone_id.id));
             }
 
-            if (const std::optional<zone_position_type>& position = zone->second.position; position.has_value() && !zone_positions.insert(*position).second)
+            if (const std::optional<discrete_point3_type>& position = zone->second.position; position.has_value() && !zone_positions.insert(*position).second)
             {
                 fail_logged(zone_id_path, std::format("a second zone of the worldspace at ({}, {}, {})", position->x(), position->y(), position->z()));
             }
@@ -161,7 +161,7 @@ namespace
             fail(regions_path, "a worldspace with no regions");
         }
 
-        std::set<zone_position_type> zone_positions;
+        std::set<discrete_point3_type> zone_positions;
         const std::string root_path = element_path(regions_path, 0);
         Region root = read_region(regions[0], root_path, entity_ids, zones, zone_ids_in_regions, zone_positions);
         if (root.parent_id.has_value())

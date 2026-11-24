@@ -85,14 +85,15 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("relative zone extended names")
     {
-        for (int32_t k : {-3, 0, 2})
+        for (stratum_core::coord_type k : {-3, 0, 2})
         {
             const stratum_core::ZoneExtendedName name = stratum_core::relative_zone_extended_name(k);
-            CHECK_CASE(format("{} is written as {} and read back", k, name.value), stratum_core::relative_zone_offset(name.value) == k);
+            CHECK_CASE(format("{} is written as {} and read back", k, name.value),
+                stratum_core::zone_offset(name.value) == stratum_core::discrete_vector3_type{0, 0, k});
         }
 
-        CHECK_CASE("an absolute level is not relative", !stratum_core::relative_zone_offset("../[=1]").has_value());
-        CHECK_CASE("a named zone is not relative", !stratum_core::relative_zone_offset("town/market").has_value());
+        CHECK_CASE("an absolute z is not an offset", !stratum_core::zone_offset("../[=1]").has_value());
+        CHECK_CASE("a named zone is not an offset", !stratum_core::zone_offset("town/market").has_value());
         return;
     }
 
@@ -122,7 +123,7 @@ namespace
         stratum_core::ZoneSpec zone_spec;
         CHECK_CASE("a spec without position keys is at the origin", zone_spec.position().zero());
 
-        const stratum_core::zone_position_type position{3, -4, -2};
+        const stratum_core::discrete_point3_type position{3, -4, -2};
         zone_spec.set_position(position);
         CHECK_CASE("a position set is read back", zone_spec.position() == position);
         return;

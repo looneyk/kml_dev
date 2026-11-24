@@ -270,7 +270,7 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
     stratum_format::ZoneDocument document = *zone.get<Document>().document;
     document.version = std::string(stratum_format::format_version);
     document.zone_id = zone.get<PersistentId>().id;
-    if (const auto* position = zone.try_get<zone_position_type>())
+    if (const auto* position = zone.try_get<discrete_point3_type>())
     {
         document.position = *position;
     }
@@ -338,7 +338,7 @@ quetzal::stratum_format::ZoneDocument quetzal::stratum_sim::make_document(flecs:
             });
 
         update_flat_entries(flat.cells, file_components,
-            [&](const discrete_point_type& cell_position) { return flat_cell_entity(zone, flat_id, cell_position); },
+            [&](const discrete_point2_type& cell_position) { return flat_cell_entity(zone, flat_id, cell_position); },
             [&](auto f)
             {
                 if (const auto* index = zone.try_get<EntityIndex<FlatCellPosition>>())
@@ -389,7 +389,7 @@ quetzal::stratum_format::CharacterDocument quetzal::stratum_sim::make_character_
     document.id = character.get<PersistentId>().id;
     document.components = encoded_components(character, file_components);
     document.zone_id = zone.get<PersistentId>().id;
-    document.placement = stratum_format::discrete_directed_point_type(layout.cell_position_at(placement.position()), grid_step(placement.direction()));
+    document.placement = stratum_format::discrete_directed_point2_type(layout.cell_position_at(placement.position()), grid_step(placement.direction()));
 
     for (flecs::entity e : subtree_by_persistent_id(character))
     {

@@ -70,7 +70,7 @@ quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::DiscreteProximityIndex::entities_at(const discrete_point_type& cell_position) const
+quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::DiscreteProximityIndex::entities_at(const discrete_point2_type& cell_position) const
 {
     auto it = m_entity_ids_by_slot.find(m_discrete_layout.slot(cell_position));
     return it != m_entity_ids_by_slot.end() ? it->second : entity_ids_type();
@@ -94,9 +94,9 @@ quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::
         return dx * dx + dy * dy + dz * dz <= distance2;
     };
 
-    const discrete_vector_type& extent = m_discrete_layout.grid().extent;
-    discrete_point_type lower = m_discrete_layout.cell_position_at(point_type(x - distance, y - distance, z));
-    discrete_point_type upper = m_discrete_layout.cell_position_at(point_type(x + distance, y + distance, z));
+    const discrete_vector2_type& extent = m_discrete_layout.grid().extent;
+    discrete_point2_type lower = m_discrete_layout.cell_position_at(point_type(x - distance, y - distance, z));
+    discrete_point2_type upper = m_discrete_layout.cell_position_at(point_type(x + distance, y + distance, z));
     coord_type i_begin = std::max(lower.x(), coord_type(0));
     coord_type j_begin = std::max(lower.y(), coord_type(0));
     coord_type i_end = std::min(upper.x() + 1, extent.x());
@@ -117,7 +117,7 @@ quetzal::stratum_sim::ProximityIndexBase::entity_ids_type quetzal::stratum_sim::
         {
             for (coord_type i = i_begin; i < i_end; ++i)
             {
-                auto it = m_entity_ids_by_slot.find(m_discrete_layout.slot(discrete_point_type{i, j}));
+                auto it = m_entity_ids_by_slot.find(m_discrete_layout.slot(discrete_point2_type{i, j}));
                 if (it == m_entity_ids_by_slot.end())
                 {
                     continue;

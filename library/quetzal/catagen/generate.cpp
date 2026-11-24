@@ -5,7 +5,6 @@
 
 #include "generate.hpp"
 #include "quetzal/common/id.hpp"
-#include "quetzal/math/Random.hpp"
 #include <algorithm>
 #include <map>
 #include <numeric>
@@ -23,35 +22,34 @@ using namespace quetzal::catagen;
 namespace
 {
 
-    using random_type = math::Random<math::portable_random_engine_type>;
-    using rectangles_type = vector<box_type>;
+    using rectangles_type = vector<discrete_box2_type>;
 
     // An area is floor that walls separate and doors join: a room, or one run of corridor
     using cell_areas_type = vector<id_type>; // The area id of each cell, in slot order
     using area_pair_type = pair<id_type, id_type>; // Two areas, lower id first
-    using site_type = pair<point_type, CardinalDirection>; // A cell edge, addressed from one of its two sides
+    using site_type = pair<discrete_point2_type, CardinalDirection>; // A cell edge, addressed from one of its two sides
     using sites_type = map<area_pair_type, vector<site_type>>;
 
     //--------------------------------------------------------------------------
-    coord_type cell_count(const box_type& rectangle)
+    coord_type cell_count(const discrete_box2_type& rectangle)
     {
         return rectangle.volume();
     }
 
     //--------------------------------------------------------------------------
-    point_type center(const box_type& rectangle)
+    discrete_point2_type center(const discrete_box2_type& rectangle)
     {
         return rectangle.centroid();
     }
 
     //--------------------------------------------------------------------------
-    bool contains(const vector_type& extent, const point_type& position)
+    bool contains(const discrete_vector2_type& extent, const discrete_point2_type& position)
     {
         return position.x() >= 0 && position.y() >= 0 && position.x() < extent.x() && position.y() < extent.y();
     }
 
     //--------------------------------------------------------------------------
-    size_t cell_slot(const vector_type& extent, const point_type& position)
+    size_t cell_slot(const discrete_vector2_type& extent, const discrete_point2_type& position)
     {
         return static_cast<size_t>(position.y()) * extent.x() + position.x();
     }
@@ -101,7 +99,7 @@ namespace
     //--------------------------------------------------------------------------
     // Splits along the longer side while a side exceeds the scale maximum and both halves would still reach the minimum. A
     // range too narrow to split into yields rectangles above the maximum
-    void partition(const box_type& rectangle, const Parameters& parameters, random_type& random, rectangles_type& rectangles)
+    void partition(const discrete_box2_type& rectangle, const Parameters& parameters, random_type& random, rectangles_type& rectangles)
     {
         coord_type nx = rectangle.extent().x();
         coord_type ny = rectangle.extent().y();
@@ -131,14 +129,14 @@ namespace
         if (vertical)
         {
             coord_type cut = parameters.scale.lower() + random.random(nx - spacing - 2 * parameters.scale.lower() + 1);
-            partition({rectangle.position(), vector_type{cut, ny}}, parameters, random, rectangles);
-            partition({point_type{rectangle.position().x() + cut + spacing, rectangle.position().y()}, vector_type{nx - cut - spacing, ny}}, parameters, random, rectangles);
+            partition({rectangle.position(), discrete_vector2_type{cut, ny}}, parameters, random, rectangles);
+            partition({discrete_point2_type{rectangle.position().x() + cut + spacing, rectangle.position().y()}, discrete_vector2_type{nx - cut - spacing, ny}}, parameters, random, rectangles);
         }
         else
         {
             coord_type cut = parameters.scale.lower() + random.random(ny - spacing - 2 * parameters.scale.lower() + 1);
-            partition({rectangle.position(), vector_type{nx, cut}}, parameters, random, rectangles);
-            partition({point_type{rectangle.position().x(), rectangle.position().y() + cut + spacing}, vector_type{nx, ny - cut - spacing}}, parameters, random, rectangles);
+            partition({rectangle.position(), discrete_vector2_type{nx, cut}}, parameters, random, rectangles);
+            partition({discrete_point2_type{rectangle.position().x(), rectangle.position().y() + cut + spacing}, discrete_vector2_type{nx, ny - cut - spacing}}, parameters, random, rectangles);
         }
 
         return;
@@ -154,7 +152,7 @@ namespace
         }
 
         coord_type total_cell_count = 0;
-        for (const box_type& rectangle : rectangles)
+        for (const discrete_box2_type& rectangle : rectangles)
         {
             total_cell_count += cell_count(rectangle);
         }
@@ -184,13 +182,13 @@ namespace
 
     //--------------------------------------------------------------------------
     // Makes each room an area of its own, whose area id is its position in the room list
-    cell_areas_type cell_areas(const vector_type& extent, const rectangles_type& rooms)
+    cell_areas_type cell_areas(const discrete_vector2_type& extent, const rectangles_type& rooms)
     {
         cell_areas_type areas(static_cast<size_t>(extent.x()) * extent.y(), nullid);
 
         for (id_type id = 0; id < rooms.size(); ++id)
         {
-            const box_type& room = rooms[id];
+            const discrete_box2_type& room = rooms[id];
 
             for (coord_type j = room.lower(1); j < room.upper(1); ++j)
             {
@@ -206,17 +204,17 @@ namespace
 
     //--------------------------------------------------------------------------
     // The cells an L shaped path passes through, turning once
-    vector<point_type> path_cells(const point_type& from, const point_type& to, bool horizontal_first)
+    vector<discrete_point2_type> path_cells(const discrete_point2_type& from, const discrete_point2_type& to, bool horizontal_first)
     {
-        vector<point_type> positions;
-        point_type corner = horizontal_first ? point_type{to.x(), from.y()} : point_type{from.x(), to.y()};
+        vector<discrete_point2_type> positions;
+        discrete_point2_type corner = horizontal_first ? discrete_point2_type{to.x(), from.y()} : discrete_point2_type{from.x(), to.y()};
 
-        auto run = [&positions](const point_type& a, const point_type& b)
+        auto run = [&positions](const discrete_point2_type& a, const discrete_point2_type& b)
         {
             coord_type di = b.x() > a.x() ? 1 : (b.x() < a.x() ? -1 : 0);
             coord_type dj = b.y() > a.y() ? 1 : (b.y() < a.y() ? -1 : 0);
 
-            for (point_type c = a; c != b; c.x() += di, c.y() += dj)
+            for (discrete_point2_type c = a; c != b; c.x() += di, c.y() += dj)
             {
                 positions.push_back(c);
             }
@@ -232,11 +230,11 @@ namespace
     //--------------------------------------------------------------------------
     // Turns the solid cells a path crosses into corridor, each unbroken run an area of its own, so a path crossing a room
     // does not split one area into disconnected pieces
-    void carve(const vector_type& extent, const vector<point_type>& positions, cell_areas_type& areas, id_type& area_count)
+    void carve(const discrete_vector2_type& extent, const vector<discrete_point2_type>& positions, cell_areas_type& areas, id_type& area_count)
     {
         id_type area = nullid;
 
-        for (const point_type& position : positions)
+        for (const discrete_point2_type& position : positions)
         {
             size_t slot = cell_slot(extent, position);
 
@@ -259,7 +257,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Every cell edge with a different area on each side, grouped by the pair of areas. Each is a possible door site
-    sites_type door_sites(const vector_type& extent, const cell_areas_type& areas)
+    sites_type door_sites(const discrete_vector2_type& extent, const cell_areas_type& areas)
     {
         sites_type sites;
 
@@ -275,7 +273,7 @@ namespace
 
                 for (CardinalDirection direction : {CardinalDirection::East, CardinalDirection::North})
                 {
-                    point_type other = neighbor({i, j}, direction);
+                    discrete_point2_type other = neighbor({i, j}, direction);
                     if (!contains(extent, other))
                     {
                         continue;
@@ -299,7 +297,7 @@ namespace
     //--------------------------------------------------------------------------
     // Joins the rooms selection left separated, one corridor at a time between the closest unconnected pair. Components
     // are recounted after each, so a corridor joining more than two is not followed by a redundant one
-    void connect_components(const vector_type& extent, const rectangles_type& rooms, cell_areas_type& areas,
+    void connect_components(const discrete_vector2_type& extent, const rectangles_type& rooms, cell_areas_type& areas,
         id_type& area_count, random_type& random)
     {
         for (size_t pass = 0; pass < rooms.size(); ++pass)
@@ -323,8 +321,8 @@ namespace
                         continue;
                     }
 
-                    point_type center_a = center(rooms[a]);
-                    point_type center_b = center(rooms[b]);
+                    discrete_point2_type center_a = center(rooms[a]);
+                    discrete_point2_type center_b = center(rooms[b]);
                     coord_type distance = abs(center_a.x() - center_b.x()) + abs(center_a.y() - center_b.y());
 
                     if (room_a == nullid || distance < separation)
@@ -353,9 +351,9 @@ namespace
     // with floor on neither side has no wall, the edges beyond the zone included
     void realize(Zone& zone, const cell_areas_type& areas)
     {
-        const vector_type& extent = zone.extent();
+        const discrete_vector2_type& extent = zone.extent();
 
-        auto area_of = [&](const point_type& position)
+        auto area_of = [&](const discrete_point2_type& position)
         {
             return contains(extent, position) ? areas[cell_slot(extent, position)] : nullid;
         };
@@ -442,14 +440,14 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns true if the side leads onto an open cell across an open wall or a door, since a door is passable once opened
-    bool passable_side(const Zone& zone, const point_type& cell, CardinalDirection direction)
+    bool passable_side(const Zone& zone, const discrete_point2_type& cell, CardinalDirection direction)
     {
-        point_type next = neighbor(cell, direction);
+        discrete_point2_type next = neighbor(cell, direction);
         return zone.wall(cell, direction) != WallType::Solid && zone.contains(next) && zone.cell(next) == CellType::Open;
     }
 
     //--------------------------------------------------------------------------
-    bool staircase_faces(const Zone& zone, const point_type& cell)
+    bool staircase_faces(const Zone& zone, const discrete_point2_type& cell)
     {
         return ranges::any_of(zone.transit_endpoints(), [&](const stratum_core::TransitEndpoint& endpoint)
         {
@@ -460,7 +458,7 @@ namespace
     //--------------------------------------------------------------------------
     // Returns true if a staircase's block can go at an open cell. The block needs a passable side to face, and the cells
     // across the block's passable sides must still reach one another around it
-    bool block_allowed(const Zone& zone, const point_type& cell)
+    bool block_allowed(const Zone& zone, const discrete_point2_type& cell)
     {
         assert(zone.cell(cell) == CellType::Open);
 
@@ -469,7 +467,7 @@ namespace
             return false;
         }
 
-        vector<point_type> sides;
+        vector<discrete_point2_type> sides;
 
         for (size_t index = 0; index < cardinal_directions.size(); ++index)
         {
@@ -485,22 +483,22 @@ namespace
             return false;
         }
 
-        const vector_type& extent = zone.extent();
+        const discrete_vector2_type& extent = zone.extent();
         vector<bool> reached(static_cast<size_t>(extent.x()) * extent.y(), false);
         reached[cell_slot(extent, sides.front())] = true;
 
-        vector<point_type> pending{sides.front()};
+        vector<discrete_point2_type> pending{sides.front()};
         size_t sides_unreached = sides.size() - 1;
 
         while (!pending.empty() && sides_unreached > 0)
         {
-            point_type position = pending.back();
+            discrete_point2_type position = pending.back();
             pending.pop_back();
 
             for (size_t index = 0; index < cardinal_directions.size(); ++index)
             {
                 CardinalDirection direction = static_cast<CardinalDirection>(index);
-                point_type next = neighbor(position, direction);
+                discrete_point2_type next = neighbor(position, direction);
 
                 if (next == cell || !passable_side(zone, position, direction) || reached[cell_slot(extent, next)])
                 {
@@ -522,7 +520,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Returns true if a door on any side of the cell opens onto it
-    bool blocks_doorway(const Zone& zone, const point_type& cell)
+    bool blocks_doorway(const Zone& zone, const discrete_point2_type& cell)
     {
         for (size_t index = 0; index < cardinal_directions.size(); ++index)
         {
@@ -536,9 +534,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    optional<point_type> reposition_staircase(const Zone& zone, const point_type& cell, random_type& random)
+    optional<discrete_point2_type> reposition_staircase(const Zone& zone, const discrete_point2_type& cell, random_type& random)
     {
-        vector<point_type> available;
+        vector<discrete_point2_type> available;
 
         for (size_t index = 0; index < cardinal_directions.size(); ++index)
         {
@@ -548,18 +546,18 @@ namespace
                 continue;
             }
 
-            point_type next = neighbor(cell, direction);
+            discrete_point2_type next = neighbor(cell, direction);
             if (zone.cell(next) == CellType::Open && !blocks_doorway(zone, next) && block_allowed(zone, next))
             {
                 available.push_back(next);
             }
         }
 
-        return available.empty() ? nullopt : optional<point_type>(random.choose(available));
+        return available.empty() ? nullopt : optional<discrete_point2_type>(random.choose(available));
     }
 
     //--------------------------------------------------------------------------
-    CardinalDirection draw_facing_direction(const Zone& zone, const point_type& cell, random_type& random)
+    CardinalDirection draw_facing_direction(const Zone& zone, const discrete_point2_type& cell, random_type& random)
     {
         vector<CardinalDirection> open_sides;
         vector<CardinalDirection> door_sides;
@@ -585,7 +583,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    optional<directed_point_type> staircase_placement(const Zone& zone, point_type cell, random_type& random)
+    optional<discrete_directed_point2_type> staircase_placement(const Zone& zone, discrete_point2_type cell, random_type& random)
     {
         if (!block_allowed(zone, cell))
         {
@@ -597,7 +595,7 @@ namespace
             cell = reposition_staircase(zone, cell, random).value_or(cell);
         }
 
-        return directed_point_type(cell, cardinal_direction(draw_facing_direction(zone, cell, random)));
+        return discrete_directed_point2_type(cell, cardinal_direction(draw_facing_direction(zone, cell, random)));
     }
 
     //--------------------------------------------------------------------------
@@ -621,10 +619,10 @@ namespace
         while (zone.transit_endpoints().size() < down_count + up_count && !available.empty())
         {
             size_t slot = random.random(available.size());
-            point_type cell = center(rooms[available[slot]]);
+            discrete_point2_type cell = center(rooms[available[slot]]);
             available.erase(available.begin() + static_cast<ptrdiff_t>(slot));
 
-            optional<directed_point_type> placement = staircase_placement(zone, cell, random);
+            optional<discrete_directed_point2_type> placement = staircase_placement(zone, cell, random);
             if (placement)
             {
                 zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_core::Directionality::Up
@@ -647,9 +645,9 @@ namespace
     {
         const size_t down_count = draw_count(parameters.staircase_down_count, random);
         const size_t up_count = draw_count(parameters.staircase_up_count, random);
-        const vector_type& extent = zone.extent();
+        const discrete_vector2_type& extent = zone.extent();
 
-        vector<point_type> candidates;
+        vector<discrete_point2_type> candidates;
         for (coord_type j = 0; j < extent.y(); ++j)
         {
             for (coord_type i = 0; i < extent.x(); ++i)
@@ -667,7 +665,7 @@ namespace
                 continue;
             }
 
-            optional<directed_point_type> placement = staircase_placement(zone, candidates[slot], random);
+            optional<discrete_directed_point2_type> placement = staircase_placement(zone, candidates[slot], random);
             if (placement)
             {
                 zone.create_staircase(*placement, zone.transit_endpoints().size() < up_count ? stratum_core::Directionality::Up
@@ -687,7 +685,7 @@ namespace
     Zone generate_partition1(const string& name, const Parameters& parameters, random_type& random)
     {
         rectangles_type rectangles;
-        partition({point_type{0, 0}, parameters.extent}, parameters, random, rectangles);
+        partition({discrete_point2_type{0, 0}, parameters.extent}, parameters, random, rectangles);
 
         rectangles_type rooms = select(rectangles, parameters.density, random);
         cell_areas_type areas = cell_areas(parameters.extent, rooms);

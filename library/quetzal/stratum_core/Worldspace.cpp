@@ -47,7 +47,7 @@ quetzal::stratum_core::Worldspace quetzal::stratum_core::Worldspace::create(Pers
 }
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_core::Worldspace::contains(const zone_position_type& position) const
+bool quetzal::stratum_core::Worldspace::contains(const discrete_point3_type& position) const
 {
     return extent.contains(position);
 }

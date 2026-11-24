@@ -6,27 +6,24 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/id.hpp"
-#include "quetzal/math/DiscreteVector.hpp"
 #include "quetzal/geometry/CardinalDirection.hpp"
-#include "quetzal/geometry/DiscreteBox.hpp"
-#include "quetzal/geometry/DiscreteDirectedPoint.hpp"
-#include "quetzal/geometry/DiscretePoint.hpp"
-#include "quetzal/math/Random.hpp"
+#include "quetzal/stratum_core/types.hpp"
 #include <string_view>
-#include <cstdint>
 
 namespace quetzal::dungen
 {
 
-    using coord_type = std::int32_t;
-    using point_type = geometry::DiscretePoint<coord_type, 2>;
-    using vector_type = point_type::vector_type;
-    using box_type = geometry::DiscreteBox<coord_type, 2>;
-    using directed_point_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
-    using random_type = math::Random<math::portable_random_engine_type>;
-
-    // A zone's position in its region
-    using zone_position_type = geometry::DiscretePoint<coord_type, 3>;
+    using stratum_core::coord_type;
+    using stratum_core::discrete_vector2_type;
+    using stratum_core::discrete_point2_type;
+    using stratum_core::discrete_vector3_type;
+    using stratum_core::discrete_point3_type;
+    using stratum_core::discrete_box2_type;
+    using stratum_core::discrete_box3_type;
+    using stratum_core::discrete_directed_point2_type;
+    using stratum_core::discrete_directed_point3_type;
+    using stratum_core::random_type;
+    using stratum_core::seed_type;
 
     // The category of dungen's entries in the process-wide log
     inline constexpr std::string_view log_category = "dungen";
@@ -35,7 +32,7 @@ namespace quetzal::dungen
 
     inline const auto& cardinal_directions = geometry::cardinal_directions<coord_type, 2>;
 
-    inline const vector_type& cardinal_direction(CardinalDirection direction)
+    inline const discrete_vector2_type& cardinal_direction(CardinalDirection direction)
     {
         return geometry::cardinal_direction<coord_type, 2>(direction);
     }

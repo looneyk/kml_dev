@@ -140,7 +140,7 @@ quetzal::stratum_sim::WorldDefinition quetzal::stratum_sim::load_world_definitio
 //------------------------------------------------------------------------------
 quetzal::stratum_sim::WorldDefinition::region_spec_tree_type quetzal::stratum_sim::resolve_region_spec_tree(
     const WorldDefinition::region_spec_tree_type& tree, std::string_view root_region_name, const std::map<std::string, RegionSpec>& region_specs,
-    PatternResolver::random_type& random, seed_type world_seed, const ScriptLimits& script_limits)
+    random_type& random, seed_type world_seed, const ScriptLimits& script_limits)
 {
     WorldDefinition::region_spec_tree_type resolved = tree;
     for (RegionSpecNode& node : resolved)
@@ -150,7 +150,7 @@ quetzal::stratum_sim::WorldDefinition::region_spec_tree_type quetzal::stratum_si
         KeyValueStore symbols = node.parent_id != nullid ? parent_symbols(resolved[node.parent_id].region_spec) : KeyValueStore{};
         symbols.insert("region_name", node.parent_id != nullid ? composed.name.value_or("") : std::string(root_region_name));
 
-        PatternResolver resolver(symbols, PatternResolver::random_type(composed.seed.value_or(seed)), world_seed, script_limits);
+        PatternResolver resolver(symbols, random_type(composed.seed.value_or(seed)), world_seed, script_limits);
         RegionSpec resolved_spec = resolve_region_spec(composed, resolver);
         if (node.parent_id != nullid)
         {

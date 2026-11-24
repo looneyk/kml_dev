@@ -52,8 +52,8 @@ namespace quetzal::stratum_format
     // The wall on a face of a cell. The normal is the vector pointing toward a viewer who is facing the wall
     struct WallPlacement
     {
-        discrete_point_type cell_position;
-        discrete_vector_type normal;
+        discrete_point2_type cell_position;
+        discrete_vector2_type normal;
 
         friend bool operator==(const WallPlacement&, const WallPlacement&) = default;
     };
@@ -62,8 +62,8 @@ namespace quetzal::stratum_format
     // A virtual block/wall used to constrain the fill when identifying room cells
     struct Barrier
     {
-        discrete_point_type cell_position;
-        std::optional<discrete_vector_type> normal;
+        discrete_point2_type cell_position;
+        std::optional<discrete_vector2_type> normal;
 
         friend bool operator==(const Barrier&, const Barrier&) = default;
     };
@@ -74,7 +74,7 @@ namespace quetzal::stratum_format
     {
         stratum_core::Notation notation = stratum_core::Notation::Wall;
         Encoding encoding = Encoding::Characters;
-        discrete_vector_type extent;
+        discrete_vector2_type extent;
         point_type origin;
         value_type scale = value_type(1);
 
@@ -86,7 +86,7 @@ namespace quetzal::stratum_format
     // A room perimeter polygon, one of the two ways to describe room extent
     struct Perimeter
     {
-        std::vector<discrete_point_type> junctions;
+        std::vector<discrete_point2_type> junctions;
     };
 
     //--------------------------------------------------------------------------
@@ -94,7 +94,7 @@ namespace quetzal::stratum_format
     // supports flood fill to enumerate room cells, one of the two ways to describe room extent
     struct RoomLocator
     {
-        discrete_point_type cell_position;
+        discrete_point2_type cell_position;
         std::vector<Barrier> barriers;
     };
 
@@ -126,21 +126,21 @@ namespace quetzal::stratum_format
         FlatRole role = FlatRole::Floor;
         FlatProperties properties; // Flat-specific or default cell properties
         std::map<id_type, FlatProperties> rooms;
-        std::map<discrete_point_type, FlatProperties> cells;
+        std::map<discrete_point2_type, FlatProperties> cells;
     };
 
     //--------------------------------------------------------------------------
     struct FlatCell
     {
         FlatRole role = FlatRole::Floor;
-        discrete_point_type cell_position;
+        discrete_point2_type cell_position;
     };
 
     //--------------------------------------------------------------------------
     // A cell of the zone that an entity is in, such as an actor standing on it, rather than a surface it is on
     struct ZoneCell
     {
-        discrete_point_type cell_position;
+        discrete_point2_type cell_position;
     };
 
     //--------------------------------------------------------------------------
@@ -151,7 +151,7 @@ namespace quetzal::stratum_format
         Relation relation = Relation::In;
         std::optional<std::variant<WallPlacement, FlatCell, ZoneCell>> address;
         std::optional<surface_point_type> position;
-        std::optional<discrete_vector_type> orientation;
+        std::optional<discrete_vector2_type> orientation;
     };
 
     //--------------------------------------------------------------------------
@@ -182,7 +182,7 @@ namespace quetzal::stratum_format
         std::string version;
         std::optional<Generator> generator;
         std::vector<stored_entity_id_type> access_points;
-        std::optional<zone_position_type> position;
+        std::optional<discrete_point3_type> position;
         bool is_unpopulated = false;
         raw_values_type components; // Other components
         std::optional<stored_entity_id_type> zone_id; // Persistent id, empty in a zone template

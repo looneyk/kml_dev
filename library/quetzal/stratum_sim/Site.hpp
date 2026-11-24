@@ -39,7 +39,7 @@ namespace quetzal::stratum_sim
     struct FlatCellPosition
     {
         id_type flat_id = nullid;
-        discrete_point_type cell_position;
+        discrete_point2_type cell_position;
 
         auto operator<=>(const FlatCellPosition&) const = default;
     };

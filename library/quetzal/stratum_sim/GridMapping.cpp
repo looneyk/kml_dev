@@ -7,13 +7,13 @@
 #include <cmath>
 
 //------------------------------------------------------------------------------
-bool quetzal::stratum_sim::GridMapping::contains(const discrete_point_type& cell_position) const
+bool quetzal::stratum_sim::GridMapping::contains(const discrete_point2_type& cell_position) const
 {
     return cell_position.x() >= 0 && cell_position.y() >= 0 && cell_position.x() < extent.x() && cell_position.y() < extent.y();
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::GridMapping::cell_position_at(const point_type& position) const
+quetzal::stratum_sim::discrete_point2_type quetzal::stratum_sim::GridMapping::cell_position_at(const point_type& position) const
 {
     auto [px, py, pz] = position.rep();
     auto [ox, oy, oz] = origin.rep();
@@ -25,7 +25,7 @@ quetzal::stratum_sim::discrete_point_type quetzal::stratum_sim::GridMapping::cel
 }
 
 //------------------------------------------------------------------------------
-quetzal::stratum_sim::point_type quetzal::stratum_sim::GridMapping::position(const discrete_point_type& cell_position) const
+quetzal::stratum_sim::point_type quetzal::stratum_sim::GridMapping::position(const discrete_point2_type& cell_position) const
 {
     auto [ox, oy, oz] = origin.rep();
 

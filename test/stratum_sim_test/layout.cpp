@@ -51,8 +51,8 @@ namespace
                 walls |= i == i0 ? stratum_sim::DirectionMask::West : stratum_sim::DirectionMask::None;
                 walls |= j == j0 ? stratum_sim::DirectionMask::South : stratum_sim::DirectionMask::None;
 
-                layout.set_cell_open(stratum_sim::discrete_point_type{i, j}, true);
-                layout.set_cell_walls(stratum_sim::discrete_point_type{i, j}, walls);
+                layout.set_cell_open(stratum_sim::discrete_point2_type{i, j}, true);
+                layout.set_cell_walls(stratum_sim::discrete_point2_type{i, j}, walls);
             }
         }
 
@@ -79,15 +79,15 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("zone layout")
     {
-        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(4, 3)};
+        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector2_type(4, 3)};
         open_walled(layout, 0, 0, 4, 3);
 
         CHECK_CASE_EQUAL("a wall on every side the rectangle faces out of", wall_counts(layout).sides, 14);
-        CHECK_CASE("a wall is on the side of the cell it faces", layout.wall_toward(stratum_sim::discrete_point_type{3, 1}, cardinal_direction(CardinalDirection::East)) != nullid);
-        CHECK_CASE("and nothing within the rectangle", layout.wall_toward(stratum_sim::discrete_point_type{1, 1}, cardinal_direction(CardinalDirection::East)) == nullid);
+        CHECK_CASE("a wall is on the side of the cell it faces", layout.wall_toward(stratum_sim::discrete_point2_type{3, 1}, cardinal_direction(CardinalDirection::East)) != nullid);
+        CHECK_CASE("and nothing within the rectangle", layout.wall_toward(stratum_sim::discrete_point2_type{1, 1}, cardinal_direction(CardinalDirection::East)) == nullid);
         CHECK_CASE("every side of a cell is a wall of its own",
-            layout.wall_toward(stratum_sim::discrete_point_type{0, 0}, cardinal_direction(CardinalDirection::West))
-                != layout.wall_toward(stratum_sim::discrete_point_type{0, 0}, cardinal_direction(CardinalDirection::South)));
+            layout.wall_toward(stratum_sim::discrete_point2_type{0, 0}, cardinal_direction(CardinalDirection::West))
+                != layout.wall_toward(stratum_sim::discrete_point2_type{0, 0}, cardinal_direction(CardinalDirection::South)));
 
         layout.set_flats(0.0f, 2.5f);
         CHECK_CASE_EQUAL("a layout has two flats", layout.flat_store_count(), 2);
@@ -100,8 +100,8 @@ namespace
         CHECK_CASE_EQUAL("a layout keeps the room count it was given", layout.room_count(), 2);
 
         stratum_sim::DiscreteLayout moved = std::move(layout);
-        CHECK_CASE("a moved layout takes the grid", moved.grid().extent == stratum_sim::discrete_vector_type(4, 3));
-        CHECK_CASE("and the cells", moved.open(stratum_sim::discrete_point_type{1, 1}));
+        CHECK_CASE("a moved layout takes the grid", moved.grid().extent == stratum_sim::discrete_vector2_type(4, 3));
+        CHECK_CASE("and the cells", moved.open(stratum_sim::discrete_point2_type{1, 1}));
         CHECK_CASE("and the flats", moved.flat_store_count() == 2 && moved.flat(moved.ceiling_id()).height() == 2.5f);
 
         return;
@@ -110,14 +110,14 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("rooms")
     {
-        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
+        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector2_type(8, 8)};
         layout.set_room_count(1);
-        layout.set_cell_room(stratum_sim::discrete_point_type{0, 0}, 0);
-        layout.set_cell_room(stratum_sim::discrete_point_type{1, 0}, 0);
+        layout.set_cell_room(stratum_sim::discrete_point2_type{0, 0}, 0);
+        layout.set_cell_room(stratum_sim::discrete_point2_type{1, 0}, 0);
 
         CHECK_CASE_EQUAL("a layout keeps how many rooms there are", layout.room_count(), 1);
-        CHECK_CASE("a cell names the room covering it", layout.room_at(stratum_sim::discrete_point_type{1, 0}) == 0);
-        CHECK_CASE("a cell no room covers has none", layout.room_at(stratum_sim::discrete_point_type{5, 5}) == nullid);
+        CHECK_CASE("a cell names the room covering it", layout.room_at(stratum_sim::discrete_point2_type{1, 0}) == 0);
+        CHECK_CASE("a cell no room covers has none", layout.room_at(stratum_sim::discrete_point2_type{5, 5}) == nullid);
 
         return;
     }
@@ -125,12 +125,12 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("grid")
     {
-        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
+        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector2_type(8, 8)};
 
-        CHECK_CASE("a point maps to its cell", layout.cell_position_at(stratum_sim::point_type(2.7f, 3.2f, 0.0f)) == stratum_sim::discrete_point_type(2, 3));
-        CHECK_CASE("a cell maps back to its center", layout.position(stratum_sim::discrete_point_type{2, 3}).x() == 2.5f);
-        CHECK_CASE("round tripping a cell center returns the cell", layout.cell_position_at(layout.position(stratum_sim::discrete_point_type{5, 6})) == stratum_sim::discrete_point_type(5, 6));
-        CHECK_CASE("a point left of the origin maps to a negative cell", layout.cell_position_at(stratum_sim::point_type(-0.5f, 0.5f, 0.0f)) == stratum_sim::discrete_point_type(-1, 0));
+        CHECK_CASE("a point maps to its cell", layout.cell_position_at(stratum_sim::point_type(2.7f, 3.2f, 0.0f)) == stratum_sim::discrete_point2_type(2, 3));
+        CHECK_CASE("a cell maps back to its center", layout.position(stratum_sim::discrete_point2_type{2, 3}).x() == 2.5f);
+        CHECK_CASE("round tripping a cell center returns the cell", layout.cell_position_at(layout.position(stratum_sim::discrete_point2_type{5, 6})) == stratum_sim::discrete_point2_type(5, 6));
+        CHECK_CASE("a point left of the origin maps to a negative cell", layout.cell_position_at(stratum_sim::point_type(-0.5f, 0.5f, 0.0f)) == stratum_sim::discrete_point2_type(-1, 0));
 
         return;
     }
@@ -142,30 +142,30 @@ namespace
         stratum_sim::Flat floor(2.0f);
 
         CHECK_CASE("a flat is a floor unless it is made a ceiling", !floor.ceiling());
-        CHECK_CASE("a flat with no room or cell heights has none", !floor.room_height(0) && !floor.cell_height(stratum_sim::discrete_point_type{1, 1}));
+        CHECK_CASE("a flat with no room or cell heights has none", !floor.room_height(0) && !floor.cell_height(stratum_sim::discrete_point2_type{1, 1}));
 
         floor.set_room_height(0, -0.25f);
-        floor.set_cell_height(stratum_sim::discrete_point_type{1, 1}, 0.5f);
+        floor.set_cell_height(stratum_sim::discrete_point2_type{1, 1}, 0.5f);
         CHECK_CASE("a room height is kept", floor.room_height(0) == -0.25f);
-        CHECK_CASE("and a cell height", floor.cell_height(stratum_sim::discrete_point_type{1, 1}) == 0.5f);
+        CHECK_CASE("and a cell height", floor.cell_height(stratum_sim::discrete_point2_type{1, 1}) == 0.5f);
 
         // A cell's floor height comes from the cell, then its room, then the flat
-        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
+        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector2_type(8, 8)};
 
-        CHECK_CASE("with no floor a cell sits on the grid's own plane", layout.position(stratum_sim::discrete_point_type{1, 1}).z() == 0.0f);
+        CHECK_CASE("with no floor a cell sits on the grid's own plane", layout.position(stratum_sim::discrete_point2_type{1, 1}).z() == 0.0f);
 
         layout.set_flats(1.5f, 4.0f);
-        CHECK_CASE("with one it sits on the floor", layout.position(stratum_sim::discrete_point_type{1, 1}).z() == 1.5f);
+        CHECK_CASE("with one it sits on the floor", layout.position(stratum_sim::discrete_point2_type{1, 1}).z() == 1.5f);
 
         layout.set_room_count(1);
-        layout.set_cell_room(stratum_sim::discrete_point_type{1, 1}, 0);
-        layout.set_cell_room(stratum_sim::discrete_point_type{2, 1}, 0);
+        layout.set_cell_room(stratum_sim::discrete_point2_type{1, 1}, 0);
+        layout.set_cell_room(stratum_sim::discrete_point2_type{2, 1}, 0);
         layout.flat(layout.floor_id()).set_room_height(0, 1.0f);
-        CHECK_CASE("a room's height overrides the flat's", layout.position(stratum_sim::discrete_point_type{2, 1}).z() == 1.0f);
+        CHECK_CASE("a room's height overrides the flat's", layout.position(stratum_sim::discrete_point2_type{2, 1}).z() == 1.0f);
 
-        layout.flat(layout.floor_id()).set_cell_height(stratum_sim::discrete_point_type{1, 1}, 2.5f);
-        CHECK_CASE("and a cell's overrides the room's", layout.position(stratum_sim::discrete_point_type{1, 1}).z() == 2.5f);
-        CHECK_CASE("a cell no room covers takes the flat's", layout.height(layout.floor_id(), stratum_sim::discrete_point_type{5, 5}) == 1.5f);
+        layout.flat(layout.floor_id()).set_cell_height(stratum_sim::discrete_point2_type{1, 1}, 2.5f);
+        CHECK_CASE("and a cell's overrides the room's", layout.position(stratum_sim::discrete_point2_type{1, 1}).z() == 2.5f);
+        CHECK_CASE("a cell no room covers takes the flat's", layout.height(layout.floor_id(), stratum_sim::discrete_point2_type{5, 5}) == 1.5f);
 
         return;
     }
@@ -173,7 +173,7 @@ namespace
     //--------------------------------------------------------------------------
     TEST_CASE("blocking")
     {
-        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
+        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector2_type(8, 8)};
 
         // Two rooms one cell tall side by side, so their shared boundary is exactly one cell edge, walled from both sides
         open_walled(layout, 0, 0, 2, 1);
@@ -181,31 +181,31 @@ namespace
 
         // Within one room there is no wall at all, so nothing can block
         stratum_sim::LayoutBase::crossable_function_type shut;
-        CHECK_CASE("cells inside one area are always crossable", layout.crossable(stratum_sim::discrete_point_type{0, 0}, cardinal_direction(CardinalDirection::East), shut));
-        CHECK_CASE("crossing within an area is symmetric", layout.crossable(stratum_sim::discrete_point_type{1, 0}, cardinal_direction(CardinalDirection::West), shut));
-        CHECK_CASE("a wall nothing crosses blocks", !layout.crossable(stratum_sim::discrete_point_type{1, 0}, cardinal_direction(CardinalDirection::East), shut));
+        CHECK_CASE("cells inside one area are always crossable", layout.crossable(stratum_sim::discrete_point2_type{0, 0}, cardinal_direction(CardinalDirection::East), shut));
+        CHECK_CASE("crossing within an area is symmetric", layout.crossable(stratum_sim::discrete_point2_type{1, 0}, cardinal_direction(CardinalDirection::West), shut));
+        CHECK_CASE("a wall nothing crosses blocks", !layout.crossable(stratum_sim::discrete_point2_type{1, 0}, cardinal_direction(CardinalDirection::East), shut));
 
         // Open one side only, which is what a one-way passage is
-        id_type wall_a = layout.wall_toward(stratum_sim::discrete_point_type{1, 0}, cardinal_direction(CardinalDirection::East));
-        id_type wall_b = layout.wall_toward(stratum_sim::discrete_point_type{2, 0}, cardinal_direction(CardinalDirection::West));
+        id_type wall_a = layout.wall_toward(stratum_sim::discrete_point2_type{1, 0}, cardinal_direction(CardinalDirection::East));
+        id_type wall_b = layout.wall_toward(stratum_sim::discrete_point2_type{2, 0}, cardinal_direction(CardinalDirection::West));
         CHECK_CASE("the two sides of the shared edge are two walls", wall_a != nullid && wall_b != nullid && wall_a != wall_b);
 
         // The caller's predicate decides which walls may be crossed
         std::set<id_type> open_walls{wall_a};
         stratum_sim::LayoutBase::crossable_function_type crossable = [&](id_type id) { return open_walls.contains(id); };
 
-        CHECK_CASE("opening a wall lets a mover out", layout.crossable(stratum_sim::discrete_point_type{1, 0}, cardinal_direction(CardinalDirection::East), crossable));
-        CHECK_CASE("the other side is untouched, so the way back stays shut", !layout.crossable(stratum_sim::discrete_point_type{2, 0}, cardinal_direction(CardinalDirection::West), crossable));
+        CHECK_CASE("opening a wall lets a mover out", layout.crossable(stratum_sim::discrete_point2_type{1, 0}, cardinal_direction(CardinalDirection::East), crossable));
+        CHECK_CASE("the other side is untouched, so the way back stays shut", !layout.crossable(stratum_sim::discrete_point2_type{2, 0}, cardinal_direction(CardinalDirection::West), crossable));
 
         open_walls.insert(wall_b);
-        CHECK_CASE("opening the other side opens the way back", layout.crossable(stratum_sim::discrete_point_type{2, 0}, cardinal_direction(CardinalDirection::West), crossable));
+        CHECK_CASE("opening the other side opens the way back", layout.crossable(stratum_sim::discrete_point2_type{2, 0}, cardinal_direction(CardinalDirection::West), crossable));
 
         // The two sides of an edge are independent, so one side may have a wall the other has not
-        layout.set_cell_walls(stratum_sim::discrete_point_type{2, 0}, stratum_sim::DirectionMask::North | stratum_sim::DirectionMask::South
+        layout.set_cell_walls(stratum_sim::discrete_point2_type{2, 0}, stratum_sim::DirectionMask::North | stratum_sim::DirectionMask::South
             | stratum_sim::DirectionMask::East);
         open_walls.clear();
-        CHECK_CASE("a wall on one side of an edge blocks from that side alone", !layout.crossable(stratum_sim::discrete_point_type{1, 0}, cardinal_direction(CardinalDirection::East), crossable)
-            && layout.crossable(stratum_sim::discrete_point_type{2, 0}, cardinal_direction(CardinalDirection::West), crossable));
+        CHECK_CASE("a wall on one side of an edge blocks from that side alone", !layout.crossable(stratum_sim::discrete_point2_type{1, 0}, cardinal_direction(CardinalDirection::East), crossable)
+            && layout.crossable(stratum_sim::discrete_point2_type{2, 0}, cardinal_direction(CardinalDirection::West), crossable));
 
         return;
     }
@@ -214,48 +214,48 @@ namespace
     TEST_CASE("movement")
     {
         // A corridor four cells long, walled at both ends, and a cell beyond its east end
-        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector_type(8, 8)};
+        stratum_sim::DiscreteLayout layout{stratum_sim::point_type(0.0f, 0.0f, 0.0f), 1.0f, stratum_sim::discrete_vector2_type(8, 8)};
 
         open_walled(layout, 0, 0, 4, 1);
         open_walled(layout, 4, 0, 5, 1);
-        id_type corridor_end = layout.wall_toward(stratum_sim::discrete_point_type{3, 0}, cardinal_direction(CardinalDirection::East));
+        id_type corridor_end = layout.wall_toward(stratum_sim::discrete_point2_type{3, 0}, cardinal_direction(CardinalDirection::East));
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
         stratum_sim::vector_type north(0.0f, 1.0f, 0.0f);
 
-        stratum_sim::placement_type start(layout.position(stratum_sim::discrete_point_type{0, 0}), east);
+        stratum_sim::placement_type start(layout.position(stratum_sim::discrete_point2_type{0, 0}), east);
 
         stratum_sim::MoveResult one = layout.move(start, east, 1.0f);
-        CHECK_CASE("a step ends in the next cell", layout.cell_position_at(one.placement.position()) == stratum_sim::discrete_point_type(1, 0));
+        CHECK_CASE("a step ends in the next cell", layout.cell_position_at(one.placement.position()) == stratum_sim::discrete_point2_type(1, 0));
         CHECK_CASE("a step with nothing in the way reports nothing", one.blocking_wall_id == nullid);
         CHECK_CASE("moving does not turn", one.placement.direction().x() == 1.0f);
 
         stratum_sim::MoveResult three = layout.move(start, east, 3.0f);
-        CHECK_CASE("distance is in cells", layout.cell_position_at(three.placement.position()) == stratum_sim::discrete_point_type(3, 0));
+        CHECK_CASE("distance is in cells", layout.cell_position_at(three.placement.position()) == stratum_sim::discrete_point2_type(3, 0));
 
         // The far wall of the corridor has a cell behind it but nothing crosses it
         stratum_sim::MoveResult far = layout.move(start, east, 7.0f);
-        CHECK_CASE("a mover stops at the first block", layout.cell_position_at(far.placement.position()) == stratum_sim::discrete_point_type(3, 0));
+        CHECK_CASE("a mover stops at the first block", layout.cell_position_at(far.placement.position()) == stratum_sim::discrete_point2_type(3, 0));
         CHECK_CASE("and reports what stopped it", far.blocking_wall_id != nullid);
         CHECK_CASE("what stopped it is the wall on its own side of the edge", far.blocking_wall_id == corridor_end);
 
         // Opening that wall lets it through
         stratum_sim::LayoutBase::crossable_function_type crossable = [id = far.blocking_wall_id](id_type wall_id) { return wall_id == id; };
         stratum_sim::MoveResult through = layout.move(start, east, 7.0f, crossable, stratum_sim::LayoutBase::blocker_function_type());
-        CHECK_CASE("an opened wall no longer stops it", layout.cell_position_at(through.placement.position()) == stratum_sim::discrete_point_type(4, 0));
+        CHECK_CASE("an opened wall no longer stops it", layout.cell_position_at(through.placement.position()) == stratum_sim::discrete_point2_type(4, 0));
         CHECK_CASE("it stops at the next block instead", through.blocking_wall_id != nullid && through.blocking_wall_id != far.blocking_wall_id);
 
         // Solid in every other direction
         stratum_sim::MoveResult blocked = layout.move(start, north, 3.0f);
-        CHECK_CASE("a mover held against a wall does not move", layout.cell_position_at(blocked.placement.position()) == stratum_sim::discrete_point_type(0, 0));
+        CHECK_CASE("a mover held against a wall does not move", layout.cell_position_at(blocked.placement.position()) == stratum_sim::discrete_point2_type(0, 0));
         CHECK_CASE("and still reports the wall", blocked.blocking_wall_id != nullid);
 
-        CHECK_CASE("a zero direction moves nothing", layout.cell_position_at(layout.move(start, stratum_sim::vector_type(0.0f, 0.0f, 0.0f), 3.0f).placement.position()) == stratum_sim::discrete_point_type(0, 0));
-        CHECK_CASE("a zero distance moves nothing", layout.cell_position_at(layout.move(start, east, 0.0f).placement.position()) == stratum_sim::discrete_point_type(0, 0));
+        CHECK_CASE("a zero direction moves nothing", layout.cell_position_at(layout.move(start, stratum_sim::vector_type(0.0f, 0.0f, 0.0f), 3.0f).placement.position()) == stratum_sim::discrete_point2_type(0, 0));
+        CHECK_CASE("a zero distance moves nothing", layout.cell_position_at(layout.move(start, east, 0.0f).placement.position()) == stratum_sim::discrete_point2_type(0, 0));
 
         // The direction snaps to a cardinal direction
         stratum_sim::MoveResult skewed = layout.move(start, stratum_sim::vector_type(0.9f, 0.4f, 0.0f), 2.0f);
-        CHECK_CASE("a direction off axis snaps to the nearest", layout.cell_position_at(skewed.placement.position()) == stratum_sim::discrete_point_type(2, 0));
+        CHECK_CASE("a direction off axis snaps to the nearest", layout.cell_position_at(skewed.placement.position()) == stratum_sim::discrete_point2_type(2, 0));
 
         // Turning
         stratum_sim::placement_type facing_east(start.position(), east);
@@ -291,7 +291,7 @@ namespace
         // Moving in a direction other than the facing direction leaves the facing direction unchanged
         stratum_sim::placement_type facing_north(start.position(), north);
         stratum_sim::MoveResult sidestep = layout.move(facing_north, east, 2.0f);
-        CHECK_CASE("absolute movement ignores the mover's facing", layout.cell_position_at(sidestep.placement.position()) == stratum_sim::discrete_point_type(2, 0));
+        CHECK_CASE("absolute movement ignores the mover's facing", layout.cell_position_at(sidestep.placement.position()) == stratum_sim::discrete_point2_type(2, 0));
         CHECK_CASE("and leaves that facing untouched", sidestep.placement.direction().y() == 1.0f);
 
         // same_location is by cell, not by exact position
@@ -311,7 +311,7 @@ namespace
         stratum_sim::DiscreteLayout& layout = room->layout();
 
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
-        auto at = [&](int i, int j) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{i, j}), east); };
+        auto at = [&](int i, int j) { return stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{i, j}), east); };
 
         CHECK_CASE_EQUAL("the file names no rooms", layout.room_count(), 0);
 
@@ -323,15 +323,15 @@ namespace
         CHECK_CASE_EQUAL("an open doorway is a neighbor", layout.neighbors(at(3, 2), room->crossable).size(), 4);
         CHECK_CASE("a neighbor keeps the mover's facing", layout.neighbors(at(2, 2), room->crossable).front().direction().x() == 1.0f);
 
-        id_type doorway = layout.wall_toward(stratum_sim::discrete_point_type{3, 2}, cardinal_direction(CardinalDirection::East));
+        id_type doorway = layout.wall_toward(stratum_sim::discrete_point2_type{3, 2}, cardinal_direction(CardinalDirection::East));
         CHECK_CASE("the wall into the doorway is found", doorway != nullid);
         CHECK_CASE("and the doorway has no wall facing back",
-            layout.wall_toward(stratum_sim::discrete_point_type{4, 2}, cardinal_direction(CardinalDirection::West)) == nullid);
+            layout.wall_toward(stratum_sim::discrete_point2_type{4, 2}, cardinal_direction(CardinalDirection::West)) == nullid);
 
         CHECK_CASE("the layout names what a placement faces", layout.ahead(at(3, 2)) == doorway);
         CHECK_CASE("and nothing where the facing meets no wall", layout.ahead(at(1, 1)) == nullid);
         CHECK_CASE("a facing the grid names nothing faces nothing", layout.ahead(
-            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{3, 2}), stratum_sim::vector_type())) == nullid);
+            stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{3, 2}), stratum_sim::vector_type())) == nullid);
 
         // A doorway into a dead end has one wall
         std::set<id_type> open_walls{doorway};
@@ -364,7 +364,7 @@ namespace
         stratum_sim::DiscreteLayout& layout = zone_layout(world, zone);
         stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
 
-        flecs::entity actor = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point_type{1, 1}), east));
+        flecs::entity actor = world.create_entity(zone, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{1, 1}), east));
 
         stratum_sim::Scheduler scheduler;
         scheduler.add(actor.id(), 100);
@@ -374,7 +374,7 @@ namespace
 
         auto cell_of = [&]() { return layout.cell_position_at(stratum_sim::placement_of(actor).position()); };
 
-        CHECK_CASE("the actor starts at the west end", cell_of() == stratum_sim::discrete_point_type(1, 1));
+        CHECK_CASE("the actor starts at the west end", cell_of() == stratum_sim::discrete_point2_type(1, 1));
 
         size_t steps = 0;
         size_t blocks = 0;
@@ -400,7 +400,7 @@ namespace
             }
         }
 
-        CHECK_CASE("it walked to the east end", cell_of() == stratum_sim::discrete_point_type(5, 1));
+        CHECK_CASE("it walked to the east end", cell_of() == stratum_sim::discrete_point2_type(5, 1));
         CHECK_CASE_EQUAL("taking one step per open cell", steps, 4);
         CHECK_CASE("and reported being stopped at the wall", blocks > 0);
         CHECK_CASE("the scheduler advanced through the walk", scheduler.elapsed() >= 8);
@@ -416,7 +416,7 @@ namespace
         stratum_sim::Command back(actor.id(), stratum_sim::Step{stratum_sim::vector_type(0.0f, 0.0f, 0.0f), 4.0f});
         stratum_sim::apply(world, back, events);
 
-        CHECK_CASE("walking back reaches the west end", cell_of() == stratum_sim::discrete_point_type(1, 1));
+        CHECK_CASE("walking back reaches the west end", cell_of() == stratum_sim::discrete_point2_type(1, 1));
         CHECK_CASE("in a single command", events.size() == 1 && events.front().is<stratum_sim::Moved>());
 
         return;

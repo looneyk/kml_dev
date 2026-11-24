@@ -22,9 +22,9 @@ namespace quetzal::stratum_core
         id_type id = nullid;
         std::optional<std::string> name;
         std::string type;
-        discrete_point_type cell_position;
-        discrete_vector_type orientation;
-        discrete_vector_type egress_direction;
+        discrete_point2_type cell_position;
+        discrete_vector2_type orientation;
+        discrete_vector2_type egress_direction;
         std::optional<Directionality> directionality;
 
         friend bool operator==(const TransitEndpoint&, const TransitEndpoint&) = default;

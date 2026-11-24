@@ -16,9 +16,9 @@ namespace quetzal::stratum_core
     {
         // From the position keys
         // Throws std::runtime_error if a coordinate is not an integer
-        zone_position_type position() const;
+        discrete_point3_type position() const;
 
-        void set_position(const zone_position_type& position);
+        void set_position(const discrete_point3_type& position);
 
         KeyValueStore store;
     };

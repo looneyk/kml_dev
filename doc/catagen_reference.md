@@ -49,8 +49,8 @@ in the order they were placed --- so the same parameters give the same ids.
 
 ## The library
 
-**`types.hpp`** --- `coord_type` is `std::int32_t`; `point_type`, `vector_type`, `box_type` and `directed_point_type`
-are the discrete point, vector, half-open box and directed point over it. `CellType` is `Solid`, `Open` or `Staircase`;
+**`types.hpp`** --- `coord_type`, the discrete vector, point, box, and directed point types, `random_type`, and
+`seed_type` are `stratum_core`'s, declared with using-declarations. `CellType` is `Solid`, `Open` or `Staircase`;
 `WallType` is `Open`, `Solid` or `Door`, where `Open` is the absence of a wall. Directions are `CardinalDirection`.
 
 **`Zone`** --- a name, a rectangle of cells and the walls between them, and a list of `stratum_core::TransitEndpoint`s.

@@ -184,13 +184,13 @@ std::string quetzal::stratum_format::detail::text_values_text(const KeyValueStor
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_format::detail::cell_position_text(const discrete_point_type& cell_position)
+std::string quetzal::stratum_format::detail::cell_position_text(const discrete_point2_type& cell_position)
 {
     return std::format("{:/s, /b[]}", cell_position);
 }
 
 //------------------------------------------------------------------------------
-std::string quetzal::stratum_format::detail::direction_text(const discrete_vector_type& direction)
+std::string quetzal::stratum_format::detail::direction_text(const discrete_vector2_type& direction)
 {
     return std::format("{:/s, /b[]}", direction);
 }

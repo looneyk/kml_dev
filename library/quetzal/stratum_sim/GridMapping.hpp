@@ -16,13 +16,13 @@ namespace quetzal::stratum_sim
     {
         point_type origin; // Corner of cell (0, 0)
         value_type scale = value_type(1);
-        discrete_vector_type extent; // Cell count in each dimension
+        discrete_vector2_type extent; // Cell count in each dimension
 
-        bool contains(const discrete_point_type& cell_position) const;
+        bool contains(const discrete_point2_type& cell_position) const;
 
         // These do no bounds check or clamping
-        discrete_point_type cell_position_at(const point_type& position) const;
-        point_type position(const discrete_point_type& cell_position) const; // Cell center
+        discrete_point2_type cell_position_at(const point_type& position) const;
+        point_type position(const discrete_point2_type& cell_position) const; // Cell center
     };
 
 } // namespace quetzal::stratum_sim

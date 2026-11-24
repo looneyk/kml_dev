@@ -68,7 +68,7 @@ namespace
 } // namespace
 
 //------------------------------------------------------------------------------
-stratum_terminal::vector_type stratum_terminal::terminal_size()
+stratum_terminal::discrete_vector2_type stratum_terminal::terminal_size()
 {
 #if defined(_WIN32)
 
@@ -96,7 +96,7 @@ stratum_terminal::vector_type stratum_terminal::terminal_size()
 }
 
 //------------------------------------------------------------------------------
-bool stratum_terminal::set_terminal_size(const vector_type& size)
+bool stratum_terminal::set_terminal_size(const discrete_vector2_type& size)
 {
     if (size.x() <= 0 || size.y() <= 0)
     {
@@ -171,7 +171,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         return;
     }
 
-    const vector_type& extent = console.extent();
+    const discrete_vector2_type& extent = console.extent();
 
     coord_type rows_wanted = extent.y() + row_count_below_map;
     coord_type columns_wanted = std::max({extent.x(),
@@ -184,7 +184,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
         m_size_original = terminal_size();
 
         // Only grown, as Windows Terminal does not restore the size on exit
-        vector_type wanted{std::max(columns_wanted, m_size_original.x()), std::max(rows_wanted, m_size_original.y())};
+        discrete_vector2_type wanted{std::max(columns_wanted, m_size_original.x()), std::max(rows_wanted, m_size_original.y())};
 
         if (wanted != m_size_original && set_terminal_size(wanted))
         {
@@ -198,7 +198,7 @@ void stratum_terminal::Terminal::draw(const stratum_view::Console& console, cons
     }
 
     // A resize reflows and scrolls the screen, so the cached frame no longer matches it
-    vector_type size = terminal_size();
+    discrete_vector2_type size = terminal_size();
     if (size != m_size_previous)
     {
         // A manual resize; the size is read again once the terminal has settled

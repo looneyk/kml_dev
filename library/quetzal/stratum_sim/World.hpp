@@ -48,7 +48,7 @@ namespace quetzal::stratum_sim
 
         using entities_type = std::vector<flecs::entity>;
         using worldspaces_type = std::vector<Worldspace>;
-        using zone_ids_type = std::map<zone_position_type, PersistentId>; // <position, zone_id>
+        using zone_ids_type = std::map<discrete_point3_type, PersistentId>; // <position, zone_id>
 
         World(IdAllocator& id_allocator, Generation& generation, std::size_t zone_count_max, const ScriptLimits& script_limits);
         World(const World&) = delete;
@@ -112,12 +112,12 @@ namespace quetzal::stratum_sim
 
         // Fills the empty zone at the position from a zone template file instantiated with zone_spec. The zone keeps its id and name
         // Throws std::runtime_error if the file cannot be read or built or is a saved zone, or the position has no empty zone
-        flecs::entity load_template(PersistentId worldspace_id, const zone_position_type& position, const std::filesystem::path& filepath,
+        flecs::entity load_template(PersistentId worldspace_id, const discrete_point3_type& position, const std::filesystem::path& filepath,
             const ZoneSpec& zone_spec);
 
         // Returns the zone at the position, read back if it has unloaded and generated if it is empty
         // Throws std::runtime_error if the worldspace has no zone at the position or the zone cannot be read back
-        flecs::entity load_zone_at(PersistentId worldspace_id, const zone_position_type& position);
+        flecs::entity load_zone_at(PersistentId worldspace_id, const discrete_point3_type& position);
 
         // Reads the zone back from the game directory
         // Throws std::runtime_error if the world has no game directory, the zone is in no region, or the file cannot be read or built
@@ -162,7 +162,7 @@ namespace quetzal::stratum_sim
 
         // The entities in ascending id order
         entities_type entities_at(flecs::entity zone, const placement_type& placement) const;
-        entities_type entities_at(flecs::entity zone, const discrete_point_type& cell_position) const;
+        entities_type entities_at(flecs::entity zone, const discrete_point2_type& cell_position) const;
         entities_type entities_within(flecs::entity zone, const placement_type& placement, value_type distance) const;
 
         flecs::entity create_entity(flecs::entity zone, const placement_type& placement);
@@ -199,7 +199,7 @@ namespace quetzal::stratum_sim
 
         // Creates an empty zone with a placeholder name
         // Throws std::runtime_error if the position is outside the worldspace or another zone's
-        flecs::entity create_zone(PersistentId region_id, const zone_position_type& position, std::size_t zone_counter, seed_type seed);
+        flecs::entity create_zone(PersistentId region_id, const discrete_point3_type& position, std::size_t zone_counter, seed_type seed);
 
         // Throws std::runtime_error if a subregion's extent is missing, outside its parent's, or overlaps a sibling's
         void create_regions(PersistentId worldspace_id, const WorldDefinition::region_spec_tree_type& resolved_tree);
@@ -209,7 +209,7 @@ namespace quetzal::stratum_sim
 
         // Returns the zone at the position, read back if it has unloaded
         // Throws std::runtime_error if the worldspace has no zone at the position or the zone cannot be read back
-        flecs::entity zone_at(PersistentId worldspace_id, const zone_position_type& position);
+        flecs::entity zone_at(PersistentId worldspace_id, const discrete_point3_type& position);
 
         // The zone keeps its position and name
         // Throws std::runtime_error, building nothing, if the world cannot build the document

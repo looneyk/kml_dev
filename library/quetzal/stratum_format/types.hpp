@@ -5,7 +5,6 @@
 // types.hpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/geometry/DiscreteDirectedPoint.hpp"
 #include "quetzal/geometry/Point.hpp"
 #include "quetzal/math/CartesianTraits.hpp"
 #include "quetzal/stratum_core/types.hpp"
@@ -35,12 +34,16 @@ namespace quetzal::stratum_format
     using stratum_core::traits_type;
     using stratum_core::point_type;
     using stratum_core::coord_type;
-    using stratum_core::discrete_vector_type;
-    using stratum_core::discrete_point_type;
-    using stratum_core::zone_position_type;
+    using stratum_core::discrete_vector2_type;
+    using stratum_core::discrete_point2_type;
+    using stratum_core::discrete_vector3_type;
+    using stratum_core::discrete_point3_type;
+    using stratum_core::discrete_box2_type;
+    using stratum_core::discrete_box3_type;
+    using stratum_core::discrete_directed_point2_type;
+    using stratum_core::discrete_directed_point3_type;
+    using stratum_core::random_type;
     using stratum_core::seed_type;
-
-    using discrete_directed_point_type = geometry::DiscreteDirectedPoint<coord_type, 2>;
 
     // An entity id in a zone file: a local id in a zone template, a persistent id in a saved zone
     using stored_entity_id_type = std::uint64_t;

@@ -70,7 +70,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool stair_cell(const Zone& zone, const point_type& cell)
+    bool stair_cell(const Zone& zone, const discrete_point2_type& cell)
     {
         if (!zone.contains(cell))
         {
@@ -81,14 +81,14 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool floor_cell(const Zone& zone, const point_type& cell)
+    bool floor_cell(const Zone& zone, const discrete_point2_type& cell)
     {
         return zone.contains(cell) && zone.cell(cell) == CellType::Open;
     }
 
     //--------------------------------------------------------------------------
     // A stair cell is a block, so beside one there is a wall where floor is, even across an open wall, and none elsewhere
-    WallType written_wall(const Zone& zone, WallType type, const point_type& a, const point_type& b)
+    WallType written_wall(const Zone& zone, WallType type, const discrete_point2_type& a, const discrete_point2_type& b)
     {
         if (!stair_cell(zone, a) && !stair_cell(zone, b))
         {
@@ -107,7 +107,7 @@ namespace
     // The first row is the highest, the origin being the lower left cell
     vector<string> rows(const Zone& zone)
     {
-        const vector_type& extent = zone.extent();
+        const discrete_vector2_type& extent = zone.extent();
         coord_type width = 2 * extent.x() + 1;
         coord_type height = 2 * extent.y() + 1;
 
@@ -145,7 +145,7 @@ namespace
         {
             if (endpoint.directionality == quetzal::stratum_core::Directionality::Up)
             {
-                const point_type position = endpoint.cell_position;
+                const discrete_point2_type position = endpoint.cell_position;
                 result[static_cast<size_t>(height - 2 - 2 * position.y())][static_cast<size_t>(2 * position.x() + 1)] = '<';
             }
         }

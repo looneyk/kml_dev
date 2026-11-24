@@ -197,16 +197,16 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
     {
         if (endpoint.directionality == stratum_core::Directionality::Up)
         {
-            const point_type position = endpoint.cell_position;
+            const discrete_point2_type position = endpoint.cell_position;
             cells.rows[static_cast<size_t>(ny - 1 - position.y())][static_cast<size_t>(position.x())] = '<';
         }
     }
 
     // Room floor lies against corridor floor with nothing between, so an edge between two floor cells of different rooms,
     // or of a room and none, is a barrier
-    vector<optional<point_type>> locations(zone.rooms().size());
-    const vector_type east{1, 0};
-    const vector_type north{0, 1};
+    vector<optional<discrete_point2_type>> locations(zone.rooms().size());
+    const discrete_vector2_type east{1, 0};
+    const discrete_vector2_type north{0, 1};
 
     for (coord_type y = 0; y < ny; ++y)
     {
@@ -221,12 +221,12 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
             id_type room_id = room_of(cell);
             if (room_id != nullid && !locations[room_id].has_value())
             {
-                locations[room_id] = point_type{x, y};
+                locations[room_id] = discrete_point2_type{x, y};
             }
 
-            for (const vector_type& direction : {east, north})
+            for (const discrete_vector2_type& direction : {east, north})
             {
-                point_type neighbor = point_type{x, y} + direction;
+                discrete_point2_type neighbor = discrete_point2_type{x, y} + direction;
                 if (zone.cells().contains(neighbor) && floor(zone.cell(neighbor).type()) && room_of(zone.cell(neighbor)) != room_id)
                 {
                     document.barriers.push_back({{x, y}, -direction});
@@ -235,7 +235,7 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
         }
     }
 
-    for (const optional<point_type>& location : locations)
+    for (const optional<discrete_point2_type>& location : locations)
     {
         assert(location.has_value());
         document.rooms.push_back({stratum_format::RoomLocator{*location, {}}, {}});

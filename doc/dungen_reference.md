@@ -58,8 +58,8 @@ These structures are the same whichever algorithm fills them:
   direction it opens onto and the orientation its opposite, and the `Directionality`, up or down.
 - `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a `Zone` by `match` and
   `match_replace`. `maze1` prunes with these.
-- `types.hpp` --- `coord_type`, `point_type`, `vector_type`, `directed_point_type`, `random_type` (the random number
-  source of a run), and `log_category`, `dungen`, the category of dungen's entries in the process-wide log
+- `types.hpp` --- `coord_type`, the discrete vector, point, box, and directed point types, `random_type` (the random
+  number source of a run), and `seed_type`, all `stratum_core`'s, and `log_category`, `dungen`, the category of dungen's entries in the process-wide log
   (`log_plan.md`).
 
 Generation:

@@ -8,7 +8,6 @@
 #include "ScriptLimits.hpp"
 #include "types.hpp"
 #include "quetzal/common/KeyValueStore.hpp"
-#include "quetzal/math/Random.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -26,8 +25,6 @@ namespace quetzal::stratum_sim
     class ScriptSandbox
     {
     public:
-
-        using random_type = math::Random<math::portable_random_engine_type>;
 
         // A global whose name has '.' is an entry of a table, as region.difficulty is of region. A global whose text is an
         // integer is an integer, one whose text is another number is a float, and any other is a string. The code's draws

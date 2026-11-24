@@ -33,8 +33,8 @@ namespace quetzal::stratum_format::detail
 
     // An object of the values, each as text, on one line
     std::string text_values_text(const KeyValueStore& values);
-    std::string cell_position_text(const discrete_point_type& cell_position);
-    std::string direction_text(const discrete_vector_type& direction);
+    std::string cell_position_text(const discrete_point2_type& cell_position);
+    std::string direction_text(const discrete_vector2_type& direction);
     std::string wall_placement_text(const WallPlacement& placement);
     std::string reference_text(stored_entity_id_type id);
 

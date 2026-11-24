@@ -76,7 +76,7 @@ quetzal::stratum_core::RegionSpec quetzal::stratum_format::detail::read_region_s
         else if (key == zone_size_key)
         {
             const raw_values_type& size = fixed_array(value, value_path, 2);
-            region_spec.zone_size = discrete_vector_type(coord_value(size[0], element_path(value_path, 0)),
+            region_spec.zone_size = discrete_vector2_type(coord_value(size[0], element_path(value_path, 0)),
                 coord_value(size[1], element_path(value_path, 1)));
         }
         else if (key.starts_with(std::format("{}.", extent_key)) || key.starts_with(std::format("{}.", zone_size_key)))
@@ -113,7 +113,7 @@ std::string quetzal::stratum_format::detail::region_spec_text(const RegionSpec& 
 
     if (region_spec.zone_size.has_value())
     {
-        const discrete_vector_type& zone_size = region_spec.zone_size.value();
+        const discrete_vector2_type& zone_size = region_spec.zone_size.value();
         members.push_back(std::format("{}: [{}, {}]", string_text(zone_size_key), zone_size.x(), zone_size.y()));
     }
 

@@ -5,16 +5,16 @@
 // types.hpp
 //------------------------------------------------------------------------------
 
-#include "quetzal/geometry/DiscretePoint.hpp"
-#include "quetzal/math/DiscreteVector.hpp"
-#include <cstdint>
+#include "quetzal/stratum_core/types.hpp"
 
 namespace quetzal::stratum_view
 {
 
-    using coord_type = std::int32_t;
-    using vector_type = math::DiscreteVector<coord_type, 2>;
-    using point_type = geometry::DiscretePoint<coord_type, 2>;
+    using stratum_core::coord_type;
+    using stratum_core::discrete_vector2_type;
+    using stratum_core::discrete_point2_type;
+    using stratum_core::discrete_vector3_type;
+    using stratum_core::discrete_point3_type;
 
 } // namespace quetzal::stratum_view
 

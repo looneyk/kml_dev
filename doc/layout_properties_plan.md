@@ -79,7 +79,7 @@ through the index, and unloading a zone deletes the entities the index lists for
 ## Removed
 
 - `LayoutEntity`, `EntityIndex<T>`, `layout_entities.hpp`, `for_each_layout_entity`, and `AttachedEntities`.
-- The zone entity, with its `Zone` tag and its `RegionId`, `WorldspaceId`, and `zone_position_type` components.
+- The zone entity, with its `Zone` tag and its `RegionId`, `WorldspaceId`, and position components.
 - The `RoomId`, `WallId`, `FlatId`, and `FlatCellPosition` components. The layout ids remain as plain values.
 - The `property<T>` overloads for layout parts, replaced by resolution over the tables.
 - The exclusions of layout entities from persistent ids, saving, and unloading.

@@ -242,7 +242,7 @@ a count (the grid extent). Only the first is a position, and the confusion showe
 coordinate without anything objecting.
 
 **The split is by type rather than by discipline.** A cell position, `geometry::DiscretePoint` as
-`discrete_point_type`, is moved only by adding a `discrete_vector_type` to it; subtracting two yields the displacement
+`discrete_point2_type`, is moved only by adding a `discrete_vector2_type` to it; subtracting two yields the displacement
 between them; adding two does not compile. `GridMapping::extent` is a displacement, which is what a count of cells
 along each axis is. Nothing spells cell arithmetic out componentwise. Variables are named `cell_position`, a cell being
 the square and the cell position where it is.

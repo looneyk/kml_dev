@@ -6,7 +6,6 @@
 //------------------------------------------------------------------------------
 
 #include "quetzal/common/KeyValueStore.hpp"
-#include "quetzal/math/Random.hpp"
 #include "quetzal/stratum_format/ZoneDocument.hpp"
 #include "quetzal/stratum_core/Notation.hpp"
 #include <cstdint>
@@ -19,14 +18,14 @@
 namespace quetzal::stratum_gen
 {
 
-    using zone_position_type = stratum_format::zone_position_type;
-    using seed_type = math::Random<math::portable_random_engine_type>::seed_type;
+    using stratum_format::discrete_point3_type;
+    using stratum_format::seed_type;
 
     //--------------------------------------------------------------------------
     struct ZoneRequest
     {
         std::string name; // Display name, empty for none
-        std::optional<zone_position_type> position; // The zone's position in its region
+        std::optional<discrete_point3_type> position; // The zone's position in its region
         seed_type seed = 0;
         KeyValueStore parameters; // Generator specific
     };

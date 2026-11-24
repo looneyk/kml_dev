@@ -9,7 +9,7 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Room::Room(id_type id, const string& name, const box_type& rectangle) :
+quetzal::dungen::Room::Room(id_type id, const string& name, const discrete_box2_type& rectangle) :
     m_id(id),
     m_name(name),
     m_rectangle(rectangle),
@@ -37,13 +37,13 @@ void quetzal::dungen::Room::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
-const quetzal::dungen::box_type& quetzal::dungen::Room::rectangle() const
+const quetzal::dungen::discrete_box2_type& quetzal::dungen::Room::rectangle() const
 {
     return m_rectangle;
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Room::set_rectangle(const box_type& rectangle)
+void quetzal::dungen::Room::set_rectangle(const discrete_box2_type& rectangle)
 {
     m_rectangle = rectangle;
     return;

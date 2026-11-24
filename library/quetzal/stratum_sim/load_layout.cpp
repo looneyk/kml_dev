@@ -93,7 +93,7 @@ namespace
         return std::format("{}.rooms[room {}]", flat_path, room_id);
     }
 
-    std::string flat_cell_path(const std::string& flat_path, const quetzal::stratum_format::discrete_point_type& cell_position)
+    std::string flat_cell_path(const std::string& flat_path, const quetzal::stratum_format::discrete_point2_type& cell_position)
     {
         return std::format("{}.cells[cell [{}, {}]]", flat_path, cell_position.x(), cell_position.y());
     }
@@ -173,7 +173,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
 
     if (document.position.has_value())
     {
-        zone.set<zone_position_type>(*document.position);
+        zone.set<discrete_point3_type>(*document.position);
     }
 
     flecs::world world = zone.world();
@@ -208,7 +208,7 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
     {
         for (coord_type i = 0; i < cells.extent.x(); ++i)
         {
-            discrete_point_type cell_position{i, j};
+            discrete_point2_type cell_position{i, j};
             if (!stratum_format::floor_door_cell(cells, cell_position))
             {
                 continue;
@@ -229,11 +229,11 @@ std::vector<flecs::entity> quetzal::stratum_sim::load_layout(flecs::entity zone,
         }
     }
 
-    std::vector<std::set<discrete_point_type>> rooms = stratum_format::room_cells(document);
+    std::vector<std::set<discrete_point2_type>> rooms = stratum_format::room_cells(document);
 
     for (id_type room_id = 0; room_id < rooms.size(); ++room_id)
     {
-        for (const discrete_point_type& cell_position : rooms[room_id])
+        for (const discrete_point2_type& cell_position : rooms[room_id])
         {
             layout->set_cell_room(cell_position, room_id);
         }

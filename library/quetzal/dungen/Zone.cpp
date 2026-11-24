@@ -12,7 +12,7 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Zone::Zone(id_type id, const string& name, vector_type extent, CellType cell_type) :
+quetzal::dungen::Zone::Zone(id_type id, const string& name, discrete_vector2_type extent, CellType cell_type) :
     m_id(id),
     m_name(name),
     m_cells(extent, {cell_type}, 0),
@@ -42,7 +42,7 @@ void quetzal::dungen::Zone::set_name(const string& name)
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::vector_type quetzal::dungen::Zone::extent() const
+quetzal::dungen::discrete_vector2_type quetzal::dungen::Zone::extent() const
 {
     return m_cells.size();
 }
@@ -60,13 +60,13 @@ quetzal::dungen::Cells& quetzal::dungen::Zone::cells()
 }
 
 //------------------------------------------------------------------------------
-const quetzal::dungen::Cell& quetzal::dungen::Zone::cell(point_type position) const
+const quetzal::dungen::Cell& quetzal::dungen::Zone::cell(discrete_point2_type position) const
 {
     return m_cells.cell(position);
 }
 
 //------------------------------------------------------------------------------
-quetzal::dungen::Cell& quetzal::dungen::Zone::cell(point_type position)
+quetzal::dungen::Cell& quetzal::dungen::Zone::cell(discrete_point2_type position)
 {
     return m_cells.cell(position);
 }
@@ -98,7 +98,7 @@ quetzal::dungen::Room& quetzal::dungen::Zone::room(id_type id)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Zone::create_room(const box_type& rectangle)
+void quetzal::dungen::Zone::create_room(const discrete_box2_type& rectangle)
 {
     id_type room_id = m_rooms.size();
     m_rooms.emplace_back(room_id, std::to_string(room_id), rectangle);
@@ -107,12 +107,12 @@ void quetzal::dungen::Zone::create_room(const box_type& rectangle)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Zone::create_room(const std::vector<point_type>& cell_positions)
+void quetzal::dungen::Zone::create_room(const std::vector<discrete_point2_type>& cell_positions)
 {
     assert(!cell_positions.empty());
 
-    point_type lower = cell_positions.front();
-    point_type upper = cell_positions.front();
+    discrete_point2_type lower = cell_positions.front();
+    discrete_point2_type upper = cell_positions.front();
 
     for (const auto& position : cell_positions)
     {
@@ -121,7 +121,7 @@ void quetzal::dungen::Zone::create_room(const std::vector<point_type>& cell_posi
     }
 
     id_type room_id = m_rooms.size();
-    m_rooms.emplace_back(room_id, std::to_string(room_id), box_type(lower, upper + vector_type{1, 1}));
+    m_rooms.emplace_back(room_id, std::to_string(room_id), discrete_box2_type(lower, upper + discrete_vector2_type{1, 1}));
 
     for (const auto& position : cell_positions)
     {
@@ -134,7 +134,7 @@ void quetzal::dungen::Zone::create_room(const std::vector<point_type>& cell_posi
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Zone::expand_room(id_type room_id, const box_type& rectangle)
+void quetzal::dungen::Zone::expand_room(id_type room_id, const discrete_box2_type& rectangle)
 {
     auto [x0, y0] = rectangle.position();
     auto [nx, ny] = rectangle.extent();
@@ -179,7 +179,7 @@ quetzal::dungen::Door& quetzal::dungen::Zone::door(id_type id)
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Zone::create_door(point_type position)
+void quetzal::dungen::Zone::create_door(discrete_point2_type position)
 {
     Cell& c = cell(position);
     c.set_type(CellType::Door);
@@ -200,11 +200,11 @@ const quetzal::dungen::Zone::transit_endpoints_type& quetzal::dungen::Zone::tran
 }
 
 //------------------------------------------------------------------------------
-void quetzal::dungen::Zone::create_staircase(const directed_point_type& placement, stratum_core::Directionality directionality)
+void quetzal::dungen::Zone::create_staircase(const discrete_directed_point2_type& placement, stratum_core::Directionality directionality)
 {
     cell(placement.position()).set_type(CellType::Staircase);
 
-    const vector_type egress_direction = placement.direction();
+    const discrete_vector2_type egress_direction = placement.direction();
     m_transit_endpoints.push_back({.id = m_transit_endpoints.size(), .type = "staircase", .cell_position = placement.position(),
         .orientation = -egress_direction, .egress_direction = egress_direction, .directionality = directionality});
 

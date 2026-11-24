@@ -26,11 +26,11 @@ namespace quetzal::stratum_sim
 
         using flats_type = std::vector<Flat>;
         using cells_type = std::vector<Cell>;
-        using cell_positions_type = std::vector<discrete_point_type>;
+        using cell_positions_type = std::vector<discrete_point2_type>;
 
         using LayoutBase::move; // Hidden by the override otherwise
 
-        DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector_type& extent);
+        DiscreteLayout(const point_type& origin, value_type scale, const discrete_vector2_type& extent);
         DiscreteLayout(const DiscreteLayout&) = default;
         DiscreteLayout(DiscreteLayout&&) noexcept = default;
         ~DiscreteLayout() = default;
@@ -49,43 +49,43 @@ namespace quetzal::stratum_sim
         void set_flats(value_type height_floor, value_type height_ceiling);
 
         // The height of a cell if it has one, the height of the room if not, the flat height if neither
-        value_type height(id_type flat_id, const discrete_point_type& cell_position) const;
+        value_type height(id_type flat_id, const discrete_point2_type& cell_position) const;
 
         size_t room_count() const;
         void set_room_count(size_t room_count);
 
-        id_type room_at(const discrete_point_type& cell_position) const;
-        void set_cell_room(const discrete_point_type& cell_position, id_type room_id);
+        id_type room_at(const discrete_point2_type& cell_position) const;
+        void set_cell_room(const discrete_point2_type& cell_position, id_type room_id);
 
         const GridMapping& grid() const;
 
         // Open floor
-        bool open(const discrete_point_type& cell_position) const;
-        void set_cell_open(const discrete_point_type& cell_position, bool open);
+        bool open(const discrete_point2_type& cell_position) const;
+        void set_cell_open(const discrete_point2_type& cell_position, bool open);
 
         // The walls facing into a cell
-        DirectionMask walls(const discrete_point_type& cell_position) const;
-        void set_cell_walls(const discrete_point_type& cell_position, DirectionMask walls);
+        DirectionMask walls(const discrete_point2_type& cell_position) const;
+        void set_cell_walls(const discrete_point2_type& cell_position, DirectionMask walls);
 
         // The grid scale
         value_type step_distance() const override;
 
         // These do not perform bounds check or clamp
-        discrete_point_type cell_position_at(const point_type& point) const;
-        point_type position(const discrete_point_type& cell_position) const; // Cell center, on the floor
+        discrete_point2_type cell_position_at(const point_type& point) const;
+        point_type position(const discrete_point2_type& cell_position) const; // Cell center, on the floor
 
         // The wall on this cell's side in the given direction, if any. Its id encodes the cell and the direction
-        id_type wall_toward(const discrete_point_type& cell_position, const discrete_vector_type& direction) const;
+        id_type wall_toward(const discrete_point2_type& cell_position, const discrete_vector2_type& direction) const;
 
         // The cell a wall is on and the direction it faces from that cell, decoded from the id that wall_toward returns
-        discrete_point_type wall_cell_position(id_type wall_id) const;
-        const discrete_vector_type& wall_direction(id_type wall_id) const;
+        discrete_point2_type wall_cell_position(id_type wall_id) const;
+        const discrete_vector2_type& wall_direction(id_type wall_id) const;
 
         // The placement of an actor following transit to an access point's destination
-        placement_type destination_placement(const Site& site, const discrete_vector_type& egress) const;
+        placement_type destination_placement(const Site& site, const discrete_vector2_type& egress) const;
 
         // True if there is no wall in that direction; otherwise the result of is_wall_crossable for the wall
-        bool crossable(const discrete_point_type& cell_position, const discrete_vector_type& direction, const crossable_function_type& is_wall_crossable) const;
+        bool crossable(const discrete_point2_type& cell_position, const discrete_vector2_type& direction, const crossable_function_type& is_wall_crossable) const;
 
         // Stops at the first blocking wall or occupied cell. The direction snaps to the grid and the distance rounds to
         // whole cells
@@ -106,7 +106,7 @@ namespace quetzal::stratum_sim
         bool visible(const placement_type& from, const placement_type& to, const crossable_function_type& is_wall_crossable) const override;
 
         // The set of cells visible by shadowcasting, not implemented ...
-        cell_positions_type field_of_view(const discrete_point_type& cell_position, coord_type range, const crossable_function_type& is_wall_crossable) const;
+        cell_positions_type field_of_view(const discrete_point2_type& cell_position, coord_type range, const crossable_function_type& is_wall_crossable) const;
 
         // The wall of the placement's cell in its facing direction snapped to a cardinal direction if any
         id_type ahead(const placement_type& placement) const override;
@@ -115,12 +115,12 @@ namespace quetzal::stratum_sim
         std::unique_ptr<ProximityIndexBase> create_proximity_index() const override;
 
         // The position must be on the grid
-        size_t slot(const discrete_point_type& cell_position) const;
+        size_t slot(const discrete_point2_type& cell_position) const;
 
     private:
 
-        const Cell& cell(const discrete_point_type& cell_position) const;
-        Cell& cell(const discrete_point_type& cell_position);
+        const Cell& cell(const discrete_point2_type& cell_position) const;
+        Cell& cell(const discrete_point2_type& cell_position);
 
         flats_type m_flat_store;
         id_type m_floor_id = nullid;

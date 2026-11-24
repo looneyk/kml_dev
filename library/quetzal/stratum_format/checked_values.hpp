@@ -61,12 +61,12 @@ namespace quetzal::stratum_format::detail
     seed_type seed_value(const raw_values_type& v, const std::string& path);
 
     const raw_values_type& fixed_array(const raw_values_type& v, const std::string& path, size_t n);
-    discrete_point_type read_cell_position(const raw_values_type& v, const std::string& path);
+    discrete_point2_type read_cell_position(const raw_values_type& v, const std::string& path);
     point_type read_position(const raw_values_type& v, const std::string& path);
     surface_point_type read_surface_position(const raw_values_type& v, const std::string& path);
 
     // A cardinal direction
-    discrete_vector_type read_direction(const raw_values_type& v, const std::string& path);
+    discrete_vector2_type read_direction(const raw_values_type& v, const std::string& path);
 
     // The cell the wall belongs to, and the normal pointing out of the wall's surface into that cell
     WallPlacement read_wall_placement(const raw_values_type& v, const std::string& path);

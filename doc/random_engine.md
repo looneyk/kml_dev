@@ -160,7 +160,7 @@ type`), and a seed stored with the version of the generators that made it.
 
 - **The random engine is named explicitly** in place of `std::default_random_engine`, so one seed makes one sequence
   on every standard library. One alias in `quetzal/math`, `portable_random_engine_type`, is the chosen random engine,
-  and stratum's `random_type`, dungen's and catagen's are each `math::Random<math::portable_random_engine_type>`, so
+  and `stratum_core::random_type`, which stratum, dungen, and catagen use, is `math::Random<math::portable_random_engine_type>`, so
   changing the random engine changes that alias alone. It is also `math::Random`'s default, since its distributions
   require a 64-bit random engine that uses its whole range. Changing the random engine changes the generators' output,
   so their reference files are regenerated.
@@ -189,10 +189,9 @@ type`), and a seed stored with the version of the generators that made it.
   implementation fixes its output on every platform. Each of them meets the standard's uniform random bit generator
   requirements, so it works as `math::Random`'s random engine.
 
-- **Every seed type is `math::Random`'s `seed_type`.** `stratum_sim::seed_type`, `stratum_format::seed_type`,
-  `dungen::Parameters::seed_type`, `catagen::Parameters::seed_type`, and `stratum_gen::seed_type` are each
-  `math::Random<math::portable_random_engine_type>::seed_type`, and so is the world seed that `PatternResolver` and
-  `ScriptSandbox` take, so a change to `math::Random`'s seed (`# Random Engines in General`) changes them all.
+- **Every seed type is `math::Random`'s `seed_type`.** `stratum_core::seed_type` is `random_type::seed_type`, and
+  stratum, dungen, catagen, and `stratum_gen` use it, as does the world seed that `PatternResolver` and `ScriptSandbox`
+  take, so a change to `math::Random`'s seed (`# Random Engines in General`) changes them all.
 
 ## Saving
 

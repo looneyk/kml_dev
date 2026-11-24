@@ -23,7 +23,7 @@ namespace
     // A sector's room, or the single cell through which a sector without one joins its neighbors
     struct Sector
     {
-        box_type rectangle;
+        discrete_box2_type rectangle;
         bool room = false;
     };
 
@@ -92,7 +92,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // The half open cell range of sector (i, j), spreading the remainder of an uneven division across the sectors
-    box_type sector_bounds(vector_type size, vector_type divisions, coord_type i, coord_type j)
+    discrete_box2_type sector_bounds(discrete_vector2_type size, discrete_vector2_type divisions, coord_type i, coord_type j)
     {
         auto [nx, ny] = size;
         auto [divisions_x, divisions_y] = divisions;
@@ -102,22 +102,22 @@ namespace
         coord_type y0 = j * ny / divisions_y;
         coord_type y1 = (j + 1) * ny / divisions_y;
 
-        return {point_type{x0, y0}, point_type{x1, y1}};
+        return {discrete_point2_type{x0, y0}, discrete_point2_type{x1, y1}};
     }
 
     //--------------------------------------------------------------------------
     // A room inside the sector, or a single cell when room is false, with the margin clear on every side so corridors run
     // through solid cells and no two rooms share a wall
-    Sector choose_sector(const box_type& bounds, const Grid1Parameters& grid1, bool room, random_type& random)
+    Sector choose_sector(const discrete_box2_type& bounds, const Grid1Parameters& grid1, bool room, random_type& random)
     {
-        point_type origin = bounds.position() + vector_type{grid1.room_margin, grid1.room_margin};
-        vector_type span = bounds.extent() - vector_type{2 * grid1.room_margin, 2 * grid1.room_margin};
+        discrete_point2_type origin = bounds.position() + discrete_vector2_type{grid1.room_margin, grid1.room_margin};
+        discrete_vector2_type span = bounds.extent() - discrete_vector2_type{2 * grid1.room_margin, 2 * grid1.room_margin};
 
         Sector sector;
         sector.room = room;
         sector.rectangle.set_extent(room
-            ? vector_type{random.random_closed(grid1.room_dimension_min, span.x()), random.random_closed(grid1.room_dimension_min, span.y())}
-            : vector_type{1, 1});
+            ? discrete_vector2_type{random.random_closed(grid1.room_dimension_min, span.x()), random.random_closed(grid1.room_dimension_min, span.y())}
+            : discrete_vector2_type{1, 1});
         sector.rectangle.set_position(
         {
             origin.x() + random.random(span.x() - sector.rectangle.extent().x() + 1),
@@ -144,7 +144,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Every orthogonal adjacency in the grid, each listed once
-    vector<Adjacency> sector_adjacencies(vector_type divisions)
+    vector<Adjacency> sector_adjacencies(discrete_vector2_type divisions)
     {
         auto [divisions_x, divisions_y] = divisions;
 
@@ -193,19 +193,19 @@ namespace
 
     //--------------------------------------------------------------------------
     // Turns the solid cells along a horizontal or vertical line, ends included, into corridor
-    void carve(Zone& zone, point_type from, point_type to)
+    void carve(Zone& zone, discrete_point2_type from, discrete_point2_type to)
     {
         coord_type dx = to.x() - from.x();
         coord_type dy = to.y() - from.y();
         assert(dx == 0 || dy == 0);
 
         coord_type steps = dx != 0 ? (dx > 0 ? dx : -dx) : (dy > 0 ? dy : -dy);
-        vector_type step{dx > 0 ? 1 : (dx < 0 ? -1 : 0), dy > 0 ? 1 : (dy < 0 ? -1 : 0)};
+        discrete_vector2_type step{dx > 0 ? 1 : (dx < 0 ? -1 : 0), dy > 0 ? 1 : (dy < 0 ? -1 : 0)};
 
         // I don't believe that this will create diagonal corridors correctly, it does not add an additional block when both dimensions increment at the same time ...
         // And, it looks like this will always create diagonal corridors no matter what the aspect ratio of the from, to difference is ...
 
-        point_type position = from;
+        discrete_point2_type position = from;
         for (coord_type i = 0; i <= steps; ++i)
         {
             if (zone.cell(position).type() == CellType::Solid)
@@ -221,7 +221,7 @@ namespace
 
     //--------------------------------------------------------------------------
     // Makes a door where a corridor enters a room, and leaves corridor where it enters a sector without one
-    void place_door(Zone& zone, point_type position, bool room)
+    void place_door(Zone& zone, discrete_point2_type position, bool room)
     {
         if (room && zone.cell(position).type() != CellType::Door)
         {
@@ -490,10 +490,10 @@ namespace
 
     //--------------------------------------------------------------------------
     // A staircase can be placed in an open cell, room or corridor
-    vector<point_type> staircase_candidates(const Zone& zone)
+    vector<discrete_point2_type> staircase_candidates(const Zone& zone)
     {
-        vector<point_type> rooms;
-        vector<point_type> corridors;
+        vector<discrete_point2_type> rooms;
+        vector<discrete_point2_type> corridors;
 
         auto [nx, ny] = zone.extent();
         for (coord_type y = 0; y < ny; ++y)
@@ -555,7 +555,7 @@ quetzal::dungen::Zone quetzal::dungen::generate_grid1(id_type id, const string& 
         for (coord_type i = 0; i < divisions_x; ++i)
         {
             size_t slot = static_cast<size_t>(j * divisions_x + i);
-            box_type bounds = sector_bounds(parameters.extent, grid1.divisions, i, j);
+            discrete_box2_type bounds = sector_bounds(parameters.extent, grid1.divisions, i, j);
             Sector sector;
 
             for (size_t attempt = 0; attempt < placement_attempts; ++attempt)

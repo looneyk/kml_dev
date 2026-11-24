@@ -32,7 +32,7 @@ namespace quetzal::stratum_core
 
         std::uint64_t order = 0; // count from 0 among the zone's access points of the same type // probably deprecated ...
         bool automatic_entry = false; // The acces point is activated by an actor's presence in its cell rather than by explicit interaction
-        discrete_vector_type egress; // The offset from this access point position, when used as a destination, that an actor is placed at following transit
+        discrete_vector2_type egress; // The offset from this access point position, when used as a destination, that an actor is placed at following transit
         std::optional<destination_type> destination; // nullopt indicates that the access point is not traversable
     };
 

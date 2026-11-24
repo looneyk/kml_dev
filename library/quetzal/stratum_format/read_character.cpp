@@ -281,7 +281,7 @@ namespace
 
         std::string placement_path = member_path(path, "placement");
         const raw_values_type& placement = object(required_member(character, path, "placement"), placement_path);
-        document.placement = discrete_directed_point_type(
+        document.placement = discrete_directed_point2_type(
             read_cell_position(required_member(placement, placement_path, "cell_position"), member_path(placement_path, "cell_position")),
             read_direction(required_member(placement, placement_path, "orientation"), member_path(placement_path, "orientation")));
 

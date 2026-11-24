@@ -33,13 +33,13 @@ namespace quetzal::stratum_sim
     flecs::entity wall_entity(flecs::entity zone, id_type wall_id);
     flecs::entity flat_entity(flecs::entity zone, id_type flat_id);
     flecs::entity flat_room_entity(flecs::entity zone, id_type flat_id, id_type room_id);
-    flecs::entity flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point_type& cell_position);
+    flecs::entity flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point2_type& cell_position);
 
     flecs::entity ensure_room_entity(flecs::entity zone, id_type room_id);
     flecs::entity ensure_wall_entity(flecs::entity zone, id_type wall_id);
     flecs::entity ensure_flat_entity(flecs::entity zone, id_type flat_id);
     flecs::entity ensure_flat_room_entity(flecs::entity zone, id_type flat_id, id_type room_id);
-    flecs::entity ensure_flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point_type& cell_position);
+    flecs::entity ensure_flat_cell_entity(flecs::entity zone, id_type flat_id, const discrete_point2_type& cell_position);
 
     namespace detail
     {
