@@ -134,27 +134,6 @@ flecs::entity quetzal::stratum_sim::find_access_point(flecs::entity zone, const 
 }
 
 //------------------------------------------------------------------------------
-flecs::entity quetzal::stratum_sim::find_access_point_ahead(flecs::entity zone, const WallId& wall)
-{
-    if (flecs::entity on_wall = find_access_point(zone, wall))
-    {
-        return on_wall;
-    }
-
-    const DiscreteLayout& layout = layout_as<DiscreteLayout>(*zone.get<Layout>().layout);
-    const discrete_vector2_type& toward_wall = layout.wall_direction(wall.wall_id);
-    const discrete_point2_type beyond = layout.wall_cell_position(wall.wall_id) + toward_wall;
-
-    if (!layout.grid().contains(beyond))
-    {
-        return flecs::entity();
-    }
-
-    flecs::entity beyond_wall = find_access_point(zone, FlatCellPosition{layout.floor_id(), beyond});
-    return beyond_wall && beyond_wall.get<stratum_core::AccessPoint>().egress == -toward_wall ? beyond_wall : flecs::entity();
-}
-
-//------------------------------------------------------------------------------
 bool quetzal::stratum_sim::can_enter(flecs::entity access_point, flecs::entity actor)
 {
     std::optional<AccessState> state = access(access_point);

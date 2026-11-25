@@ -47,7 +47,7 @@ components, and no `cells`, `barriers`, `rooms`, `walls`, `flats`, `entities`, o
 
 A zone of four cells by three in the wall notation: a room of two by three on the left, a corridor
 cell joining it eastward through a door, and on the right the stair head, one cell between two stair
-blocks, a staircase down above it and the entrance, a staircase up, below it.
+alcoves, a staircase down above it and the entrance, a staircase up, below it.
 
 ```json
 {
@@ -68,9 +68,9 @@ blocks, a staircase down above it and the entrance, a staircase up, below it.
     "rows": [
       " - -   - ",
       "|. .| |>|",
-      "     - - ",
+      "     -   ",
       "|. .+. .|",
-      "     - - ",
+      "     -   ",
       "|. .| |<|",
       " - -   - "
     ]
@@ -289,8 +289,7 @@ leads, which the views draw. The reader does not check it against the `destinati
 
 An actor arriving at an access point is placed on the floor of the cell of its site plus its egress, facing in the
 cardinal direction nearest the egress. With no egress, the actor faces away from the wall, or in the site's orientation on the floor or the ceiling.
-A staircase in the wall notation is sited on the floor of its stair block, with an egress toward the floor it opens
-onto, and one in the block notation has no egress.
+A staircase is sited on the floor of its stair cell in both notations.
 
 The reader rejects an access point with no `order`, or an order repeated or past a gap within its type, and one at
 which an arriving actor is placed in a cell an actor cannot stand in.
@@ -391,38 +390,25 @@ A corner position is always blank, and so is a cell with no floor. The edges eit
 express everything a corner could, and a solid cell is the absence of floor. A zone file draws only its floor
 and the walls around it.
 
-A wall always separates a floor cell from a blank cell, from a stair cell, and from the border of the grid.
-A stair cell is a block with no walls of its own, so nothing is required between one and a blank cell or
-the border.
+A wall always separates a floor cell from a solid cell and from the border of the grid. A stair cell is floor, with a
+staircase on its floor.
 
 An edge glyph is one character representing both sides, so what it writes is symmetric. A door
 open from one side alone, or secret from one side, is components on that side's door facing.
 
 ### Staircases and access points
 
-A stair glyph marks where a staircase is drawn: in the block notation a floor cell with the staircase on
-its floor, and in the wall notation a block, with a wall toward it on every side where there is floor. The
-glyphs are visual aids. A zone's staircases are its entities, each with an
-`access_point` whose destination is where it leads, sited on a surface:
-
-- **In the wall notation,** on the floor of its block. Its site's `orientation` is the direction one walks into the
-  staircase, and its `egress` is the opposite, toward the room it opens into. Interacting with the wall that the floor
-  presents to the block, as with a door, enters the staircase. The walls around a stair cell are ordinary walls with
-  components of their own, such as a texture.
-- **In the block notation,** on its floor cell, where the staircase does not impede movement. Its site's
-  `orientation` is required and is the facing direction of an actor arriving there. A keystroke by an actor on its cell
-  enters it.
-
-In the wall notation every staircase is sited on a wall, including a block staircase in the
-open space of a room. In the block notation every staircase written `<` or `>` is sited on the floor of its
-cell, and can be entered from any side.
+A stair glyph marks where a staircase is drawn, a floor cell with the staircase on its floor, in both notations. The
+glyphs are visual aids. A zone's staircases are its entities, each with an `access_point` whose destination is where
+it leads, sited on the floor of its cell with a required `orientation`. An actor moving onto the cell goes through a
+staircase whose `automatic_entry` is true, and a keystroke by an actor on its cell enters any other. A staircase in an
+alcove is ordinary geometry: a stair cell with walls on three sides.
 
 `<` marks more than a staircase leading up. It is the entrance glyph, the up exit or entrance point of
 any non-local transporter --- a staircase, a waypoint, a portal --- as `+` is the glyph of any threshold
 that opens and closes. The object there is the entity sited on it, whatever its `type`.
 
-A stair glyph with no access point on its floor in the block notation, or on the walls around it in the
-wall notation, or with a second one, is a warning.
+A stair glyph with no access point on its floor, or with a second one, is a warning.
 Every door glyph requires one entity with a child sited on each wall of its doorway, and a file missing
 that is rejected.
 
@@ -439,7 +425,7 @@ A room is identified one of two ways, and specifies exactly one of them:
 | `cell_position` | A floor cell anywhere in the room, the barriers closing it off |
 
 **By a cell in it.** `cell_position` is a floor cell, never a doorway, which is what a room is reached
-through, or a wall notation stair cell, which is a block. The fill spreads from there through floor cells, across
+through. The fill spreads from there through floor cells, across
 edges with no wall and no door, and stops at a barrier. The location alone suffices wherever a room is closed by its own walls, which is
 the ordinary generated case; barriers close what is open, an egress cell or a gap where one area
 runs into the next.
@@ -449,8 +435,8 @@ it. It expresses what a fill cannot: a room whose perimeter crosses open ground,
 includes part of a hall.
 
 Every cell edge along a perimeter is either a wall facing a floor/door cell on either side of it, or a
-virtual wall: an edge with no wall, between two floor/door cells. An edge with no wall and a blank, solid
-or stair cell on either side is an error. A pillar on a perimeter may lie inside the room however.
+virtual wall: an edge with no wall, between two floor/door cells. An edge with no wall and a solid
+cell on either side is an error. A pillar on a perimeter may lie inside the room however.
 
 Either way the layout stores one result: the room's cells. Nothing that uses the layout has two
 cases.
@@ -734,8 +720,7 @@ every check has passed, so a rejected file leaves nothing behind.
   extent sets.
 - A run count of zero, or a count with no glyph after it.
 - A glyph the notation does not define, or one at a position that does not take it.
-- In the wall notation, a floor cell with no wall between it and a blank cell, a stair cell, or the
-  border of the grid.
+- In the wall notation, a floor cell with no wall between it and a solid cell or the border of the grid.
 - A normal or an orientation is not one of the four directions a cell's sides define.
 - A room specifies both `perimeter` and `cell_position`, or neither.
 - A room's cell is not a floor cell, or is a cell closed off by a barrier.
@@ -785,7 +770,7 @@ section, are warnings, not errors.
 - The `relocator` file component is `access_point`, with `order`, an optional `egress`, an optional `automatic_entry`,
   and an optional `destination`, and
   its type is its entity's `type`. An access point with no destination is arrival only.
-- A staircase in the wall notation is sited on the floor of its stair block.
+- A stair cell in the wall notation is floor, and its staircase is sited on its floor.
 - An entity with an access point may have a `directionality`, `Up` or `Down`.
 - An unbound destination is a region spec name or a zone extended name, and no longer both. A zone extended name is in
   the whole extended name grammar.

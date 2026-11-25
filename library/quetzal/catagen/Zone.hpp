@@ -55,6 +55,8 @@ namespace quetzal::catagen
         void set_wall(const discrete_point2_type& cell, CardinalDirection direction, WallType type);
 
         const transit_endpoints_type& transit_endpoints() const;
+
+        // Also adds walls to each side of the staircase cell other than its egress
         void create_staircase(const discrete_directed_point2_type& placement, stratum_core::Directionality directionality);
 
         void clear();

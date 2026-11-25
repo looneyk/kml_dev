@@ -1119,7 +1119,7 @@ namespace
 
             CHECK_CASE("a staircase is placed on a candidate", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings).empty()
                 && zone.transit_endpoints().size() == 1 && zone.cell({1, 1}).type() == dungen::CellType::Staircase);
-            CHECK_CASE("oriented toward the floor beside it", !zone.transit_endpoints().empty() && zone.transit_endpoints()[0].egress_direction == dungen::discrete_vector2_type{1, 0});
+            CHECK_CASE("oriented toward the floor beside it", !zone.transit_endpoints().empty() && zone.transit_endpoints()[0].egress == dungen::discrete_vector2_type{1, 0});
             CHECK_CASE("a staircase's cell gets no second staircase", placing(zone, {{1, 1}}, {1, 1}, {0, 0}, warnings) == unplaced_rise_error);
         }
 

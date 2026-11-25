@@ -204,9 +204,9 @@ void quetzal::dungen::Zone::create_staircase(const discrete_directed_point2_type
 {
     cell(placement.position()).set_type(CellType::Staircase);
 
-    const discrete_vector2_type egress_direction = placement.direction();
+    const discrete_vector2_type egress = placement.direction();
     m_transit_endpoints.push_back({.id = m_transit_endpoints.size(), .type = "staircase", .cell_position = placement.position(),
-        .orientation = -egress_direction, .egress_direction = egress_direction, .directionality = directionality});
+        .orientation = -egress.direction(), .egress = egress, .directionality = directionality});
 
     return;
 }

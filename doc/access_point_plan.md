@@ -33,7 +33,7 @@ The `relocator` file component becomes `access_point`, with `order` and an optio
 `placement`, since the access point's type is its entity's `type`. `stratum_format::Relocator` becomes `stratum_format::AccessPoint`. An entity with an `access_point`
 component is listed in `layout.components.access_points`, the zone's list of its access points (`zone_plan.md`), and the format version becomes 0.6, with the changes in an
 appendix to `discrete_layout.md`. dungen and catagen write the component without a placement; a `TransitEndpoint`'s
-`cell_position` and `egress_direction` remain the stair block's cell and open direction, from which each generator computes the site.
+`cell_position` and `egress` remain the stair cell and the offset from it to the cell it faces, from which each generator computes the site.
 
 ## Renames
 
@@ -104,7 +104,7 @@ Wall notation
 |shaft|up|0|null|0|0|0|
 
 pos - position is the cell position of the access point, the block cell for stair/door, the shaft cell for ladder/rope, and the flat cell for portal.
-ori - orientation is the horizontal component of the direction that one would walk into a staircase/door or enter a shaft from (the normal of the wall that a ladder/rope is attached to). It can be calculated using the egress direction.
+ori - orientation is the horizontal component of the direction that one would walk into a staircase/door or enter a shaft from (the normal of the wall that a ladder/rope is attached to). It can be calculated using the egress.
 egress is the direction of travel emerging from a staircase/door or shaft
 
 landing position lpos = pos + egress

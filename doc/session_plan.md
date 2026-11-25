@@ -360,12 +360,12 @@ Character& Game::character();
 - **An access point on a wall is entered by interacting with the wall.** Moving into the wall is
   blocked, so a held movement key never takes the stairs. Its orientation is the wall's normal.
 - **An access point on the floor does not impede movement.** Its orientation, which is its site's, is used only for
-  drawing, and a keystroke by an actor on its cell enters it.
+  drawing. An actor moving onto its cell enters it if its `automatic_entry` is true, and a keystroke by an actor on its
+  cell enters any other.
 - **Entering an access point relocates the actor** to the zone that its destination resolves to, at that zone's entry
   point of the access point's type that leads back.
-- **In the wall notation every staircase is sited on a wall,** for the 3D view, and **in the block notation every
-  staircase is on the floor of its cell,** entered from any side (`discrete_layout.md`, `### Staircases and access
-  points`).
+- **Every staircase is on the floor of its cell** in both notations, and a staircase in an alcove is a stair cell with
+  walls on three sides (`discrete_layout.md`, `### Staircases and access points`).
 
 ## Actors
 

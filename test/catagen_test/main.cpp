@@ -262,11 +262,9 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Checks the written zone, and checks which sides of each stair cell were open, which its written walls hide, in the
-    // zone generated again. There must be as many staircases each way as the counts allow, no floor cut off by a stair
-    // block, and every stair cell walled toward floor. No staircase may block a doorway if a cell beside it would not. Every
-    // staircase must be sited on the wall on an open side with floor beyond, or with a door if there is no such side,
-    // and the access points must refer to every staircase
+    // Checks the written zone. There must be as many staircases each way as the counts allow and no floor cut off, a stair
+    // cell being floor. Every staircase's egress must be an open side with floor beyond, or a door if there is no such
+    // side, every other side of it must be walled, and the access points must refer to every staircase
     bool staircases_placed_and_faced(const string& zone, const catagen::Parameters& parameters, string& detail)
     {
         using stratum_format::coord_type;
@@ -301,19 +299,20 @@ namespace
             return glyph_at(2 * cell_position.x() + 1 + direction.x(), 2 * cell_position.y() + 1 + direction.y());
         };
 
-        auto blocks_doorway = [&](const discrete_point2_type& cell_position)
+        auto floor = [&](const discrete_point2_type& cell_position)
         {
-            return any_of(directions.begin(), directions.end(), [&](const discrete_vector2_type& direction) { return edge_glyph(cell_position, direction) == '+'; });
+            char glyph = cell_glyph(cell_position);
+            return glyph == '.' || glyph == '<' || glyph == '>';
         };
 
-        // With every stair block in place, each floor cell is reachable from every other, a door being passable once opened
+        // Each floor cell is reachable from every other, a door being passable once opened
         set<discrete_point2_type> floor_cells;
 
         for (coord_type j = 0; j < cells.extent.y(); ++j)
         {
             for (coord_type i = 0; i < cells.extent.x(); ++i)
             {
-                if (cell_glyph({i, j}) == '.')
+                if (floor({i, j}))
                 {
                     floor_cells.insert({i, j});
                 }
@@ -339,7 +338,7 @@ namespace
                 discrete_point2_type neighbor = cell_position + direction;
                 char edge = edge_glyph(cell_position, direction);
 
-                if (cell_glyph(neighbor) == '.' && (edge == ' ' || edge == '+') && reached.insert(neighbor).second)
+                if (floor(neighbor) && (edge == ' ' || edge == '+') && reached.insert(neighbor).second)
                 {
                     pending.push_back(neighbor);
                 }
@@ -355,14 +354,9 @@ namespace
             }
         }
 
-        catagen::Zone generated = catagen::generate({}, parameters);
-
-        // Open in the zone generated, before the stair cell's walls were written, and with floor beyond
         auto open_to_floor = [&](const discrete_point2_type& cell_position, const discrete_vector2_type& direction)
         {
-            size_t index = static_cast<size_t>(find(directions.begin(), directions.end(), direction) - directions.begin());
-            return generated.wall(cell_position, static_cast<geometry::CardinalDirection>(index)) == catagen::WallType::Open
-                && cell_glyph(cell_position + direction) == '.';
+            return edge_glyph(cell_position, direction) == ' ' && cell_glyph(cell_position + direction) == '.';
         };
 
         size_t down_count = 0;
@@ -381,24 +375,6 @@ namespace
 
                 ++(cell_glyph(cell_position) == '>' ? down_count : up_count);
                 staircase_cells.insert(cell_position);
-
-                for (const discrete_vector2_type& direction : directions)
-                {
-                    if (cell_glyph(cell_position + direction) == '.' && edge_glyph(cell_position, direction) == ' ')
-                    {
-                        detail = format("staircase at {}, {} has no wall on its side {}, {}, toward floor", i, j, direction.x(), direction.y());
-                        return false;
-                    }
-                }
-
-                if (blocks_doorway(cell_position) && any_of(directions.begin(), directions.end(), [&](const discrete_vector2_type& direction)
-                    {
-                        return open_to_floor(cell_position, direction) && !blocks_doorway(cell_position + direction);
-                    }))
-                {
-                    detail = format("staircase at {}, {} blocks a doorway with a cell free beside it", i, j);
-                    return false;
-                }
 
                 vector<discrete_vector2_type> open_sides;
 
@@ -440,6 +416,15 @@ namespace
                 {
                     detail = format("staircase at {}, {} opens onto {}, {}", i, j, open_side.x(), open_side.y());
                     return false;
+                }
+
+                for (const discrete_vector2_type& direction : directions)
+                {
+                    if (direction != open_side && (edge_glyph(cell_position, direction) == ' ' || edge_glyph(cell_position, direction) == '+'))
+                    {
+                        detail = format("staircase at {}, {} has no wall on its side {}, {}", i, j, direction.x(), direction.y());
+                        return false;
+                    }
                 }
             }
         }

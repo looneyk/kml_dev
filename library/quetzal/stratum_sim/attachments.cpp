@@ -16,12 +16,14 @@ void quetzal::stratum_sim::register_attachment_components(flecs::world& entities
 {
     entities.component<AccessState>();
     entities.component<Access>().member(&Access::state, "state");
+    entities.component<Locked>().member(&Locked::locked, "locked");
     entities.component<DetectionState>();
     entities.component<ActorDetection>().member(&ActorDetection::actor, "actor").member(&ActorDetection::state, "state");
     register_vector<ActorDetection>(entities);
     entities.component<Detection>().member(&Detection::state, "state").member(&Detection::actor_states, "actor_states");
 
     register_file_component<Access>(entities, "access");
+    register_file_component<Locked>(entities, "locked");
     register_file_component<Detection>(entities, "detection");
 
     return;
@@ -46,6 +48,20 @@ std::optional<quetzal::stratum_sim::AccessState> quetzal::stratum_sim::access(fl
 {
     flecs::entity holder = access_entity(e);
     return holder ? std::optional<AccessState>(holder.get<Access>().state) : std::nullopt;
+}
+
+//------------------------------------------------------------------------------
+std::optional<bool> quetzal::stratum_sim::locked(flecs::entity e)
+{
+    for (flecs::entity holder = e; holder && !holder.has<Zone>(); holder = holder.parent())
+    {
+        if (const auto* state = holder.try_get<Locked>())
+        {
+            return state->locked;
+        }
+    }
+
+    return std::nullopt;
 }
 
 //------------------------------------------------------------------------------

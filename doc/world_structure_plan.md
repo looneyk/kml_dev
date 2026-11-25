@@ -173,10 +173,10 @@ coordinate    := signed_numeric_value
     `Directionality` component, the entity's `directionality` file component, which the generators write from each
     `TransitEndpoint`. The views draw a staircase leading up or down from it, in place of its destination's level.
   - [x] d. **The arrival placement from the egress.** An `AccessPoint` has an egress, the `access_point` file
-    component's `egress`, which the generators write from each `TransitEndpoint`'s `egress_direction`. An arriving actor
+    component's `egress`, which the generators write from each `TransitEndpoint`'s `egress`. An arriving actor
     is placed in the cell at the position of the access point's entity plus the egress, facing along the egress, or in
-    the entity's orientation if the egress is zero. In the wall notation a staircase is sited on its stair block's cell
-    instead of on the wall that the floor presents to the block, and the reference files are regenerated.
+    the entity's orientation if the egress is zero. A staircase is sited on the floor of its stair cell, and the
+    reference files are regenerated.
   - [x] e. **The destination variant.** `AccessPoint::destination_type` is a variant of an access point's persistent id, a
     region spec name, and a zone's extended name, and an `AccessPoint`'s destination is an optional `destination_type`.
     A bound destination is the persistent id of the access point it is bound to, found through the world index, and the
@@ -200,13 +200,9 @@ coordinate    := signed_numeric_value
     its zone extended name or its region spec name, and creates the zone's content, and its worldspace as needed, then.
     `create_destination_worldspaces` goes.
   - [ ] j. **Interaction through attachments.** `Interact` and a move blocked by a wall act on the entities attached to
-    the wall and to the floor of the cell beyond it, and `Enter` and a move onto a cell act on those attached to the
-    cell's floor, each by the components the entity has: an `AccessPoint` is entered, and an `Access` is opened or
-    closed. In the wall notation, an access point on the floor of the cell beyond is entered only from the cell its
-    egress leads to. A move onto a cell enters an access point whose `automatic_entry` is true, the `access_point` file
-    component's `automatic_entry`, false when absent, and any other is entered by `Interact` or `Enter`. The hosts'
-    messages come from the same attachments. `find_access_point`, `find_access_point_ahead`, and
-    `enter_access_point_by_moving` go.
+    the wall, and `Enter` and a move onto a cell act on those attached to the cell's floor, each by the components the
+    entity has: an `AccessPoint` is entered, and an `Access` is opened or closed. The hosts' messages come from the
+    same attachments. `find_access_point` goes.
 - [ ] 8. **Seed pools.** Building a zone draws its seed pool, and a worldspace created through one of its access points
   takes its seed from the pool. `World::destination_seed` goes.
 

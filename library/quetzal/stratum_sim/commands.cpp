@@ -15,9 +15,19 @@
 namespace
 {
 
-    // True if the controlled actor enters an access point on a wall by moving into the wall, as well as by Interact. Off,
-    // so that a held movement key never takes the stairs by accident
-    constexpr bool enter_access_point_by_moving = false;
+    //--------------------------------------------------------------------------
+    // Returns the access point on the floor of the cell at the position, or a null entity if there is none. Only a discrete
+    // layout has flat cells
+    flecs::entity find_floor_access_point(flecs::entity zone, const quetzal::stratum_sim::LayoutBase& layout,
+        const quetzal::stratum_sim::point_type& position)
+    {
+        using namespace quetzal::stratum_sim;
+
+        const auto* discrete_layout = dynamic_cast<const DiscreteLayout*>(&layout);
+        return discrete_layout != nullptr
+            ? find_access_point(zone, FlatCellPosition{discrete_layout->floor_id(), discrete_layout->cell_position_at(position)})
+            : flecs::entity();
+    }
 
     //--------------------------------------------------------------------------
     int enter_access_point(quetzal::stratum_sim::World& world, flecs::entity actor, flecs::entity access_point,
@@ -78,14 +88,10 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         {
             set_placement(e, result.placement);
             events.push(Moved{command.entity_id(), result.placement});
-        }
 
-        if constexpr (enter_access_point_by_moving)
-        {
-            flecs::entity access_point = result.blocking_wall_id != nullid && e.has<ControlledActor>()
-                ? find_access_point_ahead(zone, WallId{result.blocking_wall_id}) : flecs::entity();
+            flecs::entity access_point = e.has<ControlledActor>() ? find_floor_access_point(zone, layout, result.placement.position()) : flecs::entity();
 
-            if (access_point && can_enter(access_point, e))
+            if (access_point && access_point.get<stratum_core::AccessPoint>().automatic_entry && can_enter(access_point, e))
             {
                 return enter_access_point(world, e, access_point, events);
             }
@@ -131,7 +137,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
             return 0;
         }
 
-        flecs::entity access_point = find_access_point_ahead(zone, WallId{wall_id});
+        flecs::entity access_point = find_access_point(zone, WallId{wall_id});
         if (access_point && e.has<ControlledActor>() && can_enter(access_point, e))
         {
             return enter_access_point(world, e, access_point, events);
@@ -145,7 +151,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
         }
 
         // A locked way through stays as it is
-        if (flecs::entity holder = access_entity(way); holder && holder.get<Access>().state != AccessState::Locked)
+        if (flecs::entity holder = access_entity(way); holder && !locked(holder).value_or(false))
         {
             bool open = holder.get<Access>().state == AccessState::Closed;
             holder.set<Access>(Access{open ? AccessState::Open : AccessState::Closed});
@@ -158,10 +164,7 @@ int quetzal::stratum_sim::apply(World& world, const Command& command, EventQueue
 
     if (command.is<Enter>())
     {
-        // Only a discrete layout has flat cells
-        const auto* discrete_layout = dynamic_cast<const DiscreteLayout*>(&layout);
-        flecs::entity access_point = discrete_layout != nullptr && e.has<ControlledActor>() ? find_access_point(zone, FlatCellPosition{discrete_layout->floor_id(),
-            discrete_layout->cell_position_at(placement.position())}) : flecs::entity();
+        flecs::entity access_point = e.has<ControlledActor>() ? find_floor_access_point(zone, layout, placement.position()) : flecs::entity();
 
         return access_point && can_enter(access_point, e) ? enter_access_point(world, e, access_point, events) : 0;
     }

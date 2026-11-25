@@ -269,7 +269,7 @@ quetzal::stratum_format::ZoneDocument quetzal::dungen::make_document(const Zone&
         stratum_core::AccessPoint access_point{.order = staircase_count++, .destination = destination};
 
         // A floor site's orientation is the direction an arriving actor faces
-        const stratum_format::Site site{stratum_format::Relation::On, floor_cell, nullopt, endpoint.egress_direction};
+        const stratum_format::Site site{stratum_format::Relation::On, floor_cell, nullopt, endpoint.egress.direction()};
         stratum_format::raw_values_type components = stratum_format::raw_values_type::object();
         if (endpoint.directionality.has_value())
         {

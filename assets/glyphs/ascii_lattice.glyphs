@@ -3,23 +3,22 @@ glyphs 0.1
 # The glyphs the wall format writes, so that a level rendered onto the lattice reproduces
 # the file it was loaded from
 
-# An actor stands on a place rather than being one, so it asks for what is under it. These
-# come first to win the tie against a line asking for one state: a mover in an open doorway
-# draws as the mover
+# An actor stands on a place rather than being one, so it asks for what is under it
 floor actor '@'
-door actor '@'
-stairs_up actor '@'
-stairs_down actor '@'
+door closed actor '@'
+door open actor '@'
+staircase up actor '@'
+staircase down actor '@'
 
 solid '#'
 none ' '
 floor ' '
 
-door '/'
+door closed '/'
 door open '\'
 
-stairs_up '<'
-stairs_down '>'
+staircase up '<'
+staircase down '>'
 
 # ASCII has three glyphs for the sixteen joints the mask tells apart, so a wall is sixteen
 # lines: the run passing through one way or the other, a junction where both axes reach it,

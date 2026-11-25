@@ -16,13 +16,14 @@ namespace
     using quetzal::stratum_view::DirectionMask;
     using quetzal::stratum_view::Place;
     using sim::AccessState;
+    using quetzal::stratum_core::Directionality;
 
     //--------------------------------------------------------------------------
-    // An access, a detection, a mask, and an actor add one each
+    // An access, a locked state, a detection, a directionality, a mask, and an actor add one each
     int specificity(const Glyph& glyph)
     {
-        return (glyph.access.has_value() ? 1 : 0) + (glyph.detection.has_value() ? 1 : 0) + (glyph.mask.has_value() ? 1 : 0)
-            + (glyph.actor ? 1 : 0);
+        return (glyph.access.has_value() ? 1 : 0) + (glyph.locked.has_value() ? 1 : 0) + (glyph.detection.has_value() ? 1 : 0)
+            + (glyph.directionality.has_value() ? 1 : 0) + (glyph.mask.has_value() ? 1 : 0) + (glyph.actor ? 1 : 0);
     }
 
     //--------------------------------------------------------------------------
@@ -30,7 +31,9 @@ namespace
     {
         return glyph.type == place.type
             && (!glyph.access.has_value() || glyph.access == place.access)
+            && (!glyph.locked.has_value() || glyph.locked == place.locked)
             && (!glyph.detection.has_value() || *glyph.detection == place.detection)
+            && (!glyph.directionality.has_value() || glyph.directionality == place.directionality)
             && (!glyph.mask.has_value() || *glyph.mask == place.mask)
             && (!glyph.actor || place.actor);
     }
@@ -91,19 +94,19 @@ const std::vector<quetzal::stratum_view::Glyph>& quetzal::stratum_view::Glyphs::
 //------------------------------------------------------------------------------
 const quetzal::stratum_view::Glyphs& quetzal::stratum_view::cell_glyphs()
 {
-    // The actor lines come first so they win ties with lines of one access, and an actor in an open doorway is drawn
     static const Glyphs glyphs(std::vector<Glyph>
     {
         {.type = FeatureType::Floor, .actor = true, .c = '@'},
-        {.type = FeatureType::Door, .actor = true, .c = '@'},
-        {.type = FeatureType::StairsUp, .actor = true, .c = '@'},
-        {.type = FeatureType::StairsDown, .actor = true, .c = '@'},
+        {.type = FeatureType::Door, .access = AccessState::Closed, .actor = true, .c = '@'},
+        {.type = FeatureType::Door, .access = AccessState::Open, .actor = true, .c = '@'},
+        {.type = FeatureType::Staircase, .directionality = Directionality::Up, .actor = true, .c = '@'},
+        {.type = FeatureType::Staircase, .directionality = Directionality::Down, .actor = true, .c = '@'},
         {.type = FeatureType::Solid, .c = '#'},
         {.type = FeatureType::Floor, .c = '.'},
-        {.type = FeatureType::Door, .c = '/'},
+        {.type = FeatureType::Door, .access = AccessState::Closed, .c = '/'},
         {.type = FeatureType::Door, .access = AccessState::Open, .c = '\\'},
-        {.type = FeatureType::StairsUp, .c = '<'},
-        {.type = FeatureType::StairsDown, .c = '>'}
+        {.type = FeatureType::Staircase, .directionality = Directionality::Up, .c = '<'},
+        {.type = FeatureType::Staircase, .directionality = Directionality::Down, .c = '>'}
     });
 
     return glyphs;
@@ -117,16 +120,17 @@ const quetzal::stratum_view::Glyphs& quetzal::stratum_view::lattice_glyphs()
         std::vector<Glyph> v
         {
             {.type = FeatureType::Floor, .actor = true, .c = '@'},
-            {.type = FeatureType::Door, .actor = true, .c = '@'},
-            {.type = FeatureType::StairsUp, .actor = true, .c = '@'},
-            {.type = FeatureType::StairsDown, .actor = true, .c = '@'},
+            {.type = FeatureType::Door, .access = AccessState::Closed, .actor = true, .c = '@'},
+            {.type = FeatureType::Door, .access = AccessState::Open, .actor = true, .c = '@'},
+            {.type = FeatureType::Staircase, .directionality = Directionality::Up, .actor = true, .c = '@'},
+            {.type = FeatureType::Staircase, .directionality = Directionality::Down, .actor = true, .c = '@'},
             {.type = FeatureType::Solid, .c = '#'},
             {.type = FeatureType::None, .c = ' '},
             {.type = FeatureType::Floor, .c = ' '},
-            {.type = FeatureType::Door, .c = '/'},
+            {.type = FeatureType::Door, .access = AccessState::Closed, .c = '/'},
             {.type = FeatureType::Door, .access = AccessState::Open, .c = '\\'},
-            {.type = FeatureType::StairsUp, .c = '<'},
-            {.type = FeatureType::StairsDown, .c = '>'}
+            {.type = FeatureType::Staircase, .directionality = Directionality::Up, .c = '<'},
+            {.type = FeatureType::Staircase, .directionality = Directionality::Down, .c = '>'}
         };
 
         add_walls(v, '-', '|', '+', ' ');

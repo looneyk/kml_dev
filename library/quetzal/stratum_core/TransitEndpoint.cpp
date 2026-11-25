@@ -21,7 +21,7 @@ std::ostream& quetzal::stratum_core::operator<<(std::ostream& os, const TransitE
         os << "\t" << name(*endpoint.directionality);
     }
 
-    os << "\tcell (" << endpoint.cell_position << ")\torientation (" << endpoint.orientation << ")\tegress direction ("
-        << endpoint.egress_direction << ")" << std::endl;
+    os << "\tcell (" << endpoint.cell_position << ")\torientation (" << endpoint.orientation << ")\tegress ("
+        << endpoint.egress << ")" << std::endl;
     return os;
 }

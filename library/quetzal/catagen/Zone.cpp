@@ -117,9 +117,17 @@ void quetzal::catagen::Zone::create_staircase(const discrete_directed_point2_typ
 {
     set_cell(placement.position(), CellType::Staircase);
 
-    const discrete_vector2_type egress_direction = placement.direction();
+    const discrete_vector2_type egress = placement.direction();
     m_transit_endpoints.push_back({.id = m_transit_endpoints.size(), .type = "staircase", .cell_position = placement.position(),
-        .orientation = -egress_direction, .egress_direction = egress_direction, .directionality = directionality});
+        .orientation = -egress.direction(), .egress = egress, .directionality = directionality});
+
+    for (CardinalDirection direction : {CardinalDirection::East, CardinalDirection::North, CardinalDirection::West, CardinalDirection::South})
+    {
+        if (cardinal_direction(direction) != egress.direction())
+        {
+            set_wall(placement.position(), direction, WallType::Solid);
+        }
+    }
 
     return;
 }

@@ -16,13 +16,15 @@ namespace quetzal::stratum_view
 
     //--------------------------------------------------------------------------
     // One line of a glyph set: the places it matches and the character it draws
-    // type must match, and access, detection, and mask must match if they are given. actor requires an actor
-    // on the place; if actor is false, the line matches either way
+    // type must match, and access, locked, detection, directionality, and mask must match if they are given. actor
+    // requires an actor on the place; if actor is false, the line matches either way
     struct Glyph
     {
         FeatureType type = FeatureType::None;
         std::optional<stratum_sim::AccessState> access;
+        std::optional<bool> locked;
         std::optional<stratum_sim::DetectionState> detection;
+        std::optional<stratum_core::Directionality> directionality;
         std::optional<DirectionMask> mask;
         bool actor = false;
         char c = ' ';
@@ -37,7 +39,8 @@ namespace quetzal::stratum_view
         Glyphs() = default;
         explicit Glyphs(std::vector<Glyph> glyphs);
 
-        // Returns the character of the most specific matching line, where an access, a detection, a mask, and an actor add one to
+        // Returns the character of the most specific matching line, where an access, a locked state, a detection, a directionality,
+        // a mask, and an actor add one to
         // the specificity. Ties go to the earlier line, and a space is returned if no line matches
         char operator()(const Place& place) const;
 

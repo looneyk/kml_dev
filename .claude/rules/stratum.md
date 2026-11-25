@@ -69,9 +69,9 @@ describes what is built, and `doc/game_system_principles.md` the principles.
   component, not for a staircase. Every zone has at least one, listed in `layout.components.access_points`. An access
   point has its type, an order counting from 0 among the access points of that type, an egress, and an
   optional destination. A staircase down can be a tower's entrance, entered from below.
-- **A staircase is sited on the floor of its cell** with an orientation: a floor cell in the block notation, or in the
-  wall notation a stair block, a closed cell written `<` or `>`, with an egress toward the floor it opens
-  onto. `check_access_points` in `stratum_format/read_zone.cpp` and the generators' `write_zone.cpp` are the source of
+- **A staircase is sited on the floor of its cell** with an orientation, in both notations, and a stair cell is floor.
+  In the wall notation a generator walls a staircase on the three sides other than its egress, and in the block
+  notation a staircase is an activatable floor cell with no egress. `check_access_points` in `stratum_format/read_zone.cpp` and the generators' `write_zone.cpp` are the source of
   truth.
 - **Edge and wall.** An edge is the zone file's one glyph for both sides, and a wall is one side. An actor interacts with
   the wall on its side, and the wall on the other side is separate.

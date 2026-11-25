@@ -187,20 +187,14 @@ The consequence is that `DiscreteLayout::crossable` feeds `move`, `neighbors` an
 entity sited on the wall, none of the three can decide alone, and all three compose on `World` the way movement composes occupancy.
 Sight through an open door is the case that makes it three call sites rather than one.
 
-## A staircase is a block
+## A staircase is on a floor cell
 
-A stair cell is a block with a wall on each side, and the staircase entity is sited on the wall on its open side
-(`archived/addressing.md`, `### Places`). A staircase sited on the floor had to be given an orientation of its own and kept
-consistent with the walls around it.
+A staircase is an entity sited on the floor of an open cell, in both notations. A staircase in an alcove is ordinary
+geometry, a stair cell with walls on three sides, so going through a staircase is never a special case of facing a
+wall.
 
-**Its direction is its wall's.** The normal of the wall on the open side is the direction of travel from the staircase
-into the room, so there is no orientation to write, choose or check.
-
-**Each side is a wall.** The sides the staircase does not open onto are walls, so each can look
-different.
-
-**Passage is a door's.** An actor goes through the open side as through an open door, so moving into a staircase needs
-nothing beyond what `crossable` already checks.
+**Entry is the access point's.** `automatic_entry` selects whether moving onto the cell goes through it or `Enter` from
+the cell does, as for any access point on a floor.
 
 ## A minable block is a destructible container entity
 

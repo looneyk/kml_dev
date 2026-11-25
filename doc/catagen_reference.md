@@ -32,12 +32,12 @@ highest, and the origin is the lower left cell.
 | edge, vertical | `\|` wall, `+` door, space no wall |
 | corner | space |
 
-An edge between two solid cells has no wall. A stair cell is a block: the rows write a wall on every edge between one
-and floor, even where the generated wall is open, and none on its other edges. catagen writes no rooms.
+An edge between two solid cells has no wall. A stair cell is floor, open on the side it faces and walled on the others,
+and the rows write its walls as generated. catagen writes no rooms.
 
 Each door is a `door` entity with a `door_facing` child on each wall that `stratum_format::door_walls` finds for its
-glyph: the two sides of its edge. Each staircase is a `staircase` entity sited on the floor of its block, with an orientation
-toward the block from the cell it opens onto --- floor or a door. Its `access_point` has an `egress` toward that cell, a
+glyph: the two sides of its edge. Each staircase is a `staircase` entity sited on the floor of its cell, with an orientation
+toward it from the cell it faces --- floor or a door. Its `access_point` has an `egress` toward that cell, a
 `destination` of `../[-1]` or
 `../[+1]`; and an `order` that counts from 0 among all the staircases, in the order they are written. Its
 `directionality` is `Down` or `Up`. With a
@@ -55,8 +55,8 @@ in the order they were placed --- so the same parameters give the same ids.
 
 **`Zone`** --- a name, a rectangle of cells and the walls between them, and a list of `stratum_core::TransitEndpoint`s.
 Rooms and doors are cell and wall state. `create_staircase(placement, directionality)` sets a cell's type to `Staircase`
-and adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress direction the
-direction it opens onto and the orientation its opposite, and the `Directionality`, up or down. `transit_endpoints()` returns them in the
+and adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress the
+offset to the cell it opens onto and the orientation the opposite of the egress's direction, and the `Directionality`, up or down. `transit_endpoints()` returns them in the
 order they were created. Walls are
 stored by the line they lie on, which includes the outermost lines: `wall_vertical(i, j)` lies between cells
 `(i - 1, j)` and `(i, j)`, so `i` runs to `nx` inclusive, and `wall_horizontal(i, j)` lies between `(i, j - 1)` and
@@ -111,12 +111,13 @@ remaining pair gets a door with probability `loop`.
 
 **6. Staircases.** A count leading down is drawn from `staircase_down_count` and a count leading up from
 `staircase_up_count`, with a range of one value drawing nothing. Each staircase is placed at the center of a room
-chosen at random from those without one, those leading up first. A room is passed over if a block at its center would
-cut a passage, with the cells across its passable sides no longer reaching one another around it, would have no
-passable side to face, or would be on the floor another staircase faces; a door counts as passable. A staircase with a
-door on a side of its cell moves one cell in a random direction, across an open wall, onto floor with no door on any
-side where its block is allowed. A staircase with no such direction stays where it is. An open wall joins two cells of
-one area, so the staircase stays in its own area. Its facing direction is then drawn from the sides of its cell that
+chosen at random from those without one, those leading up first. A staircase is walled on every side but the one it
+faces, so a room is passed over if a staircase at its center would cut a passage, with the cells across its passable
+sides no longer reaching one another around it, would have no passable side to face, or would be on the floor another
+staircase faces; a door counts as passable. A staircase with a door on a side of its cell moves one cell in a random
+direction, across an open wall, onto floor with no door on any side where a staircase is allowed. A staircase with no
+such direction stays where it is. An open wall joins two cells of one area, so the staircase stays in its own area. Its
+facing direction is then drawn from the sides of its cell that
 have an open wall and floor beyond, or, if there are none, from those with a door, before the next staircase is placed.
 Running out of rooms places fewer staircases, with those leading down falling short first. A zone with no room for a
 staircase throws `std::runtime_error`. This pass draws after every other, so nothing before it changes.
@@ -157,8 +158,8 @@ shorter "stairs", where names in code and prose say "staircase".
 `stratum_sim::load_layout` reads the file through `stratum_format`, which `game_system_reference.md` describes.
 
 A door is both sides of one edge, and two rooms sharing a solid wall are walled from both sides along its whole length,
-which the block notation cannot express: a wall with a room behind it instead of a solid cell. A stair cell is a block
-to the loader, closed like solid, and a catagen zone loads with no rooms.
+which the block notation cannot express: a wall with a room behind it instead of a solid cell. A stair cell is floor
+to the loader, and a catagen zone loads with no rooms.
 
 ## Properties
 
@@ -174,9 +175,8 @@ to the loader, closed like solid, and a catagen zone loads with no rooms.
 `test/catagen_test` checks that what the generator writes now is equivalent to its reference zone files, regenerates
 each from its own parameters, and checks that the reader accepts every zone it generates and reads it back as the document built in memory. Over a sweep of seeds with
 ranges of staircases each way, it checks the written zone: the counts keep to their ranges, every floor cell is
-reachable from every other, every edge between a stair cell and floor is a wall, no staircase has a door beside it if a
-free cell does not, and every staircase is sited on one of the walls around its block and opens onto a side that
-follows the rule. It takes which sides of a stair cell were open from the zone generated again.
+reachable from every other, a stair cell counting as floor, every staircase's egress is a side that follows the
+rule, and every other side of a staircase is walled.
 `assets/zones/catagen.zone` is the `shipped` reference zone.
 
 `test/stratum_sim_test` has a `load wall layout` group over two files in its `data`: `walls.zone`, two rooms of two by

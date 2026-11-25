@@ -434,7 +434,7 @@ namespace
 
         const auto& stair_site = document.entities[3].site;
         const auto* stair_cell = stair_site.has_value() && stair_site->address.has_value() ? get_if<stratum_format::FlatCell>(&*stair_site->address) : nullptr;
-        CHECK_CASE("a staircase is sited on the floor of its stair block", stair_cell != nullptr
+        CHECK_CASE("a staircase is sited on the floor of its stair cell", stair_cell != nullptr
             && stair_cell->role == stratum_format::FlatRole::Floor && stair_cell->cell_position == stratum_format::discrete_point2_type{3, 2});
         const auto& stair_access_point = document.entities[3].access_point;
         CHECK_CASE("an access point is decoded out of components", stair_access_point.has_value()
@@ -684,7 +684,7 @@ namespace
                     v["entities"].push_back(parse_values(
                         R"({ "id": 8, "type": "rat", "components": { "site": { "relation": "in", "cell_position": [0, 0] } } })"));
                 }, "entities[7].components.site: an entity in a cell of the zone has no orientation"},
-            {"an actor in a blank cell", [](auto& v)
+            {"an actor in a solid cell", [](auto& v)
                 {
                     v["entities"].push_back(parse_values(
                         R"({ "id": 8, "type": "rat", "components": { "site": { "relation": "in", "cell_position": [2, 2], "orientation": [1, 0] } } })"));
@@ -722,10 +722,10 @@ namespace
                         R"({ "id": 8, "type": "door_facing", "components": { "parent": { "entity": 1 },)"
                         R"( "site": { "relation": "on", "wall": { "cell_position": [0, 1], "normal": [1, 0] } } } })"));
                 }, "entities[7]: sited on a wall that is not one of the walls of its door's doorway"},
-            {"a stair cell with no access point on its floor, the access point on it sited on the wall of its open side instead", [](auto& v)
+            {"a stair cell with no access point on its floor, the access point on it sited on one of its walls instead", [](auto& v)
                 {
                     v["entities"][3]["components"]["site"] = parse_values(
-                        R"({ "relation": "on", "wall": { "cell_position": [3, 1], "normal": [0, -1] } })");
+                        R"({ "relation": "on", "wall": { "cell_position": [3, 2], "normal": [0, -1] } })");
                     v["entities"][3]["components"]["access_point"].erase("egress");
                 }, "", "entities: the stair cell at [3, 2] has no access point sited on its floor"},
             {"an access point on the floor with no orientation", [](auto& v)
@@ -797,7 +797,7 @@ namespace
                 { v["entities"][4]["components"]["access_point"]["order"] = 0; },
                 "entities[4].components.access_point.order: order 0 is another access point's of the type 'staircase'"},
             {"an access point at which an arriving actor is placed in a cell it cannot stand in", [](auto& v)
-                { v["entities"][3]["components"]["access_point"].erase("egress"); },
+                { v["entities"][3]["components"]["access_point"]["egress"] = parse_values("[-1, 0]"); },
                 "entities[3].components.site: an access point at which an arriving actor is placed in a cell it cannot stand in"},
             {"an access point whose egress leads off the grid", [](auto& v) { v["entities"][3]["components"]["access_point"]["egress"] = parse_values("[0, 1]"); },
                 "entities[3].components.site: an access point at which an arriving actor is placed in a cell it cannot stand in"},
@@ -882,18 +882,18 @@ namespace
         {
             {"floor with no wall toward the edge of the grid", [](auto& v) { v["cells"]["rows"][3] = "|. .+. . "; },
                 "cells.rows[3]: no wall at 8 between a floor cell and the edge of the grid"},
-            {"floor with no wall toward a blank cell", [](auto& v) { v["cells"]["rows"][5] = "|. .  |<|"; },
-                "cells.rows[5]: no wall at 4 between a floor cell and a blank cell"},
-            {"floor with no wall toward a stair cell", [](auto& v) { v["cells"]["rows"][2] = "     -   "; },
-                "cells.rows[2]: no wall at 7 between a floor cell and a stair cell"},
-            {"a stair cell with no wall toward the edge of the grid, being a block", [](auto& v) { v["cells"]["rows"][1] = "|. .| |> "; }, ""},
+            {"floor with no wall toward a solid cell", [](auto& v) { v["cells"]["rows"][5] = "|. .  |<|"; },
+                "cells.rows[5]: no wall at 4 between a floor cell and a solid cell"},
+            {"a stair cell with no wall toward a solid cell", [](auto& v) { v["cells"]["rows"][1] = "|. .|  >|"; },
+                "cells.rows[1]: no wall at 6 between a floor cell and a solid cell"},
+            {"a stair cell with no wall toward the edge of the grid", [](auto& v) { v["cells"]["rows"][1] = "|. .| |> "; },
+                "cells.rows[1]: no wall at 8 between a floor cell and the edge of the grid"},
             {"a barrier off the grid", [](auto& v) { v["barriers"] = parse_values(R"([{ "cell_position": [9, 9] }])"); }, "barriers[0]: off the grid"},
             {"a barrier written from the other side of its edge",
                 [](auto& v) { v["barriers"] = parse_values(R"([{ "cell_position": [2, 1], "normal": [-1, 0] }])"); }, ""},
-            {"a room cell on a blank cell", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[2, 2]"); },
+            {"a room cell on a solid cell", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[2, 2]"); },
                 "rooms[1].cell_position: not a floor cell"},
-            {"a room cell on a stair cell", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[3, 2]"); },
-                "rooms[1].cell_position: not a floor cell"},
+            {"a room cell on a stair cell, which is floor", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[3, 2]"); }, ""},
             {"a room cell off the grid", [](auto& v) { v["rooms"][1]["cell_position"] = parse_values("[9, 9]"); }, "rooms[1].cell_position: off the grid"},
             {"a room cell closed off by a barrier", [](auto& v) { v["barriers"] = parse_values(R"([{ "cell_position": [3, 1] }])"); },
                 "rooms[1].cell_position: a location closed off by a barrier"},
@@ -910,7 +910,7 @@ namespace
             {"a perimeter crossing itself", [](auto& v) { v["rooms"][0]["perimeter"] = parse_values("[[0, 0], [1, 0], [1, 2], [2, 2], [2, 1], [0, 1]]"); },
                 "rooms[0].perimeter[4]: the edge from this junction meets the edge from junction 1"},
             {"a perimeter along a virtual wall", [](auto& v) { v["rooms"][0]["perimeter"] = parse_values("[[0, 0], [1, 0], [1, 3], [0, 3]]"); }, ""},
-            {"a perimeter edge between a blank cell and the edge of the grid",
+            {"a perimeter edge between a solid cell and the edge of the grid",
                 [](auto& v) { v["rooms"][0]["perimeter"] = parse_values("[[2, 0], [3, 0], [3, 1], [2, 1]]"); },
                 "rooms[0].perimeter[0]: the edge from this junction between cell [2, 0] inside and cell [2, -1] outside"},
             {"two rooms covering one cell", [](auto& v) { v["rooms"].push_back(parse_values(R"({ "cell_position": [0, 0] })")); },
@@ -918,14 +918,11 @@ namespace
             {"a wall placement with no wall in the grid",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [1, 1], "normal": [1, 0] })"); },
                 "walls[0].wall: no wall in the grid at that placement"},
-            {"a wall placement from a blank cell",
+            {"a wall placement from a solid cell",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [2, 2], "normal": [0, 1] })"); },
                 "walls[0].wall: not a floor/door cell"},
-            {"a wall placement from a stair cell",
-                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [0, -1] })"); },
-                "walls[0].wall: not a floor/door cell"},
-            {"a wall placement on a floor cell's side toward a stair cell",
-                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [3, 1], "normal": [0, -1] })"); }, ""},
+            {"a wall placement from a stair cell, which is floor",
+                [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [0, -1] })"); }, ""},
             {"a second entry for one wall",
                 [](auto& v) { v["walls"].push_back(parse_values(R"({ "wall": { "cell_position": [1, 1], "normal": [-1, 0] } })")); },
                 "walls[1].wall: a second entry for one wall"},
@@ -957,14 +954,14 @@ namespace
             {"a wall on a door cell's side toward floor",
                 [](auto& v) { v["walls"][1]["wall"] = parse_values(R"({ "cell_position": [3, 2], "normal": [1, 0] })"); },
                 "walls[1].wall: no wall in the grid at that placement"},
-            {"a wall on a floor cell's side toward a stair cell, which is floor in the block notation",
+            {"a wall on a floor cell's side toward a stair cell, which is floor",
                 [](auto& v) { v["walls"][0]["wall"] = parse_values(R"({ "cell_position": [4, 2], "normal": [-1, 0] })"); },
                 "walls[0].wall: no wall in the grid at that placement"},
             {"a room cell on a door cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[3, 2]"); },
                 "rooms[0].cell_position: not a floor cell"},
             {"a room cell on a solid cell", [](auto& v) { v["rooms"][0]["cell_position"] = parse_values("[0, 0]"); },
                 "rooms[0].cell_position: not a floor cell"},
-            {"a room cell on a stair cell, which is floor in the block notation",
+            {"a room cell on a stair cell, which is floor",
                 [](auto& v) { v["rooms"][1] = parse_values(R"({ "cell_position": [5, 2] })"); }, ""},
             {"a room cell closed off by its own barrier", [](auto& v) { v["rooms"][0]["barriers"] = parse_values(R"([{ "cell_position": [1, 1] }])"); },
                 "rooms[0].cell_position: a location closed off by a barrier"},

@@ -138,9 +138,8 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // In the wall notation, a wall separates every floor cell from each blank cell, from each stair cell and from the edge of
-    // the grid
-    void check_floor_enclosed(const Cells& cells, const std::string& path)
+    // In the wall notation, a wall separates every floor cell from each solid cell and from the edge of the grid
+    void check_floor_cells(const Cells& cells, const std::string& path)
     {
         if (cells.notation != quetzal::stratum_core::Notation::Wall)
         {
@@ -169,7 +168,7 @@ namespace
 
                     size_t x = static_cast<size_t>(2 * i + 1 + direction.x());
                     size_t y = static_cast<size_t>(2 * j + 1 + direction.y());
-                    std::string beyond = !neighbor_on_grid ? "the edge of the grid" : stair_cell(cells, neighbor) ? "a stair cell" : "a blank cell";
+                    std::string beyond = !neighbor_on_grid ? "the edge of the grid" : "a solid cell";
                     fail(element_path(path, cells.rows.size() - 1 - y), std::format("no wall at {} between a floor cell and {}", x, beyond));
                 }
             }
@@ -285,7 +284,7 @@ namespace
 
         std::string rows_path = member_path(path, "rows");
         read_rows(required_member(v, path, "rows"), rows_path, cells);
-        check_floor_enclosed(cells, rows_path);
+        check_floor_cells(cells, rows_path);
         return cells;
     }
 
@@ -1288,7 +1287,7 @@ namespace
     //--------------------------------------------------------------------------
     // A zone has at least one access point. Each is an entity with an access_point, sited on a wall, or on the floor or
     // the ceiling with an orientation, whose order counts from 0 without gaps among the access points of its type. An
-    // actor arriving at it is placed in the cell of its site plus its egress direction, which must be one an actor can
+    // actor arriving at it is placed in the cell of its site plus its egress, which must be one an actor can
     // stand in. An access point on a wall that is not a door's wall is a warning
     void check_access_points(const ZoneDocument& document, const EntityIndex& index, const warn_type& warn)
     {

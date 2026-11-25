@@ -42,7 +42,8 @@ namespace
     //--------------------------------------------------------------------------
     quetzal::stratum_view::Place door_place(flecs::entity way)
     {
-        return quetzal::stratum_view::Place{quetzal::stratum_view::FeatureType::Door, sim::access(way), sim::detection(way, flecs::entity())};
+        return quetzal::stratum_view::Place{quetzal::stratum_view::FeatureType::Door, sim::access(way), sim::locked(way),
+            sim::detection(way, flecs::entity())};
     }
 
     //--------------------------------------------------------------------------
@@ -91,16 +92,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Stairs with no directionality are drawn leading up, the entrance glyph
-    bool leads_down(flecs::entity e)
-    {
-        const auto* directionality = e.try_get<quetzal::stratum_core::Directionality>();
-        return directionality != nullptr && *directionality == quetzal::stratum_core::Directionality::Down;
-    }
-
-    //--------------------------------------------------------------------------
-    // Calls f for every cell drawn as stairs, with the feature type that draws it: the cell of an access point on the floor,
-    // and the closed cell beyond an access point on a wall, which is a stair block
+    // Calls f for every staircase cell, with the staircase's directionality
     template<typename F>
     void each_stairs_cell(const sim::DiscreteLayout& layout, flecs::entity zone, F f)
     {
@@ -109,31 +101,15 @@ namespace
             .build()
             .each([&](flecs::entity e, const sim::Site& site)
             {
-                if (!site.address.has_value())
+                const auto* flat_cell = site.address.has_value() ? std::get_if<sim::FlatCellPosition>(&*site.address) : nullptr;
+
+                if (flat_cell != nullptr && flat_cell->flat_id == layout.floor_id())
                 {
-                    return;
+                    const auto* directionality = e.try_get<quetzal::stratum_core::Directionality>();
+                    f(flat_cell->cell_position, directionality != nullptr ? std::optional(*directionality) : std::nullopt);
                 }
 
-                quetzal::stratum_view::FeatureType type = leads_down(e) ? quetzal::stratum_view::FeatureType::StairsDown
-                    : quetzal::stratum_view::FeatureType::StairsUp;
-
-                if (const auto* flat_cell = std::get_if<sim::FlatCellPosition>(&*site.address))
-                {
-                    if (flat_cell->flat_id == layout.floor_id())
-                    {
-                        f(flat_cell->cell_position, type);
-                    }
-
-                    return;
-                }
-
-                quetzal::id_type wall_id = std::get<sim::WallId>(*site.address).wall_id;
-                sim::discrete_point2_type beyond = layout.wall_cell_position(wall_id) + layout.wall_direction(wall_id);
-
-                if (layout.grid().contains(beyond) && !layout.open(beyond))
-                {
-                    f(beyond, type);
-                }
+                return;
             });
 
         return;
@@ -192,9 +168,9 @@ quetzal::stratum_view::Cells quetzal::stratum_view::cells(const sim::World& worl
         cells.set(cell_position, place);
     });
 
-    each_stairs_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position, FeatureType type)
+    each_stairs_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position, std::optional<stratum_core::Directionality> directionality)
     {
-        cells.set(cell_position, Place{type});
+        cells.set(cell_position, Place{.type = FeatureType::Staircase, .directionality = directionality});
     });
 
     each_actor_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position)
@@ -342,10 +318,11 @@ quetzal::stratum_view::Lattice quetzal::stratum_view::lattice(const sim::World& 
         }
     }
 
-    each_stairs_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position, FeatureType type)
+    each_stairs_cell(layout, zone, [&](const sim::discrete_point2_type& cell_position, std::optional<stratum_core::Directionality> directionality)
     {
         Place place = lattice.at(lattice_position(cell_position));
-        place.type = type;
+        place.type = FeatureType::Staircase;
+        place.directionality = directionality;
         lattice.set(lattice_position(cell_position), place);
     });
 

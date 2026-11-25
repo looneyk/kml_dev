@@ -236,8 +236,8 @@ namespace
                 const stratum_view::Glyph& x = a.glyphs()[n];
                 const stratum_view::Glyph& y = b.glyphs()[n];
 
-                if (x.type != y.type || x.access != y.access || x.detection != y.detection || x.mask != y.mask || x.actor != y.actor
-                    || x.c != y.c)
+                if (x.type != y.type || x.access != y.access || x.detection != y.detection || x.directionality != y.directionality
+                    || x.mask != y.mask || x.actor != y.actor || x.c != y.c)
                 {
                     return false;
                 }
@@ -269,9 +269,14 @@ namespace
             set(stratum_view::Place{.type = stratum_view::FeatureType::Wall,
                 .mask = stratum_view::DirectionMask::East | stratum_view::DirectionMask::West}) == '-'
             && set(stratum_view::Place{stratum_view::FeatureType::Wall}) == ' ');
-        CHECK_CASE("access and detection are read apart",
-            read("glyphs 0.1\ndoor concealed locked '+'\n").glyphs()[0].access == stratum_sim::AccessState::Locked
-            && read("glyphs 0.1\ndoor concealed locked '+'\n").glyphs()[0].detection == stratum_sim::DetectionState::Concealed);
+        const stratum_view::Glyph concealed_locked = read("glyphs 0.1\ndoor concealed locked closed '+'\n").glyphs()[0];
+        CHECK_CASE("access, lock, and detection are read apart", concealed_locked.access == stratum_sim::AccessState::Closed
+            && concealed_locked.locked == true && concealed_locked.detection == stratum_sim::DetectionState::Concealed);
+
+        stratum_view::Glyphs lock_set = read("glyphs 0.1\ndoor closed '/'\ndoor closed locked '='\n");
+        CHECK_CASE("a locked door draws apart from an unlocked one in the same access state",
+            lock_set(stratum_view::Place{.type = stratum_view::FeatureType::Door, .access = stratum_sim::AccessState::Closed, .locked = true}) == '='
+            && lock_set(stratum_view::Place{.type = stratum_view::FeatureType::Door, .access = stratum_sim::AccessState::Closed, .locked = false}) == '/');
 
         auto throws = [&](const string& text)
         {
@@ -293,6 +298,10 @@ namespace
         CHECK_CASE("as is a state that is not one", throws("glyphs 0.1\ndoor ajar '/'\n"));
         CHECK_CASE("as is a second access state", throws("glyphs 0.1\ndoor open closed '/'\n"));
         CHECK_CASE("and a second detection state", throws("glyphs 0.1\ndoor concealed revealed '/'\n"));
+        CHECK_CASE("and a second directionality", throws("glyphs 0.1\nstaircase up down '<'\n"));
+        CHECK_CASE("and a second locked state", throws("glyphs 0.1\ndoor closed locked unlocked '/'\n"));
+        CHECK_CASE("a door with no access state is rejected", throws("glyphs 0.1\ndoor '/'\n"));
+        CHECK_CASE("as is a staircase with no directionality", throws("glyphs 0.1\nstaircase '<'\n"));
         CHECK_CASE("as is a line with nothing to draw", throws("glyphs 0.1\ndoor open\n"));
 
         return;
@@ -365,7 +374,8 @@ namespace
         CHECK_CASE("as is the floor's own boundary", cells.at({3, 2}).type == stratum_view::FeatureType::Wall
             && cells.at({5, 4}).type == stratum_view::FeatureType::Wall);
         CHECK_CASE("and a staircase is on floor, with no wall between it and the floor beside it",
-            cells.at({3, 5}).type == stratum_view::FeatureType::StairsUp && cells.at({3, 4}).type == stratum_view::FeatureType::None);
+            cells.at({3, 5}).type == stratum_view::FeatureType::Staircase && cells.at({3, 4}).type == stratum_view::FeatureType::None);
+        CHECK_CASE("with the directionality of its entity", cells.at({3, 5}).directionality == stratum_core::Directionality::Up);
 
         CHECK_CASE("two open cells of one area are not", cells.at({4, 3}).type == stratum_view::FeatureType::None);
 
@@ -406,11 +416,10 @@ namespace
         CHECK_CASE("an actor draws over its floor", console.at({3, 1}) == '@');
         CHECK_CASE("and only its own cell", console.at({2, 1}) == '.');
 
-        // An access point on the floor is drawn as stairs, down if its directionality is down and up otherwise
+        // An access point on the floor is drawn as stairs leading the way its directionality does
         flecs::entity hatch = stratum_sim::create_access_point(zone, stratum_sim::entity_type(world.entities(), "portal"),
             stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::FlatCellPosition{layout.floor_id(), stratum_sim::discrete_point2_type{2, 1}}, {}},
             stratum_core::AccessPoint{.destination = stratum_core::parse_access_point_destination("../[+1]")});
-        CHECK_CASE("an access point on the floor with no directionality draws as stairs up", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '<');
 
         hatch.set<stratum_core::Directionality>(stratum_core::Directionality::Down);
         CHECK_CASE("one leading down as stairs down", stratum_view::render(world, zone, no_viewer).at({2, 1}) == '>'

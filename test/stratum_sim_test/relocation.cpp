@@ -834,12 +834,12 @@ namespace
 
         CHECK_CASE("the loader builds each access point of the file, of its type", up && down && up != down);
         const auto* up_cell = up ? get_if<stratum_sim::FlatCellPosition>(&*up.get<stratum_sim::Site>().address) : nullptr;
-        CHECK_CASE("each sited on the floor of its stair block, as the file sites it", up_cell != nullptr
+        CHECK_CASE("each sited on the floor of its stair cell, as the file sites it", up_cell != nullptr
             && up_cell->cell_position == stratum_sim::discrete_point2_type{1, 1}
             && up.get<stratum_core::AccessPoint>().egress == stratum_sim::discrete_vector2_type{1, 0});
         CHECK_CASE("with the order the file states", up.get<stratum_core::AccessPoint>().order == 0
             && down.get<stratum_core::AccessPoint>().order == 1);
-        CHECK_CASE("an actor arrives in the cell beside the stair block, facing along the egress direction",
+        CHECK_CASE("an actor arrives in the cell beside the stair cell, facing along the egress",
             layout.cell_position_at(stratum_sim::destination_placement(up).position()) == stratum_sim::discrete_point2_type{2, 1}
             && stratum_sim::destination_placement(up).direction().x() > 0.0f);
         CHECK_CASE("an entry point's destination is the level at the offset", !stratum_sim::entry_point(zone, staircase_type, -2)
@@ -1051,7 +1051,7 @@ namespace
         stratum_sim::World& world = game.world();
         game.generation() = test_generation();
 
-        // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
+        // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down on the cell to the east
         enter_zone_file(game, "data/walls.zone");
         flecs::entity character = session.character().entity();
         flecs::entity first = session.zone();
@@ -1066,12 +1066,14 @@ namespace
         {
             session.character().set_intent(stratum_sim::Intent{direction, 1.0f, direction});
             session.advance(events);
+            return;
         };
 
-        auto interact = [&](stratum_sim::EventQueue& events)
+        auto submit = [&](auto action, stratum_sim::EventQueue& events)
         {
-            session.character().submit(stratum_sim::Interact{});
+            session.character().submit(action);
             session.advance(events);
+            return;
         };
 
         auto relocated = [](const stratum_sim::EventQueue& events)
@@ -1079,31 +1081,39 @@ namespace
             return ranges::any_of(events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); });
         };
 
-        stratum_sim::EventQueue moved_events;
-        step(east, moved_events);
-        CHECK_CASE("moving into a wall with an access point on it is blocked", !relocated(moved_events) && session.zone() == first
-            && ranges::any_of(moved_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Blocked>(); }));
+        auto character_cell = [&]()
+        {
+            return zone_layout(world, session.zone()).cell_position_at(stratum_sim::placement_of(character).position());
+        };
 
-        // A closed access point is not entered
+        stratum_sim::EventQueue onto_events;
+        step(east, onto_events);
+        CHECK_CASE("moving onto an access point that is not automatic does not enter it", !relocated(onto_events) && session.zone() == first
+            && character_cell() == stratum_sim::discrete_point2_type{3, 1});
+
         first_down.set<stratum_sim::Access>(stratum_sim::Access{stratum_sim::AccessState::Closed});
         stratum_sim::EventQueue closed_events;
-        interact(closed_events);
-        CHECK_CASE("interacting with a closed access point opens it rather than entering it", !relocated(closed_events)
-            && session.zone() == first && stratum_sim::access(first_down) == stratum_sim::AccessState::Open);
+        submit(stratum_sim::Enter{}, closed_events);
+        CHECK_CASE("a closed access point is not entered", !relocated(closed_events) && session.zone() == first);
         first_down.remove<stratum_sim::Access>();
 
         stratum_sim::EventQueue down_events;
-        interact(down_events);
+        submit(stratum_sim::Enter{}, down_events);
         flecs::entity second = session.zone();
-        CHECK_CASE("interacting with an access point on the wall ahead enters the access point", relocated(down_events) && second != first
+        CHECK_CASE("entering the access point on the character's cell goes through it", relocated(down_events) && second != first
             && stratum_sim::zone_of(character) == second && level_of(second) == -2);
         CHECK_CASE("and the session plays the zone arrived in, with the character in its turn order", session.scheduler().contains(character.id()));
 
+        // The character arrives beside the staircase leading up, on cell (1, 1), which is made automatic
+        stratum_sim::DiscreteLayout& second_layout = zone_layout(world, second);
+        flecs::entity second_up = stratum_sim::find_access_point(second,
+            stratum_sim::FlatCellPosition{second_layout.floor_id(), stratum_sim::discrete_point2_type{1, 1}});
+        second_up.get_mut<stratum_core::AccessPoint>().automatic_entry = true;
+
         stratum_sim::EventQueue up_events;
         step(west, up_events);
-        interact(up_events);
-        CHECK_CASE("going back up arrives at the staircase gone down", relocated(up_events) && session.zone() == first
-            && zone_layout(world, first).cell_position_at(stratum_sim::placement_of(character).position()) == stratum_sim::discrete_point2_type{2, 1}
+        CHECK_CASE("moving onto an automatic access point enters it", relocated(up_events) && session.zone() == first);
+        CHECK_CASE("and going back up arrives beside the staircase gone down", character_cell() == stratum_sim::discrete_point2_type{2, 1}
             && stratum_sim::placement_of(character).direction().x() < 0.0f);
 
         // An access point on the floor of the character's cell, arrival only at first, then bound to the staircase leading down
@@ -1127,10 +1137,28 @@ namespace
             && session.zone() == second && zone_layout(world, second).cell_position_at(stratum_sim::placement_of(character).position())
                 == zone_layout(world, second).cell_position_at(stratum_sim::destination_placement(second_down).position()));
 
-        // A denizen facing the staircase leading down, in the zone the character left
-        flecs::entity denizen = world.create_entity(first, stratum_sim::destination_placement(first_down));
+        // A portal on the wall at the east edge of the grid, beyond the staircase leading down, bound to the staircase leading
+        // down in the first zone
+        const id_type edge_wall_id = second_layout.wall_toward(stratum_sim::discrete_point2_type{3, 1},
+            stratum_sim::cardinal_direction(stratum_sim::CardinalDirection::East));
+        stratum_sim::create_access_point(second, stratum_sim::entity_type(world.entities(), "portal"),
+            stratum_sim::Site{stratum_sim::Relation::On, stratum_sim::WallId{edge_wall_id}, {}},
+            stratum_core::AccessPoint{.destination = stratum_core::AccessPoint::destination_type{world.make_reference(first_down).persistent_id}});
+
+        stratum_sim::EventQueue blocked_events;
+        step(east, blocked_events);
+        step(east, blocked_events);
+        CHECK_CASE("moving into a wall with an access point on it is blocked", !relocated(blocked_events) && session.zone() == second
+            && ranges::any_of(blocked_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Blocked>(); }));
+
+        stratum_sim::EventQueue wall_events;
+        submit(stratum_sim::Interact{}, wall_events);
+        CHECK_CASE("interacting with an access point on the wall ahead goes through it", relocated(wall_events) && session.zone() == first);
+
+        // A denizen on the staircase leading down, in the zone the character left
+        flecs::entity denizen = world.create_entity(first, stratum_sim::placement_type(layout.position(stratum_sim::discrete_point2_type{3, 1}), east));
         stratum_sim::EventQueue denizen_events;
-        stratum_sim::apply(world, stratum_sim::Command(static_cast<id_type>(denizen.id()), stratum_sim::Interact{}), denizen_events);
+        stratum_sim::apply(world, stratum_sim::Command(static_cast<id_type>(denizen.id()), stratum_sim::Enter{}), denizen_events);
         CHECK_CASE("an actor other than the controlled actor does not enter an access point", !relocated(denizen_events)
             && stratum_sim::zone_of(denizen) == first);
 
@@ -1138,21 +1166,26 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    TEST_CASE_FIXTURE(WorldFixture, "interacting with an access point")
+    TEST_CASE_FIXTURE(WorldFixture, "going through an access point")
     {
         stratum_sim::Game game(g_test_config, g_test_manifest);
         stratum_sim::Session& session = game.session();
 
-        // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down to the east
+        const stratum_sim::vector_type east(1.0f, 0.0f, 0.0f);
+
+        // data/walls.zone: the character enters on cell (2, 1), facing the staircase leading down on the cell to the east
         enter_zone_file(game, "data/walls.zone");
         flecs::entity staircase = stratum_sim::entry_point(session.zone(), stratum_sim::entity_type(game.world().entities(), "staircase"), -1);
 
         game.generation() = test_generation();
         flecs::entity first = session.zone();
-        session.character().submit(stratum_sim::Interact{});
+        session.character().set_intent(stratum_sim::Intent{east, 1.0f, east});
+        stratum_sim::EventQueue step_events;
+        session.advance(step_events);
+        session.character().submit(stratum_sim::Enter{});
         stratum_sim::EventQueue enter_events;
         session.advance(enter_events);
-        CHECK_CASE("interacting with an access point goes through it", stratum_sim::entity_type_name(staircase) == "staircase"
+        CHECK_CASE("entering an access point goes through it", stratum_sim::entity_type_name(staircase) == "staircase"
             && session.zone() != first
             && ranges::any_of(enter_events.events(), [](const stratum_sim::Event& event) { return event.is<stratum_sim::Relocated>(); }));
 
@@ -1163,8 +1196,12 @@ namespace
         flecs::entity unresolved = stratum_sim::entry_point(failing_session.zone(), stratum_sim::entity_type(failing.world().entities(), "staircase"), -1);
         unresolved.get_mut<stratum_core::AccessPoint>().destination = *stratum_core::parse_access_point_destination("unregistered");
 
+        failing_session.character().set_intent(stratum_sim::Intent{east, 1.0f, east});
+        stratum_sim::EventQueue failing_step_events;
+        failing_session.advance(failing_step_events);
+
         flecs::entity unmoved = failing_session.zone();
-        failing_session.character().submit(stratum_sim::Interact{});
+        failing_session.character().submit(stratum_sim::Enter{});
         bool threw = false;
 
         try
@@ -1177,7 +1214,7 @@ namespace
             threw = true;
         }
 
-        CHECK_CASE("interacting with an access point whose destination is not resolved is an error that passes out of advance, and nothing moves",
+        CHECK_CASE("entering an access point whose destination is not resolved is an error that passes out of advance, and nothing moves",
             threw && stratum_sim::zone_of(failing_session.character().entity()) == unmoved);
 
         return;

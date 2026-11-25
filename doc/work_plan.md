@@ -64,9 +64,8 @@ boxes are removed at the start of the next piece of work, since the reference do
 ## Generators
 
 - [ ] **Staircases in every form** (`session_plan.md`, `## Entering an access point`). The generators can place a
-      staircase in a flat length of wall or in a 1x1 alcove, the two being equivalent across the notations, as well as
-      a block staircase on floor cells in the open space of a room. In the wall notation every staircase is sited on a
-      wall.
+      staircase in a 1x1 alcove off a room, or on a floor cell in the open space of a room. Every staircase is sited on
+      the floor of its cell.
 - [ ] **Zone template tables** (`template_plan.md`, `## A zone's template`): the `zone.template` pattern drawing each
       zone's template from the opening sequence and the primary and rare weighted tables in the `RegionSpec`, and the
       starting region's spec, with terrain templates, which need **Templates**.
@@ -155,7 +154,7 @@ boxes are removed at the start of the next piece of work, since the reference do
       Deleting the assembly would seal the doorway, since a wall with nothing on it is solid.
 - [ ] **Crossing that depends on the actor, kept affordable** (`archived/attachment_plan.md`, `## The seam`): only
       attachments marked overridable consult the actor's properties, so the common case never looks.
-- [ ] **A key that opens a lock.** `Access` has `Locked`, and nothing unlocks it. A key and its lock have the same lock
+- [ ] **A key that opens a lock.** A key sets and clears a door's `Locked`. A key and its lock have the same lock
   value, not a reference, so a key in one zone matches a door in a zone that is not generated yet.
 
 ## Views

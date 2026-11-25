@@ -54,8 +54,8 @@ These structures are the same whichever algorithm fills them:
   `stratum_core::TransitEndpoint`s over them, and a renderer for printing.
   `create_room`, `create_door` and `create_staircase` each set the cell type and add the record. `create_room` takes a
   rectangle or a list of cells, whose bounding box is the room's rectangle. `create_staircase(placement, directionality)`
-  adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress direction the
-  direction it opens onto and the orientation its opposite, and the `Directionality`, up or down.
+  adds a `TransitEndpoint` of the type `staircase`, at the placement's cell position, with the egress the
+  offset to the cell it opens onto and the orientation the opposite of the egress's direction, and the `Directionality`, up or down.
 - `Pattern` --- a `Cells` with an origin and a shift, matched and replaced over a `Zone` by `match` and
   `match_replace`. `maze1` prunes with these.
 - `types.hpp` --- `coord_type`, the discrete vector, point, box, and directed point types, `random_type` (the random

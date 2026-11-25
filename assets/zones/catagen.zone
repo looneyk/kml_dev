@@ -3,7 +3,7 @@
   "version": "0.6",
   "generator": {
     "name": "catagen",
-    "parameters": { "extent": "20,10", "scale": "2-5", "spacing": "0-4", "density": "0.5", "loop": "0.1", "stairs_down": "1-1", "stairs_up": "1-1", "seed": "2614047767" }
+    "parameters": { "algorithm": "partition1", "density": "0.5", "extent": "20,10", "loop": "0.1", "scale": "2-5", "seed": "2614047767", "spacing": "0-4", "stairs_down": "1-1", "stairs_up": "1-1" }
   },
   "layout": {
     "components": { "access_points": [ { "entity": 22 }, { "entity": 23 } ], "unpopulated": true }
@@ -11,18 +11,18 @@
   "cells": {
     "notation": "wall",
     "extent": [20, 10],
-    "origin": [0.0, 0.0, 0.0],
-    "scale": 1.0,
+    "origin": [0, 0, 0],
+    "scale": 1,
     "rows": [
       " - -         - - - - -   - - - - - - - - ",
       "|. .|       |. . . . .| |. . . . .|. . .|",
       "                                         ",
       "|. .|       |. . . . .| |. . . . .|. . .|",
-      "     - - - -     -                       ",
-      "|. .+. . . .+. .|<|. .| |. . . . .|. . .|",
-      "     - - - -     -     -     -           ",
-      "|. .|       |. . . . .+.+. .|>|. .+. . .|",
-      "                       -     -           ",
+      "     - - - -     -                   -   ",
+      "|. .+. . . .+. .|< . .| |. . . . .|.|>|.|",
+      "     - - - -     -     -                 ",
+      "|. .|       |. . . . .+.+. . . . .+. . .|",
+      "                       -                 ",
       "|. .|       |. . . . .| |. . . . .|. . .|",
       " - +         - - - - -             - - - ",
       "  |.|                   |. . . . .|      ",
@@ -59,7 +59,7 @@
     { "id": 19, "type": "door" },
     { "id": 20, "type": "door_facing", "components": { "parent": { "entity": 19 }, "site": { "relation": "on", "wall": { "cell_position": [5, 7], "normal": [-1, 0] } } } },
     { "id": 21, "type": "door_facing", "components": { "parent": { "entity": 19 }, "site": { "relation": "on", "wall": { "cell_position": [6, 7], "normal": [1, 0] } } } },
-    { "id": 22, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [14, 6], "orientation": [0, 1] }, "access_point": { "destination": "../[-1]", "order": 0, "egress": [0, -1] }, "directionality": "Down" } },
-    { "id": 23, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [8, 7], "orientation": [0, 1] }, "access_point": { "destination": "../[+1]", "order": 1, "egress": [0, -1] }, "directionality": "Up" } }
+    { "id": 22, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [8, 7], "orientation": [-1, 0] }, "access_point": { "destination": "../[+1]", "order": 0, "egress": [1, 0] }, "directionality": "Up" } },
+    { "id": 23, "type": "staircase", "components": { "site": { "relation": "on", "flat": "floor", "cell_position": [18, 7], "orientation": [0, 1] }, "access_point": { "destination": "../[-1]", "order": 1, "egress": [0, -1] }, "directionality": "Down" } }
   ]
 }

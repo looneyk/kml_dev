@@ -138,9 +138,9 @@ void StratumWorld::_bind_methods()
     BIND_ENUM_CONSTANT(FeatureTypeFloor);
     BIND_ENUM_CONSTANT(FeatureTypeWall);
     BIND_ENUM_CONSTANT(FeatureTypeDoor);
-    BIND_ENUM_CONSTANT(FeatureTypeStairsUp);
-    BIND_ENUM_CONSTANT(FeatureTypeStairsDown);
+    BIND_ENUM_CONSTANT(FeatureTypeStaircase);
     BIND_ENUM_CONSTANT(FeatureTypeDoorOpen);
+    BIND_ENUM_CONSTANT(FeatureTypeStaircaseDown);
     BIND_ENUM_CONSTANT(OccupantNone);
     BIND_ENUM_CONSTANT(OccupantPlayer);
     BIND_ENUM_CONSTANT(OccupantOther);
@@ -385,7 +385,9 @@ godot::PackedByteArray StratumWorld::cells() const
         {
             const view::Place& place = cells.at({i, j});
             bool open_door = place.type == view::FeatureType::Door && place.access == sim::AccessState::Open;
-            codes[static_cast<int64_t>(j) * extent.x() + i] = open_door ? static_cast<uint8_t>(FeatureTypeDoorOpen) : static_cast<uint8_t>(place.type);
+            bool staircase_down = place.type == view::FeatureType::Staircase && place.directionality == quetzal::stratum_core::Directionality::Down;
+            codes[static_cast<int64_t>(j) * extent.x() + i] = open_door ? static_cast<uint8_t>(FeatureTypeDoorOpen)
+                : staircase_down ? static_cast<uint8_t>(FeatureTypeStaircaseDown) : static_cast<uint8_t>(place.type);
         }
     }
 
@@ -500,7 +502,7 @@ void StratumWorld::advance()
         if (const sim::Blocked* pblocked = event.try_get<sim::Blocked>())
         {
             flecs::entity access_point = pblocked->blocking_wall_id != quetzal::nullid
-                ? sim::find_access_point_ahead(m_session.zone(), sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
+                ? sim::find_access_point(m_session.zone(), sim::WallId{pblocked->blocking_wall_id}) : flecs::entity();
             std::string name = access_point ? sim::entity_type_name(access_point) : std::string();
 
             m_message = access_point ? std::format("There is a {} before you.", name.empty() ? "way" : name) : std::string();

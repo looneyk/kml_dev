@@ -19,6 +19,7 @@ namespace
     using quetzal::stratum_view::DirectionMask;
     using quetzal::stratum_sim::AccessState;
     using quetzal::stratum_sim::DetectionState;
+    using quetzal::stratum_core::Directionality;
 
     //--------------------------------------------------------------------------
     // Pre-release, so files of an older version are not readable
@@ -39,8 +40,7 @@ namespace
         {"floor", FeatureType::Floor},
         {"wall", FeatureType::Wall},
         {"door", FeatureType::Door},
-        {"stairs_up", FeatureType::StairsUp},
-        {"stairs_down", FeatureType::StairsDown}
+        {"staircase", FeatureType::Staircase}
     };
 
     struct NamedAccess
@@ -52,8 +52,19 @@ namespace
     constexpr NamedAccess access_states[]
     {
         {"open", AccessState::Open},
-        {"closed", AccessState::Closed},
-        {"locked", AccessState::Locked}
+        {"closed", AccessState::Closed}
+    };
+
+    struct NamedLocked
+    {
+        const char* name;
+        bool locked;
+    };
+
+    constexpr NamedLocked locked_states[]
+    {
+        {"locked", true},
+        {"unlocked", false}
     };
 
     struct NamedDetection
@@ -67,6 +78,18 @@ namespace
         {"visible", DetectionState::Visible},
         {"concealed", DetectionState::Concealed},
         {"revealed", DetectionState::Revealed}
+    };
+
+    struct NamedDirectionality
+    {
+        const char* name;
+        Directionality directionality;
+    };
+
+    constexpr NamedDirectionality directionalities[]
+    {
+        {"up", Directionality::Up},
+        {"down", Directionality::Down}
     };
 
     //--------------------------------------------------------------------------
@@ -120,7 +143,7 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    // Sets the glyph's access or detection from the token, and returns false if the token is neither
+    // Sets the glyph's access, locked state, detection, or directionality from the token, and returns false if the token is none of them
     bool read_condition(Glyph& glyph, const std::string& token, const std::string& name, size_t row)
     {
         for (const NamedAccess& access : access_states)
@@ -137,6 +160,20 @@ namespace
             }
         }
 
+        for (const NamedLocked& locked : locked_states)
+        {
+            if (token == locked.name)
+            {
+                if (glyph.locked.has_value())
+                {
+                    fail(name, row, "more than one locked state");
+                }
+
+                glyph.locked = locked.locked;
+                return true;
+            }
+        }
+
         for (const NamedDetection& detection : detection_states)
         {
             if (token == detection.name)
@@ -147,6 +184,20 @@ namespace
                 }
 
                 glyph.detection = detection.detection;
+                return true;
+            }
+        }
+
+        for (const NamedDirectionality& directionality : directionalities)
+        {
+            if (token == directionality.name)
+            {
+                if (glyph.directionality.has_value())
+                {
+                    fail(name, row, "more than one directionality");
+                }
+
+                glyph.directionality = directionality.directionality;
                 return true;
             }
         }
@@ -263,8 +314,18 @@ quetzal::stratum_view::Glyphs quetzal::stratum_view::read_glyphs(std::istream& i
 
             if (!read_condition(glyph, token, name, row))
             {
-                fail(name, row, std::format("{} is not an access state or a detection state", token));
+                fail(name, row, std::format("{} is not an access state, a locked state, a detection state, or a directionality", token));
             }
+        }
+
+        if (glyph.type == FeatureType::Door && !glyph.access.has_value())
+        {
+            fail(name, row, "a door with no access state");
+        }
+
+        if (glyph.type == FeatureType::Staircase && !glyph.directionality.has_value())
+        {
+            fail(name, row, "a staircase with no directionality");
         }
 
         glyphs.push_back(glyph);

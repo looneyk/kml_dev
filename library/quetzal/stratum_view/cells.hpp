@@ -10,6 +10,7 @@
 #include "quetzal/stratum_sim/attachments.hpp"
 #include "quetzal/stratum_sim/DirectionMask.hpp"
 #include "quetzal/stratum_sim/World.hpp"
+#include "quetzal/stratum_core/Directionality.hpp"
 #include <cstdint>
 #include <optional>
 
@@ -19,8 +20,7 @@ namespace quetzal::stratum_view
     //--------------------------------------------------------------------------
     // The fixed structure at a place
     // None is an edge with no wall or a corner no wall line reaches. Solid is a closed cell, or a lattice position whose
-    // cells are all closed. StairsUp and StairsDown are a floor cell with an access point on it, or a stair block: the closed
-    // cell beyond a wall with an access point on it
+    // cells are all closed. Staircase is a floor cell with an access point on it
     enum class FeatureType : uint8_t
     {
         None,
@@ -28,8 +28,7 @@ namespace quetzal::stratum_view
         Floor,
         Wall,
         Door,
-        StairsUp,
-        StairsDown
+        Staircase
     };
 
     //--------------------------------------------------------------------------
@@ -37,13 +36,15 @@ namespace quetzal::stratum_view
     using stratum_sim::DirectionMask;
 
     //--------------------------------------------------------------------------
-    // The contents of one position: the fixed structure, its access and its general detection state, the directions in which
-    // the wall line continues, and whether an actor is on it
+    // The contents of one position: the fixed structure, its access, its locked state, its general detection state, and its
+    // directionality, the directions in which the wall line continues, and whether an actor is on it
     struct Place
     {
         FeatureType type = FeatureType::None;
         std::optional<stratum_sim::AccessState> access;
+        std::optional<bool> locked;
         stratum_sim::DetectionState detection = stratum_sim::DetectionState::Visible;
+        std::optional<stratum_core::Directionality> directionality;
         DirectionMask mask = DirectionMask::None;
         bool actor = false;
 

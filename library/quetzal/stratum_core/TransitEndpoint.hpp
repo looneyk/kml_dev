@@ -24,7 +24,7 @@ namespace quetzal::stratum_core
         std::string type;
         discrete_point2_type cell_position;
         discrete_vector2_type orientation;
-        discrete_vector2_type egress_direction;
+        discrete_vector2_type egress;
         std::optional<Directionality> directionality;
 
         friend bool operator==(const TransitEndpoint&, const TransitEndpoint&) = default;

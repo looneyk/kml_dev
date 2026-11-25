@@ -20,9 +20,9 @@ const FEATURE_COLORS: Array[Color] = [
 	Color(0.55, 0.52, 0.45),       # floor
 	Color(0.30, 0.28, 0.26),       # wall, not emitted
 	Color(0.70, 0.45, 0.20),       # door
-	Color(0.35, 0.60, 0.80),       # stairs up
-	Color(0.20, 0.30, 0.60),       # stairs down
-	Color(0.85, 0.72, 0.50),       # open door
+	Color(0.35, 0.60, 0.80),       # staircase
+	Color(0.85, 0.72, 0.50),       # door open
+	Color(0.20, 0.30, 0.60),       # staircase down
 ]
 
 # The actor tiles follow the feature tiles, indexed by StratumWorld.Occupant less one, and are painted on a layer above them

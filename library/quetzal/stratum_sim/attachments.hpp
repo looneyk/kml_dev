@@ -20,8 +20,7 @@ namespace quetzal::stratum_sim
     enum class AccessState
     {
         Open,
-        Closed,
-        Locked
+        Closed
     };
 
     //--------------------------------------------------------------------------
@@ -29,6 +28,13 @@ namespace quetzal::stratum_sim
     struct Access
     {
         AccessState state = AccessState::Closed;
+    };
+
+    //--------------------------------------------------------------------------
+    // The locked state of an entity such as a door, independent of its access being open or closed
+    struct Locked
+    {
+        bool locked = false;
     };
 
     //--------------------------------------------------------------------------
@@ -61,6 +67,9 @@ namespace quetzal::stratum_sim
     flecs::entity access_entity(flecs::entity e);
 
     std::optional<AccessState> access(flecs::entity e);
+
+    // Returns true if e, or its nearest ancestor that has a Locked, is locked. Returns no value if none has a Locked
+    std::optional<bool> locked(flecs::entity e);
 
     // Returns how the actor detects e, from the Detection on e or on its nearest ancestor that has one: the actor's own state
     // if it has one, and otherwise the general state. Returns Visible if none has a Detection. A null actor gets the general

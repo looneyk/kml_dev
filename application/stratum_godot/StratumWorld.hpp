@@ -87,8 +87,8 @@ public:
     godot::String render() const;
 
     // The fixed structure at each cell, one code per cell, row major from row zero. The codes repeat
-    // stratum_view::FeatureType for Godot, followed by FeatureTypeDoorOpen for a door whose access is open; None and Wall are
-    // never emitted, but keep the values aligned
+    // stratum_view::FeatureType for Godot, followed by FeatureTypeDoorOpen for a door whose access is open and
+    // FeatureTypeStaircaseDown for a staircase leading down; None and Wall are never emitted, but keep the values aligned
     enum FeatureType
     {
         FeatureTypeNone,
@@ -96,9 +96,9 @@ public:
         FeatureTypeFloor,
         FeatureTypeWall,
         FeatureTypeDoor,
-        FeatureTypeStairsUp,
-        FeatureTypeStairsDown,
-        FeatureTypeDoorOpen
+        FeatureTypeStaircase,
+        FeatureTypeDoorOpen,
+        FeatureTypeStaircaseDown
     };
 
     // Who is on each cell

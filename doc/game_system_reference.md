@@ -183,8 +183,7 @@ An empty zone's document, which has no `cells`, sets only the zone's `Document`,
 components, and leaves it with no layout. Otherwise it builds the layout through the same `stratum_format` functions that validated it. Each floor/door cell is open, with a wall on
 each side for which `has_wall` is true. Each room's cells, from `room_cells`, get its id, and `room_count` is the
 number of rooms. The flats get the file's heights, the floor defaulting to 0 and the ceiling to 1. A stair cell is
-floor in the block notation, with its staircase on its floor. In the wall notation it is a block, closed like solid,
-and the floor beside it is walled toward it.
+floor in both notations, with its staircase on its floor.
 
 A doorway block is a cell an actor may stand in, walled toward solid on its own side and toward floor on the floor's
 side alone. Two areas therefore never share an edge in the block notation. In the wall notation, two rooms that share
@@ -659,10 +658,12 @@ the wall notation, the two sides of one cell edge, and in the block notation, th
 doorway block. A door with one wall is a doorway into a dead end. The loader builds a door from the file's entities,
 with the `door` type giving it a closed `Access`, and a generator builds one the same way.
 
-`Access` is the state of a way through --- `Open`, `Closed` or `Locked`. A door off its hinges is
+`Access` is the state of a way through --- `Open` or `Closed`. A door off its hinges is
 open, and one smashed into rubble that blocks the doorway is closed. `access_entity(e)` returns the entity whose
 `Access` applies to `e`: `e` itself, or its nearest ancestor that has one. `access(e)` returns that state, so a door
-facing has its door's state. `Detection` is how actors perceive an entity: a general `DetectionState` (`Visible`,
+facing has its door's state. `Locked` is whether a way through is locked, the `locked` file component, independent of its
+access, so a door may be locked open or locked closed. `locked(e)` reads it from `e` or its nearest ancestor that has
+one, and returns no value if none has a `Locked`. `Detection` is how actors perceive an entity: a general `DetectionState` (`Visible`,
 `Concealed` or `Revealed`) and a list of `ActorDetection`, each an actor's persistent id and its own state, for each
 actor whose own state differs.
 `detection(e, actor)` reads it from `e` or its nearest ancestor that has one, and returns the actor's own state if it
@@ -676,8 +677,7 @@ cell --- with a `stratum_core::AccessPoint`, the component that the zone file's 
 unbound, or the persistent id of the access point it is bound to. An access point with no destination is arrival only. Its type is its entity's type, the prefab it `IsA`, so the access
 points of one type are found by a query on `(IsA, <type>)`.
 `destination_placement(access_point)` returns the placement given to an arriving actor, computed by the zone's
-`DiscreteLayout` from the access point's site and egress. A staircase in the wall notation is sited on the floor of its
-stair block, with the egress toward the floor it opens onto.
+`DiscreteLayout` from the access point's site and egress. A staircase is sited on the floor of its stair cell.
 
 An actor arrives through an access point at an access point of the same type. The type is what the access point is,
 and its destination determines whether it goes up, down, or across.
@@ -699,17 +699,14 @@ no such entity is solid. `World::move`, `neighbors` and `visible` bind it to the
 actor crosses a wall as it perceives the entities on it.
 
 `Interact` opens the access of the way through on the wall ahead if it is closed, or closes it if it is open, and
-reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays locked. If the controlled actor
-`can_enter` the access point that `find_access_point_ahead` returns for the wall ahead, `Interact` goes through it
-instead, and an access point beyond the wall that has access is the way through that it opens or closes. `Interacted` has the entity acted
+reports `Interaction::Opened`, `Closed` or `Nothing`. A locked way through stays open or closed as it is. If the controlled actor
+`can_enter` the access point sited on the wall ahead, `Interact` goes through it instead. `Interacted` has the entity acted
 on, the way through, and `entity_type_name(e)` returns the name of an entity's type, such as
 `staircase`, for the hosts' messages.
 
 `find_access_point(zone, address)` returns an access point sited on a wall or a flat cell, found through the layout
-entity's attached entities, or a null entity if there is none. `find_access_point_ahead(zone, wall)` returns the
-access point that an actor facing the wall enters: one sited on the wall, or one on the floor of the cell beyond it
-whose egress leads back through the wall. Moving into a wall and the hosts' messages about a blocked move use
-it too. `can_enter(access_point, actor)` returns true if the
+entity's attached entities, or a null entity if there is none. The hosts' messages about a blocked move use it with
+the wall. `can_enter(access_point, actor)` returns true if the
 actor can go through the access point: it has a destination, its access, if it has any, is open, and the actor does not find
 it concealed. A staircase has no `Access`, so it can always be entered, and a door facing that is an access point only
 while the door is open.
@@ -1087,10 +1084,10 @@ cell, in a discrete layout. They produce `Moved`, `Blocked`, `Turned`, `Interact
 `Died`.
 
 The controlled actor enters an access point on the wall ahead with `Interact`, and one on the floor of its cell with
-`Enter`, through `World::relocate_through`; any other actor does not enter an access point. A `Step` into a wall with
-an access point on it is `Blocked`, so a held movement key never takes the stairs. Entering by
-moving into the wall is kept in `commands.cpp` behind `enter_access_point_by_moving`, which is off. An access point on
-the floor does not impede movement. `Relocated` has the actor, the departure access point, and the destination access
+`Enter`, through `World::relocate_through`; any other actor does not enter an access point. A `Step` onto a cell enters
+the access point on its floor if its `automatic_entry` is true, and a `Step` into a wall with an access point on it is
+`Blocked`. An access point on the floor does not impede movement, and arriving through an access point is not a
+`Step`, so an actor arriving on an automatic access point does not go straight back through it. `Relocated` has the actor, the departure access point, and the destination access
 point.
 
 The clock builds `Step` and `TurnTo` from an actor's `Intent`. A one-shot command, such as `Interact`, waits on the
@@ -1154,13 +1151,13 @@ and `relative_zone_offset(zone_extended_name)` returns *k* for a name of that fo
 letter or underscore followed by letters, digits, and underscores. `parse_access_point_destination(text)` returns a region spec name
 for a name and a zone extended name for any other text that `parse_zone_extended_name` accepts, or nothing, and
 `format_access_point_destination(destination)` writes either back as the same text. A `TransitEndpoint` (`stratum_core/TransitEndpoint.hpp`) is one end of a transit between zones: an id,
-an optional name, its entity type, its cell position, its orientation, its egress direction, and an optional `Directionality`
+an optional name, its entity type, its cell position, its orientation, its egress, the offset to the cell an arriving actor is placed in, and an optional `Directionality`
 (`stratum_core/Directionality.hpp`), up or down, with `name` and `to_directionality`. A saved zone's `zone.id` is `ZoneDocument::zone_id`, which makes every id in the file persistent; it is
 empty in a zone template.
 
 `read_zone` validates the file, throwing `std::runtime_error` with the path within the document and what was wrong there.
 Beyond each section's structure, it checks what the rows determine: in the wall notation, a wall between every floor
-cell and a blank cell, a stair cell or the edge of the grid; a wall in the grid at every wall placement, whose cell is a
+cell and a solid cell or the edge of the grid; a wall in the grid at every wall placement, whose cell is a
 floor/door cell; a room's `RoomLocator` cell on a floor cell; a perimeter within the grid and along cell edges that
 never meets itself, each of whose cell edges is a wall toward a floor/door cell or a virtual wall between two; and no
 cell in two rooms, compared only for rooms whose bounding boxes intersect.
@@ -1296,13 +1293,14 @@ and the terminal uses a mapping. There is no view interface over them.
 `cells.hpp` declares the reductions, `ascii.hpp` the terminal's mapping, and `read_glyphs.hpp` the reader that fills a
 mapping from a file. `Buffer.hpp` defines the grid both produce.
 
-A position reduces to a `Place`: a `FeatureType`, its `access` and `detection`, its `mask`, and whether an actor is on
-it. `FeatureType` (`None`, `Solid`, `Floor`, `Wall`, `Door`, `StairsUp`, `StairsDown`) is the fixed structure, so a
-door that can be shut, locked or concealed is one type. `None` is an edge with no wall or a corner that no wall line reaches, which only
+A position reduces to a `Place`: a `FeatureType`, its `access`, `locked`, `detection`, and `directionality`, its
+`mask`, and whether an actor is on it. `FeatureType` (`None`, `Solid`, `Floor`, `Wall`, `Door`, `Staircase`) is the fixed
+structure, so a door that can be shut, locked or concealed is one type, and so is a staircase leading either way. `None` is an edge with no wall or a corner that no wall line reaches, which only
 `lattice` produces. `actor` is a flag over the structure, so the floor under an actor is still there to draw.
 
-`access` and `detection` are independent and use the simulation's types. `access` is the way through's `AccessState`
-from `access(e)`, and has no value for a position with no `Access`, such as a wall. `detection` is the way through's
+`access`, `locked`, and `detection` are independent and use the simulation's types. `access` is the way through's
+`AccessState` from `access(e)`, and has no value for a position with no `Access`, such as a wall. `locked` is from
+`locked(e)`, with no value for a position with no `Locked`. `detection` is the way through's
 general `DetectionState`, so `Concealed` marks one that is concealed from actors in general though not from the viewer,
 which a glyph set may draw outlined, and is `Visible` for a position with no `Detection`. The reduction is the only code
 that reads a component on behalf of a view.
@@ -1314,11 +1312,11 @@ finds concealed is drawn as though there were none, as a wall. A null viewer get
 cell. A wall or door on the edge between two cells has no position there, so
 it reduces to `Floor` on both sides.
 
-In both reductions, stairs are drawn on a floor cell with an access point on it, and on the closed cell beyond a wall
-with an access point on it, which is a stair block. They are `StairsDown` if the entity's `Directionality` is `Down`, and
-`StairsUp` otherwise. The site's orientation is not drawn. The glyph
-sets draw `StairsUp` as `<`, the entrance glyph, and `StairsDown` as `>`, and `read_glyphs` names them `stairs_up`
-and `stairs_down`.
+In both reductions, a `Staircase` is a floor cell with an access point on it, and its `directionality` is the entity's
+`Directionality`, with no value if the entity has none. A staircase requires a `Directionality`, so the generators'
+`create_staircase` takes one. The site's orientation is not drawn. The glyph sets draw a staircase leading up as
+`<`, the entrance glyph, and one leading down as `>`, and a glyph file writes the type as `staircase`. An access point on
+the floor with no `Directionality`, such as a portal, matches none of their lines.
 
 `lattice(world, zone, viewer)` reduces the zone onto the wall notation's lattice: `(2W+1)` by `(2H+1)`, with cell
 `(i, j)` at `(2i+1, 2j+1)`, the wall west of it at `(2i, 2j+1)`, the wall south of it at `(2i+1, 2j)`, and corners at
@@ -1351,23 +1349,26 @@ row, lowest row first. The result is empty if they are the same, and the whole o
 `render_lattice` does the same for the lattice; it has its own name because `Cells` and `Lattice` are the same type. A
 mapping is one lookup per position.
 
-A `Glyph` is one line of a glyph set: a feature type, optionally an access state, a detection state, and a mask,
-whether it requires an actor, and the character drawn. `Glyphs` returns the character of the most specific matching
-line, where an access state, a detection state, a mask, and an actor add one each to the specificity. Ties go to the earlier line, and a space is returned
-if no line matches. A set with a `door open` line draws an open door differently from a shut one, and a set with only
-`door` draws both the same.
+A `Glyph` is one line of a glyph set: a feature type, optionally an access state, a locked state, a detection state, a
+directionality, and a mask, whether it requires an actor, and the character drawn. `Glyphs` returns the character of
+the most specific matching line, where an access state, a locked state, a detection state, a directionality, a mask, and
+an actor add one each to the specificity. Ties go to the earlier line, and a space is returned if no line matches. A
+set with a `door closed locked` line draws a locked closed door differently from an unlocked one, and a set with only
+`door closed` draws both the same.
 
-`cell_glyphs()` has lines for the three types a cell can be, a door shut and open, and an actor on each type it can be on.
-Its actor lines come first, so an actor in an open doorway is drawn. `lattice_glyphs()` draws in the wall notation's
+`cell_glyphs()` has lines for the three types a cell can be, a door closed and open, a staircase up and down, and an
+actor on each of them, so an actor in an open doorway is drawn. `lattice_glyphs()` draws in the wall notation's
 glyphs, with floor as a space and a line for each of the sixteen wall masks.
 
 `read_glyphs` reads a glyph set from a file; `assets/glyphs/` has the two built-in sets. The first line states the
-format and version. A glyph line is a feature type, then in any order the access state it requires (`open`, `closed`,
-`locked`) and the detection state (`visible`, `concealed`, `revealed`), `actor` if it requires an actor, `mask=` and
-the directions it requires, then the character in single quotes, with `\\` and `\'` as the escapes. Omitting a state,
-`actor` or `mask=` matches any; `mask=` with no directions requires that no wall line reach the position. A line
-beginning with `#` is a comment. It throws, reporting the line, including for a second access state or a second
-detection state on one line. The shipped files are compared against the built-in sets.
+format and version. A glyph line is a feature type, then in any order the access state it requires (`open`,
+`closed`), the locked state (`locked`, `unlocked`), the detection state (`visible`, `concealed`, `revealed`), and the
+directionality (`up`, `down`), `actor` if it requires an actor, `mask=` and the directions it requires, then the
+character in single quotes, with `\\` and `\'` as the escapes. A `door` line requires an access state and a
+`staircase` line a directionality. Omitting any other state, `actor` or `mask=` matches any; `mask=` with no directions
+requires that no wall line reach the position. A line beginning with `#` is a comment. It throws, reporting the line,
+including for a missing required state and for two access states, locked states, detection states, or directionalities on
+one line. The shipped files are compared against the built-in sets.
 
 ## Terminal host
 
@@ -1467,7 +1468,8 @@ listing an empty array; and a game whose `advance` throws during `step`, `intera
 is quit, as it cannot continue.
 
 `cells` is one code per cell from `stratum_view::cells`, row major from row zero; its `FeatureType` constants repeat
-`stratum_view::FeatureType` for Godot, followed by `FeatureTypeDoorOpen` for a door whose access is open. `actors` is one
+`stratum_view::FeatureType` for Godot, followed by `FeatureTypeDoorOpen` for a door whose access is open and
+`FeatureTypeStaircaseDown` for a staircase leading down. `actors` is one
 `Occupant` per cell in the same order: `OccupantNone`, `OccupantCharacter`, or `OccupantOther` for any other actor.
 
 `game.tscn` is the tile view: a `TileMapLayer` fed from `cells`, a second layer for actors, a camera, and arrow or
@@ -1541,12 +1543,10 @@ maximum, and a count leading up may fall short of its minimum only if no stairca
 reachable from every other, except in maze1, which can leave corridor that no door reaches, and every staircase must
 have the destination `../[-1]` or `../[+1]` as its glyph indicates, or the region spec's name for a staircase down with a
 region spec. `access_points` must refer to every staircase. In `dungen_test`, every staircase must be on the floor of its cell,
-with an orientation in a cardinal direction, and neither on a doorway nor beside one. In `catagen_test`, with the stair blocks in place, no
-staircase may block a doorway if a cell beside it would not, and every staircase must be sited on exactly one of the
-walls around its block and open onto a side with floor beyond, or a door if there is none. Both take what the written
-zone does not record about a stair cell --- its room in dungen, and which of its sides were open in catagen --- from
-the zone generated again. `catagen_test` also checks that every edge between a stair cell and floor is written as
-a wall. Validation rejects a staircase up count whose minimum is zero, including when only staircases down are asked
+with an orientation in a cardinal direction, and neither on a doorway nor beside one. In `catagen_test`, a stair cell
+counts as floor for reachability, every staircase's egress must be an open side with floor beyond, or a door if
+there is none, and every other side of it must be walled. `dungen_test` takes what the written zone does not record about a stair cell, its room, from the zone
+generated again. Validation rejects a staircase up count whose minimum is zero, including when only staircases down are asked
 for, for every algorithm but surface1. Each also reads a reference zone's generator parameters back and regenerates from them, since a zone file
 has every parameter of its run. A parameter that the writer emits and the test does not read fails, as does one that
 the test reads and the file lacks.

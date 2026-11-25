@@ -219,18 +219,20 @@ namespace
             .each([&](flecs::entity, const stratum_sim::Access&) { ++door_count; });
 
         CHECK_CASE("the grid is the file's extent", walls.grid().extent == stratum_sim::discrete_vector2_type(4, 3));
-        CHECK_CASE_EQUAL("each room is walled on every side it presents", wall_counts(walls).sides, 24);
+        CHECK_CASE_EQUAL("each room is walled on every side it presents", wall_counts(walls).sides, 28);
         CHECK_CASE_EQUAL("a zone defining no rooms has none", walls.room_count(), 0);
 
         // A wall with a room behind it instead of a solid cell, which the block notation cannot express
-        CHECK_CASE_EQUAL("the shared wall is walled from both sides wherever both are floor", wall_counts(walls).both_sides, 4);
+        CHECK_CASE_EQUAL("the shared wall is walled from both sides wherever both are floor", wall_counts(walls).both_sides, 14);
         CHECK_CASE_EQUAL("one pair of it is the door", door_count, 1);
 
-        // At this seed the door is in the top row of the shared wall, and the staircases in the middle row of each room
+        // At this seed the door is in the top row of the shared wall, and the staircases in the middle row
         CHECK_CASE("a mover crosses at the door", walls.crossable(stratum_sim::discrete_point2_type{1, 2}, cardinal_direction(CardinalDirection::East), crossable));
         CHECK_CASE("and back through it", walls.crossable(stratum_sim::discrete_point2_type{2, 2}, cardinal_direction(CardinalDirection::West), crossable));
-        CHECK_CASE("but not below it", !walls.crossable(stratum_sim::discrete_point2_type{2, 1}, cardinal_direction(CardinalDirection::West), crossable));
-        CHECK_CASE("nor two below", !walls.crossable(stratum_sim::discrete_point2_type{1, 0}, cardinal_direction(CardinalDirection::East), crossable));
+        CHECK_CASE("but not two below it", !walls.crossable(stratum_sim::discrete_point2_type{1, 0}, cardinal_direction(CardinalDirection::East), crossable));
+        CHECK_CASE("and into a staircase's alcove only from its open side",
+            walls.crossable(stratum_sim::discrete_point2_type{2, 1}, cardinal_direction(CardinalDirection::West), crossable)
+            && !walls.crossable(stratum_sim::discrete_point2_type{0, 1}, cardinal_direction(CardinalDirection::East), crossable));
         CHECK_CASE("and never within one room", walls.crossable(stratum_sim::discrete_point2_type{0, 0}, cardinal_direction(CardinalDirection::East), crossable));
 
         CHECK_CASE_EQUAL("every open cell is reachable through the door", cells_reached(walls, crossable), open_cells(walls));
@@ -366,14 +368,22 @@ namespace
         CHECK_CASE("and one who has not does not", !stratum_sim::crossable(zone, wall_a, other));
 
         facings[0].remove<stratum_sim::Detection>();
-        door.set<stratum_sim::Access>(stratum_sim::Access{stratum_sim::AccessState::Locked});
-        CHECK_CASE("a locked door is not crossable", !stratum_sim::crossable(zone, wall_a, actor));
+        door.set<stratum_sim::Access>(stratum_sim::Access{stratum_sim::AccessState::Closed});
+        door.set<stratum_sim::Locked>(stratum_sim::Locked{true});
+        CHECK_CASE("a locked closed door is not crossable", !stratum_sim::crossable(zone, wall_a, actor));
 
         // Interacting with the door an actor faces opens and shuts it
         stratum_sim::EventQueue door_events;
         stratum_sim::apply(world, stratum_sim::Command(actor.id(), stratum_sim::Interact{}), door_events);
-        CHECK_CASE("interacting leaves a locked door locked", stratum_sim::access(door) == stratum_sim::AccessState::Locked);
+        CHECK_CASE("interacting leaves a locked closed door closed", stratum_sim::access(door) == stratum_sim::AccessState::Closed
+            && stratum_sim::locked(door) == true);
 
+        door.set<stratum_sim::Access>(stratum_sim::Access{stratum_sim::AccessState::Open});
+        stratum_sim::apply(world, stratum_sim::Command(actor.id(), stratum_sim::Interact{}), door_events);
+        CHECK_CASE("and a locked open door open, and crossable", stratum_sim::access(door) == stratum_sim::AccessState::Open
+            && stratum_sim::crossable(zone, wall_a, actor));
+
+        door.remove<stratum_sim::Locked>();
         door.set<stratum_sim::Access>(stratum_sim::Access{stratum_sim::AccessState::Closed});
         door_events.clear();
         stratum_sim::apply(world, stratum_sim::Command(actor.id(), stratum_sim::Interact{}), door_events);

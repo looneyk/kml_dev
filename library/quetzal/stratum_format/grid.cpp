@@ -169,7 +169,7 @@ bool quetzal::stratum_format::on_grid(const Cells& cells, const discrete_point2_
 //------------------------------------------------------------------------------
 bool quetzal::stratum_format::floor_cell(const Cells& cells, const discrete_point2_type& cell_position)
 {
-    return cell_glyph(cells, cell_position) == '.' || (cells.notation == quetzal::stratum_core::Notation::Block && stair_cell(cells, cell_position));
+    return cell_glyph(cells, cell_position) == '.' || stair_cell(cells, cell_position);
 }
 
 //------------------------------------------------------------------------------

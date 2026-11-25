@@ -70,40 +70,6 @@ namespace
     }
 
     //--------------------------------------------------------------------------
-    bool stair_cell(const Zone& zone, const discrete_point2_type& cell)
-    {
-        if (!zone.contains(cell))
-        {
-            return false;
-        }
-
-        return zone.cell(cell) == CellType::Staircase;
-    }
-
-    //--------------------------------------------------------------------------
-    bool floor_cell(const Zone& zone, const discrete_point2_type& cell)
-    {
-        return zone.contains(cell) && zone.cell(cell) == CellType::Open;
-    }
-
-    //--------------------------------------------------------------------------
-    // A stair cell is a block, so beside one there is a wall where floor is, even across an open wall, and none elsewhere
-    WallType written_wall(const Zone& zone, WallType type, const discrete_point2_type& a, const discrete_point2_type& b)
-    {
-        if (!stair_cell(zone, a) && !stair_cell(zone, b))
-        {
-            return type;
-        }
-
-        if (!floor_cell(zone, a) && !floor_cell(zone, b))
-        {
-            return WallType::Open;
-        }
-
-        return type == WallType::Open ? WallType::Solid : type;
-    }
-
-    //--------------------------------------------------------------------------
     // The first row is the highest, the origin being the lower left cell
     vector<string> rows(const Zone& zone)
     {
@@ -130,11 +96,11 @@ namespace
                 }
                 else if (cell_x)
                 {
-                    row[x] = wall_glyph(written_wall(zone, zone.wall_horizontal(i, j), {i, j - 1}, {i, j}), '-');
+                    row[x] = wall_glyph(zone.wall_horizontal(i, j), '-');
                 }
                 else if (cell_y)
                 {
-                    row[x] = wall_glyph(written_wall(zone, zone.wall_vertical(i, j), {i - 1, j}, {i, j}), '|');
+                    row[x] = wall_glyph(zone.wall_vertical(i, j), '|');
                 }
             }
 
@@ -227,7 +193,7 @@ quetzal::stratum_format::ZoneDocument quetzal::catagen::make_document(const Zone
         const stratum_core::AccessPoint::destination_type destination = leads_down && parameters.staircase_down_region_spec.has_value()
             ? stratum_core::AccessPoint::destination_type{stratum_core::RegionSpecName{*parameters.staircase_down_region_spec}}
             : stratum_core::AccessPoint::destination_type{stratum_core::relative_zone_extended_name(leads_down ? -1 : 1)};
-        stratum_core::AccessPoint access_point{.order = staircase_count++, .egress = endpoint.egress_direction, .destination = destination};
+        stratum_core::AccessPoint access_point{.order = staircase_count++, .egress = endpoint.egress, .destination = destination};
 
         stratum_format::raw_values_type components = stratum_format::raw_values_type::object();
         if (endpoint.directionality.has_value())

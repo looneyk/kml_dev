@@ -451,14 +451,12 @@ namespace
     {
         return ranges::any_of(zone.transit_endpoints(), [&](const stratum_core::TransitEndpoint& endpoint)
         {
-            return endpoint.cell_position + endpoint.egress_direction == cell;
+            return endpoint.cell_position + endpoint.egress == cell;
         });
     }
 
     //--------------------------------------------------------------------------
-    // Returns true if a staircase's block can go at an open cell. The block needs a passable side to face, and the cells
-    // across the block's passable sides must still reach one another around it
-    bool block_allowed(const Zone& zone, const discrete_point2_type& cell)
+    bool staircase_allowed(const Zone& zone, const discrete_point2_type& cell)
     {
         assert(zone.cell(cell) == CellType::Open);
 
@@ -547,7 +545,7 @@ namespace
             }
 
             discrete_point2_type next = neighbor(cell, direction);
-            if (zone.cell(next) == CellType::Open && !blocks_doorway(zone, next) && block_allowed(zone, next))
+            if (zone.cell(next) == CellType::Open && !blocks_doorway(zone, next) && staircase_allowed(zone, next))
             {
                 available.push_back(next);
             }
@@ -585,7 +583,7 @@ namespace
     //--------------------------------------------------------------------------
     optional<discrete_directed_point2_type> staircase_placement(const Zone& zone, discrete_point2_type cell, random_type& random)
     {
-        if (!block_allowed(zone, cell))
+        if (!staircase_allowed(zone, cell))
         {
             return nullopt;
         }
