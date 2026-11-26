@@ -159,10 +159,12 @@ boxes are removed at the start of the next piece of work, since the reference do
 
 ## Views
 
+- [ ] **Block and wall geometry** (`block_wall_plan.md`): separate code paths for the two notations in the format and
+      the views, each view drawing only its own geometry type.
 - [ ] **Floor access points drawn by their orientation.** The views draw one with the stair glyph and ignore its
       orientation.
-- [ ] **A lattice view in the Godot host,** drawn from `lattice` with the walls and doors on cell edges, so that it
-      draws either notation, and listed in the Godot manifests as `lattice`. The tile view stays drawn from `cells`.
+- [ ] **A wall view in the Godot host,** a 3D first-person grid view like Grimrock's for the wall notation, mapping
+      `WallCells`, `Edges`, and corners to meshes, and listed in `godot_wall.json` (`block_wall_plan.md`).
 - [ ] **Dimetric, isometric, and first-person views,** each offered by a game whose assets support it. The Godot host
       is likely to become the primary viewer. The views are top-down for now, so these are undecided. Dimetric might
       need little more than another tile set, and isometric not much more, but neither has been examined.
